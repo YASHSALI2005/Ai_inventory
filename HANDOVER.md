@@ -16,50 +16,71 @@ Read it before touching anything — it is the agreed statement of what we are b
 
 ## Status — 2026-09-09
 
-**Phase 0 (Understanding & proposal): complete, pending management review.**
+**Phase 0 approved. Phase 1 (POC) started — vertical slice is running end to end.**
 
-| Item | State |
+Run it:
+
+```
+python cli.py build --preset toy     # generate + run engine   (~0.5s)
+python cli.py score --preset toy     # grade against answer key
+python -m pytest -q                  # 12 tests
+```
+
+| Step | State |
 |---|---|
-| Company + industry research | Done — in `docs/PROPOSAL.md` §2, §3, §5 |
-| SOW capabilities restated in plain language | Done — `docs/PROPOSAL.md` §4 |
-| POC scope, depth per capability, out-of-scope boundary | Done — `docs/PROPOSAL.md` §6 |
-| Synthetic dataset design | Designed, not built — `docs/PROPOSAL.md` §7 |
-| Architecture | Designed, not built — `docs/PROPOSAL.md` §8 |
-| Management deck (long form, read) | Published — `docs/deck.html` → https://claude.ai/code/artifact/c565ff58-d6ea-44b2-91a3-64fca887a8e6 |
-| **Pitch deck (4 slides, present)** | Published — `docs/pitch.html` → https://claude.ai/code/artifact/c3d347ad-8ead-42e4-91c6-8d8fd60ed3cf |
-| **Build plan (published doc)** | Published — `docs/build-plan.html` → https://claude.ai/code/artifact/2d0d30b3-41c0-4460-8160-b5537a378b35 |
-| **Code** | **None written.** Deliberate — awaiting Phase 1 go-ahead |
+| `contracts/` schemas + config | Done. Cutoff date and the shortage-cost function live here |
+| `sim/` replenishment mechanics | Done. Shared by generator and scoring |
+| 1 · data generator + answer key | **Done at toy scale.** Not yet run at `--preset full` |
+| 2 · data quality (cap 4) | **Negative stock only.** Six checks + duplicate matcher still to write |
+| 3 · demand classifier | Not started |
+| 4 · forecasters (cap 1) | Not started |
+| 5 · stocking policy (cap 3) | Not started |
+| 6 · dead money + transfers (caps 2, 5) | Not started |
+| 7 · API + screens | Not started |
+| 8 · chat (cap 7) | Not started |
 
-## Blocked on
+**Current score** (`python cli.py score`): NEGATIVE_STOCK 1/1 found, 0 false alarms.
+Thin because toy plants ~13 defects total; real scoring quality gets judged at
+`--preset full`.
 
-Management go/no-go on the Phase 0 proposal. No code until that lands.
+### Dataset properties, asserted in tests
 
-## Next, when Phase 1 starts
+Both inside their industry bands, and both **emergent** rather than injected:
 
-In order — each step is useless without the one before it:
+- **35%** of lines idle for 24 months (band 30–50%)
+- **36%** of stock value dead (band 20–40%)
 
-1. **Synthetic data generator first.** Everything downstream is judged by it. It must emit a
-   **ground-truth answer key** of every planted defect, or the POC cannot be scored and the
-   whole verification story in §10 collapses.
-2. Demand classifier (Syntetos-Boylan-Croston: ADI × CV²) → routes each item to the right
-   forecasting method. This is the two-populations split; it gates capabilities 1 and 3.
-3. Stocking policy engine — empirical quantiles for lumpy/intermittent, criticality override
-   for insurance spares.
-4. SLOB / duplicate / transfer detection (capabilities 2 and 5).
-5. API + UI.
-6. Conversational layer last — it narrates what the engine computes, so it needs the engine.
+If a change pushes either outside its band, `tests/test_generator.py` fails. That
+is deliberate — every downstream number is measured against this data, so a
+generator that drifts into producing a supermarket would make the forecasts and
+the backtest look excellent and mean nothing.
+
+## Next
+
+1. Remaining rule checks in `engine/quality.py`, scoring after each one.
+2. Duplicate matcher — TF-IDF candidates + RapidFuzz scoring. No embeddings
+   (see `DECISIONS.md`); the interface takes a list of scorers so they can be added.
+3. One dashboard screen, to close the vertical slice.
+4. Then deepen step by step: classifier → forecasters → policy → dead money.
+5. Run `--preset full` once and check the realism bands still hold at 20k items.
 
 ## Things to avoid
 
-- **Do not apply `z · σ · √LT` safety stock across the board.** It is wrong for the
-  insurance-spare population, which is where the expensive errors are. See `DECISIONS.md`
-  2026-09-09 entry and `docs/PROPOSAL.md` §3.
-- **Do not let the LLM compute anything.** It calls the engine and narrates the result. A
-  hallucinated stock figure in a client demo is unrecoverable.
-- **Do not quote the "50–60% of MRO is SLOB" benchmark.** No traceable primary source. We use
-  20–40%, with the caveat stated. See `DECISIONS.md`.
-- `noah-stock-v2` / `noah-stock-ui-v2` in the parent folder are **reference only** — a prior
-  retail/F&B inventory project. Read for design ideas; do not fork, do not import.
+- **Never let `engine/` import `sim/`, `generator/` or `scoring/`.** A test parses
+  the AST and fails if it does. If the engine could see the answer key, the score
+  would be meaningless and nobody would notice until a Ma'aden engineer asked how
+  it was measured.
+- **Do not plant overstock, obsolescence or critical-below-reorder.** They must
+  emerge from the stale policy and from equipment decommissioning, and are scored
+  against `truth`. Planting them would grade the engine on our own injection rules.
+- **Fit on `cfg.train_slice()`, score on `cfg.eval_slice()`.** Never touch the
+  movements frame directly for either.
+- **Do not apply `z · σ · √LT` across the board** — wrong for the insurance-spare
+  population, which is where the expensive errors are.
+- **Do not let the LLM compute anything.** It calls the engine and narrates.
+- **Do not quote the "50–60% of MRO is SLOB" benchmark.** No traceable source.
+- **`noah-stock-v2` / `noah-stock-ui-v2` are reference only** — a prior project.
+  Read for design ideas; do not fork, do not import.
 
 ## Related docs
 
