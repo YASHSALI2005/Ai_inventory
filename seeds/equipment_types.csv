@@ -1,0 +1,33 @@
+equipment_type,plant,name_pattern,weight,criticality_bias
+POT,SMELTER,"Pot {n:03d}, Line {l}",30,A
+RECTIFIER,SMELTER,"Rectifier group {n}",6,A
+ANODE_ROD_SHOP,SMELTER,"Rodding station {n}",5,B
+PTA_CRANE,SMELTER,"Pot tending assembly {n}",6,A
+CAST_HOUSE,SMELTER,"Casting furnace {n}",5,A
+DIGESTER,REFINERY,"Digester train {n}",10,A
+SLURRY_PUMP,REFINERY,"Slurry pump {tag}",14,B
+THICKENER,REFINERY,"Thickener {n}",6,A
+PRECIPITATOR,REFINERY,"Precipitator tank {n}",7,B
+FILTER_PRESS,REFINERY,"Filter press {n}",6,B
+HEAT_EXCHANGER,REFINERY,"Heat exchanger {tag}",8,B
+MILL_STAND,ROLLING,"Mill stand {n}",8,A
+COILER,ROLLING,"Coiler {n}",5,A
+SHEAR_LINE,ROLLING,"Shear line {n}",4,B
+HYDRAULIC_POWER_UNIT,ROLLING,"Hydraulic power unit {n}",5,A
+EMULSION_PLANT,ROLLING,"Emulsion plant {n}",4,B
+ROLL_SHOP,ROLLING,"Roll grinder {n}",4,B
+HAUL_TRUCK,MINE,"Haul truck HT-{n:03d}",12,B
+SHOVEL,MINE,"Shovel SH-{n:02d}",5,A
+CRUSHER,MINE,"Primary crusher {n}",5,A
+CONVEYOR,MINE,"Conveyor CV-{n:03d}",12,B
+DRILL_RIG,MINE,"Drill rig DR-{n:02d}",5,B
+SCREEN,MINE,"Screen deck {n}",4,C
+LOCOMOTIVE,RAIL,"Locomotive LOC-{n:02d}",4,A
+WAGON,RAIL,"Wagon set WS-{n:03d}",8,B
+TRANSFORMER,SITEWIDE,"Transformer TX-{n:02d}",6,A
+SWITCHGEAR,SITEWIDE,"MV switchboard SWB-{n:02d}",6,A
+MOTOR_DRIVE,SITEWIDE,"Drive cabinet DRV-{n:03d}",8,B
+UTILITY_PUMP,SITEWIDE,"Utility pump UP-{n:03d}",8,C
+INSTRUMENT_LOOP,SITEWIDE,"Instrument loop IL-{n:03d}",7,B
+GENERIC,SITEWIDE,"General asset GA-{n:03d}",6,C
+MECH_GENERIC,SITEWIDE,"Mechanical asset MA-{n:03d}",7,C

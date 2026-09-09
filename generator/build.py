@@ -1,22 +1,25 @@
 """
-The data maker: writes fake PiLog / CMMS / SAP tables plus the answer key.
+The data maker: builds fake PiLog / CMMS / SAP tables plus the answer key.
 
 Two rules shape everything here.
 
-1. **Vectorised.** Demand is produced by sampling inter-demand gaps and demand
-   sizes per item with numpy, then assembling a ledger — never by looping over
-   days. The only per-item Python loop is the replenishment walk, which is
-   inherently sequential and runs over a dense day vector inside `sim`.
+1. **Vectorised.** Demand comes from sampling inter-demand gaps and demand sizes
+   per item with numpy, then assembling a ledger — never by looping over days. The
+   replenishment walk runs over all positions at once inside `sim`.
 
 2. **Emergent, not injected, where it matters.** Overstock, obsolescence and
    critical-items-below-reorder-point are NOT planted. They appear because the
    simulated plant runs a stale, mediocre min/max policy against demand that has
-   drifted, and because some equipment gets decommissioned mid-history while its
-   spares keep sitting there. Those are scored against `truth`.
+   drifted, and because equipment gets decommissioned mid-history while its spares
+   keep sitting there. Those are scored against `truth`.
 
    Only *data* defects are planted — negatives, blanks, UOM errors, duplicates,
    orphan issues — because those have no natural generating process here and we
    want an exact found/missed/false-alarm count for them.
+
+The unit of stocking is a POSITION: a material in a storeroom. A material can hold
+positions in several storerooms, which is what gives capability 5 (transfers)
+anything to work with.
 """
 
 from __future__ import annotations
@@ -28,19 +31,6 @@ import pandas as pd
 
 from contracts import schemas as S
 from contracts.config import RunConfig
-from sim.replenish import densify, walk
-
-# Demand shape per seed-file profile.
-#   interval_days: mean gap between demands
-#   size_mean / size_cv: quantity when a demand occurs
-#   drift: multiplicative change in rate across the 3 years — this is what makes
-#          the plant's frozen min/max levels go stale, producing real overstock.
-PROFILES = {
-    "consumable": dict(interval=(2.0, 9.0), size=(4.0, 40.0), cv=(0.35, 0.8), drift=(0.7, 1.4)),
-    "occasional": dict(interval=(25.0, 90.0), size=(1.0, 5.0), cv=(0.5, 1.1), drift=(0.5, 1.6)),
-    "lumpy": dict(interval=(90.0, 300.0), size=(1.0, 8.0), cv=(0.9, 1.8), drift=(0.4, 1.8)),
-    "insurance": dict(interval=(700.0, 3000.0), size=(1.0, 2.0), cv=(0.2, 0.6), drift=(0.8, 1.2)),
-}
 
 STOREROOM_BY_AREA = {
     "MINE": "BAITHA",
@@ -51,10 +41,50 @@ STOREROOM_BY_AREA = {
     "SITEWIDE": "CENTRAL",
 }
 
-MANUFACTURERS = (
-    "SKF", "Flexitallic", "Metso", "FLSmidth", "Weir", "ABB", "Siemens", "Danieli",
-    "Alstom", "Sandvik", "Rio Tinto Alcan", "Outotec", "Emerson", "Parker", "Eaton",
-)
+# Base demand shape per seed profile. `drift` is a multiplicative change in rate
+# across the three years — it is what makes a policy set in year one wrong by year
+# three, and therefore the source of emergent excess.
+PROFILES = {
+    "consumable": dict(interval=(2.0, 9.0), size=(4.0, 40.0), cv=(0.35, 0.8), drift=(0.7, 1.4)),
+    "occasional": dict(interval=(25.0, 90.0), size=(1.0, 5.0), cv=(0.5, 1.1), drift=(0.5, 1.6)),
+    "lumpy": dict(interval=(90.0, 300.0), size=(1.0, 8.0), cv=(0.9, 1.8), drift=(0.4, 1.8)),
+    "insurance": dict(interval=(700.0, 3000.0), size=(1.0, 2.0), cv=(0.2, 0.6), drift=(0.8, 1.2)),
+}
+
+# How a variant token is rendered, per seed `size_token_type`. Getting this right
+# is most of what makes a material master read as real: "BEARING, BALL, 6205" is a
+# part; "OIL, GEAR LUBRICATING, 188MM" is not.
+_ISO_VG = (32, 46, 68, 100, 150, 220, 320, 460)
+_BORE = (15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 90, 100, 110, 120)
+_DN = (15, 20, 25, 32, 40, 50, 65, 80, 100, 125, 150, 200, 250, 300, 400, 500)
+_M = (6, 8, 10, 12, 16, 20, 24, 30, 36)
+_M_LEN = (20, 25, 30, 40, 50, 60, 80, 100, 120)
+_KW = (0.75, 1.5, 2.2, 4, 7.5, 11, 18.5, 30, 45, 75, 110, 160, 250, 400, 630, 1000)
+_AH = (7, 12, 26, 40, 65, 100, 150, 200)
+
+
+def _size_token(kind: str, rng: np.random.Generator, n: int) -> np.ndarray:
+    """Render n variant tokens of the given kind."""
+    if kind == "bore_mm":
+        series = rng.choice(np.array([62, 63, 60, 222, 223]), size=n)
+        bore = rng.choice(np.array(_BORE), size=n)
+        return np.array([f"{s}{b // 5:02d}" for s, b in zip(series, bore, strict=True)])
+    if kind == "dn":
+        return np.array([f"DN{v}" for v in rng.choice(np.array(_DN), size=n)])
+    if kind == "od_mm":
+        return np.array([f"{v}MM" for v in rng.choice(np.arange(20, 900, 5), size=n)])
+    if kind == "iso_vg":
+        return np.array([f"ISO VG {v}" for v in rng.choice(np.array(_ISO_VG), size=n)])
+    if kind == "m_thread":
+        th = rng.choice(np.array(_M), size=n)
+        ln = rng.choice(np.array(_M_LEN), size=n)
+        return np.array([f"M{t}X{ln_}" for t, ln_ in zip(th, ln, strict=True)])
+    if kind == "kw":
+        return np.array([f"{v:g}KW" for v in rng.choice(np.array(_KW), size=n)])
+    if kind == "ah":
+        return np.array([f"{v}AH" for v in rng.choice(np.array(_AH), size=n)])
+    # "none": a rating or mark rather than a dimension
+    return np.array([f"TYPE {c}" for c in rng.choice(np.array(list("ABCDEFGHJK")), size=n)])
 
 
 @dataclass
@@ -65,14 +95,15 @@ class Generated:
     movements: pd.DataFrame
     work_orders: pd.DataFrame
     shutdowns: pd.DataFrame
-    truth: pd.DataFrame
+    truth_materials: pd.DataFrame
+    truth_positions: pd.DataFrame
     planted_defects: list[dict]
 
 
-# ── pieces ───────────────────────────────────────────────────────────────────
+# ── seeds ────────────────────────────────────────────────────────────────────
 
 
-def _load_families(cfg: RunConfig) -> pd.DataFrame:
+def load_families(cfg: RunConfig) -> pd.DataFrame:
     fams = pd.read_csv(cfg.seeds_dir / "part_families.csv")
     bad = set(fams["profile"]) - set(PROFILES)
     if bad:
@@ -80,19 +111,72 @@ def _load_families(cfg: RunConfig) -> pd.DataFrame:
     return fams
 
 
-def _build_equipment(cfg: RunConfig, rng: np.random.Generator) -> pd.DataFrame:
+def load_equipment_types(cfg: RunConfig) -> pd.DataFrame:
+    return pd.read_csv(cfg.seeds_dir / "equipment_types.csv")
+
+
+# ── equipment ────────────────────────────────────────────────────────────────
+
+
+def build_equipment(cfg: RunConfig, eq_types: pd.DataFrame, rng: np.random.Generator):
+    """
+    Typed, named assets from the seed file.
+
+    Names come from `name_pattern` ("Pot 042, Line 3"), not "SMELTER asset 0042",
+    and the type is what lets a bearing attach to a pump rather than to a potline —
+    the first thing a maintenance engineer checks.
+    """
     n = cfg.size.n_equipment
-    plants = np.array(S.PLANTS)
-    # site-wide assets are fewer; weight towards the process plants
-    weights = np.array([0.18, 0.06, 0.24, 0.26, 0.18, 0.08])
-    plant = rng.choice(plants, size=n, p=weights)
-    crit = rng.choice(np.array(S.CRITICALITY), size=n, p=[0.22, 0.43, 0.35])
+    w = eq_types["weight"].to_numpy(dtype=float)
+
+    # Every asset type gets at least one instance before weighting fills the rest.
+    # Without this the toy preset misses types entirely and a crusher concave ends
+    # up bolted to "General asset GA-001", which is the first thing a maintenance
+    # engineer would notice.
+    guaranteed = np.arange(len(eq_types))[: min(len(eq_types), n)]
+    remaining = n - guaranteed.size
+    if remaining > 0:
+        drawn = rng.choice(np.arange(len(eq_types)), size=remaining, p=w / w.sum())
+    else:
+        drawn = np.empty(0, dtype=int)
+    idx = np.concatenate([guaranteed, drawn])
+    rng.shuffle(idx)
+    t = eq_types.iloc[idx].reset_index(drop=True)
+
+    names = []
+    counters: dict[str, int] = {}
+    for etype, pattern in zip(t["equipment_type"], t["name_pattern"], strict=True):
+        counters[etype] = counters.get(etype, 0) + 1
+        k = counters[etype]
+        names.append(pattern.format(n=k, l=(k % 4) + 1, tag=f"{etype[:2]}{k:03d}"))
+
+    crit = t["criticality_bias"].to_numpy()
+    crit = np.where(rng.random(n) < 0.15, rng.choice(np.array(S.CRITICALITY), size=n), crit)
+
+    # Ras Al Khair was commissioned 2013-15; a decade-old asset base is what makes
+    # the commissioning-spares story coherent. Every asset built the day before
+    # history starts contradicts it.
+    early_lo, early_hi = cfg.equipment_commissioning_window
+    late_lo, late_hi = cfg.equipment_late_window
+    is_late = rng.random(n) < cfg.equipment_late_share
+    day_ns = 86_400_000_000_000
+    span_early = (pd.Timestamp(early_hi) - pd.Timestamp(early_lo)).days
+    span_late = (pd.Timestamp(late_hi) - pd.Timestamp(late_lo)).days
+    commissioned = np.where(
+        is_late,
+        pd.Timestamp(late_lo).value + rng.integers(0, span_late, n) * day_ns,
+        pd.Timestamp(early_lo).value + rng.integers(0, span_early, n) * day_ns,
+    )
+
+    # A guaranteed floor of decommissioned assets: with one, every obsolescence
+    # score comes out 0% or 100% by luck.
+    n_decom = max(cfg.size.min_decommissioned, int(round(n * cfg.decommission_share)))
+    decom_idx = rng.choice(n, size=min(n_decom, n), replace=False)
+    decommissioned = np.zeros(n, dtype=bool)
+    decommissioned[decom_idx] = True
 
     start = pd.Timestamp(cfg.history_start)
-    # ~8% of equipment is decommissioned partway through history. Their spares stay
-    # on the shelf — this is where genuine obsolescence comes from.
-    decommissioned = rng.random(n) < 0.08
-    offset = rng.integers(180, max(cfg.n_days - 30, 200), size=n)
+    offset = rng.integers(180, max(cfg.n_days - 60, 200), size=n)
     decom_date = np.where(
         decommissioned,
         (start + pd.to_timedelta(offset, "D")).values,
@@ -102,37 +186,51 @@ def _build_equipment(cfg: RunConfig, rng: np.random.Generator) -> pd.DataFrame:
     return pd.DataFrame(
         {
             "equipment_id": [f"EQ-{i:05d}" for i in range(1, n + 1)],
-            "plant": plant,
-            "storeroom_id": [STOREROOM_BY_AREA[p] for p in plant],
-            "name": [f"{p} asset {i:04d}" for i, p in enumerate(plant, 1)],
+            "equipment_type": t["equipment_type"].to_numpy(),
+            "plant": t["plant"].to_numpy(),
+            "storeroom_id": [STOREROOM_BY_AREA[p] for p in t["plant"]],
+            "name": names,
             "criticality": crit,
             "status": np.where(decommissioned, "DECOMMISSIONED", "RUNNING"),
-            "commissioned_date": start - pd.Timedelta(days=1),
+            "commissioned_date": pd.to_datetime(commissioned),
             "decommissioned_date": pd.to_datetime(decom_date),
         }
     )
 
 
-def _build_materials(
-    cfg: RunConfig, fams: pd.DataFrame, equipment: pd.DataFrame, rng: np.random.Generator
-) -> pd.DataFrame:
+# ── materials ────────────────────────────────────────────────────────────────
+
+# The same maker appears as "SKF", "S.K.F." and "SKF AB". Not a planted defect and
+# not scored — it is background noise every real extract has, and normalising it is
+# part of the matcher's job rather than a problem to report.
+_MAKER_VARIANTS = {
+    "SKF": ("SKF", "S.K.F.", "SKF AB"),
+    "ABB": ("ABB", "A.B.B.", "ABB Ltd"),
+    "Siemens": ("Siemens", "SIEMENS AG", "Siemens A.G."),
+    "Parker": ("Parker", "Parker Hannifin", "PARKER-HANNIFIN"),
+    "Metso": ("Metso", "Metso Outotec", "METSO CORP"),
+    "Weir": ("Weir", "Weir Minerals", "WEIR MIN."),
+    "Emerson": ("Emerson", "Emerson Process", "EMERSON ELEC"),
+}
+
+
+def build_materials(cfg: RunConfig, fams: pd.DataFrame, equipment: pd.DataFrame, rng):
     """Expand each seed family into dimensioned variants, weighted by family size."""
     n_target = cfg.size.n_materials
-    w = fams["variant_weight"].to_numpy(dtype=float)
-    counts = np.maximum(1, np.round(w / w.sum() * n_target)).astype(int)
+    pool = fams[fams["in_scope"] == 1].reset_index(drop=True)
+    w = pool["variant_weight"].to_numpy(dtype=float)
 
-    fam_idx = np.repeat(np.arange(len(fams)), counts)[:n_target]
-    # if rounding undershot, top up from the largest families
+    counts = np.maximum(1, np.round(w / w.sum() * n_target)).astype(int)
+    fam_idx = np.repeat(np.arange(len(pool)), counts)[:n_target]
     if fam_idx.size < n_target:
-        pad = rng.choice(np.arange(len(fams)), size=n_target - fam_idx.size, p=w / w.sum())
+        pad = rng.choice(np.arange(len(pool)), size=n_target - fam_idx.size, p=w / w.sum())
         fam_idx = np.concatenate([fam_idx, pad])
     rng.shuffle(fam_idx)
 
-    f = fams.iloc[fam_idx].reset_index(drop=True)
+    f = pool.iloc[fam_idx].reset_index(drop=True)
     n = len(f)
 
-    u = rng.random(n)
-    price = f["price_min_sar"].to_numpy() + u * (
+    price = f["price_min_sar"].to_numpy() + rng.random(n) * (
         f["price_max_sar"].to_numpy() - f["price_min_sar"].to_numpy()
     )
     lead = (
@@ -140,368 +238,131 @@ def _build_materials(
         + rng.random(n) * (f["lead_max_days"].to_numpy() - f["lead_min_days"].to_numpy())
     ).astype(np.int32)
 
-    # a size/rating token, so variants inside a family read like a real master
-    size_token = rng.integers(1, 400, size=n)
-    mpn_num = rng.integers(10000, 999999, size=n)
-    manufacturer = rng.choice(np.array(MANUFACTURERS), size=n)
+    # per-family manufacturer pool: never a bearing maker on a haul-truck tyre
+    canonical = np.empty(n, dtype=object)
+    for kind, grp in f.groupby("manufacturers").groups.items():
+        makers = np.array(str(kind).split("|"))
+        g = np.asarray(grp)
+        canonical[g] = rng.choice(makers, size=len(g))
 
-    # attach each material to a piece of equipment in a matching plant where possible
-    eq_by_plant: dict[str, np.ndarray] = {
-        p: equipment.loc[equipment["plant"] == p, "equipment_id"].to_numpy()
-        for p in equipment["plant"].unique()
+    # per-family size token: a bearing gets 6205, an oil gets ISO VG 220
+    token = np.empty(n, dtype=object)
+    for kind, grp in f.groupby("size_token_type").groups.items():
+        g = np.asarray(grp)
+        token[g] = _size_token(str(kind), rng, len(g))
+
+    # attach materials only to assets of the type the family actually fits
+    by_type = {
+        t: equipment.loc[equipment["equipment_type"] == t, "equipment_id"].to_numpy()
+        for t in equipment["equipment_type"].unique()
     }
-    all_eq = equipment["equipment_id"].to_numpy()
+    generic = equipment.loc[
+        equipment["equipment_type"].isin(["GENERIC", "MECH_GENERIC"]), "equipment_id"
+    ].to_numpy()
+    fallback = generic if generic.size else equipment["equipment_id"].to_numpy()
+
     owner = np.empty(n, dtype=object)
-    for i, area in enumerate(f["area"].to_numpy()):
-        pool = eq_by_plant.get(area, all_eq)
-        owner[i] = rng.choice(pool if pool.size else all_eq)
+    for etype, grp in f.groupby("equipment_type").groups.items():
+        g = np.asarray(grp)
+        pool_eq = by_type.get(str(etype))
+        pool_eq = pool_eq if pool_eq is not None and pool_eq.size else fallback
+        owner[g] = rng.choice(pool_eq, size=len(g))
 
-    # Criticality follows what the part IS (the seed file's crit_bias), not the
-    # equipment lottery. A spare power transformer is criticality A because it is a
-    # transformer; assigning it randomly from its owning asset produced a B-rated
-    # transformer and a A-rated washer, which then poisoned every downstream
-    # judgement about what counts as dead money.
-    #
-    # The equipment link still matters — it decides obsolescence, and an item on an
-    # A-rated asset gets bumped up a grade.
+    # Criticality follows what the part IS, not the equipment lottery: a spare
+    # transformer is A because it is a transformer. Assigning it from the owning
+    # asset produced B-rated transformers and A-rated washers, and because
+    # dead-money valuation keys off criticality, one mis-grade was SAR 2.3m of
+    # apparent waste. The equipment link still drives obsolescence, and an item on
+    # an A-rated asset is bumped a grade.
     bias = f["crit_bias"].to_numpy()
-    jitter = rng.random(n)
-    crit = np.where(jitter < 0.12, rng.choice(np.array(S.CRITICALITY), size=n), bias)
-
+    crit = np.where(rng.random(n) < 0.12, rng.choice(np.array(S.CRITICALITY), size=n), bias)
     eq_crit = equipment.set_index("equipment_id")["criticality"].reindex(owner).to_numpy()
     bump = {"C": "B", "B": "A", "A": "A"}
     crit = np.where(eq_crit == "A", [bump[c] for c in crit], crit)
 
-    desc = (
-        f["noun"].str.strip()
-        + ", "
-        + f["modifier"].str.strip()
-        + ", "
-        + pd.Series(size_token).astype(str)
-        + "MM"
-    )
+    # scatter the manufacturer spelling for a share of rows
+    shown = canonical.copy()
+    for i, maker in enumerate(canonical):
+        variants = _MAKER_VARIANTS.get(str(maker))
+        if variants and rng.random() < 0.35:
+            shown[i] = rng.choice(np.array(variants))
 
-    return pd.DataFrame(
+    desc = [f"{a}, {b}, {c}" for a, b, c in zip(f["noun"], f["modifier"], token, strict=True)]
+    mpn_num = rng.integers(1000, 999999, size=n)
+    prefix = [str(m).split()[0][:3].upper().replace(".", "") for m in canonical]
+
+    materials = pd.DataFrame(
         {
             "material_id": [f"M-{i:06d}" for i in range(1, n + 1)],
-            "family_id": f["family_id"].to_numpy(),
+            "material_group": f["material_group"].to_numpy(),
             "noun": f["noun"].to_numpy(),
             "modifier": f["modifier"].to_numpy(),
-            "description": desc.to_numpy(),
-            "manufacturer": manufacturer,
-            "mpn": [f"{m}-{v}" for m, v in zip(manufacturer, mpn_num, strict=True)],
+            "description": desc,
+            "manufacturer": shown,
+            "mpn": [f"{p}-{v}" for p, v in zip(prefix, mpn_num, strict=True)],
             "uom": f["uom"].to_numpy(),
             "unit_price_sar": np.round(price, 2),
             "lead_time_days": lead,
             "area": f["area"].to_numpy(),
             "equipment_id": owner,
             "criticality": crit,
+            "is_mro": True,
         }
     )
-
-
-def _demand_params(
-    cfg: RunConfig, materials: pd.DataFrame, fams: pd.DataFrame, rng: np.random.Generator
-) -> pd.DataFrame:
-    """
-    Sample the true demand parameters per material. These become `truth`.
-
-    The subtlety that makes this look like a real master: a *family* moves often,
-    but any single variant inside it does not. "BEARING, BALL" is issued weekly;
-    "BEARING, BALL, 6205, SKF" is issued twice a year. So each item's interval is
-    stretched by how many variants share the family, times a heavy-tailed
-    popularity draw — which reproduces the real pattern where a minority of line
-    items carry most of the movement and the majority sit still for years.
-    """
-    prof_by_family = fams.set_index("family_id")["profile"]
-    profile = prof_by_family.reindex(materials["family_id"]).to_numpy()
-
-    n = len(materials)
-    interval = np.empty(n)
-    size_mean = np.empty(n)
-    size_cv = np.empty(n)
-    drift = np.empty(n)
-
-    for name, spec in PROFILES.items():
-        m = profile == name
-        k = int(m.sum())
-        if not k:
-            continue
-        lo, hi = spec["interval"]
-        interval[m] = rng.uniform(lo, hi, k)
-        lo, hi = spec["size"]
-        size_mean[m] = rng.uniform(lo, hi, k)
-        lo, hi = spec["cv"]
-        size_cv[m] = rng.uniform(lo, hi, k)
-        lo, hi = spec["drift"]
-        drift[m] = rng.uniform(lo, hi, k)
-
-    # Stretch by family breadth and per-item popularity.
-    #
-    # Breadth comes from the seed file's `variant_weight`, NOT from how many
-    # variants this particular run happened to create. Using the realised count
-    # would make the toy preset behave differently from the full one — items would
-    # move far more often in toy — and a toy set that does not behave like the real
-    # one is useless for testing the steps that come after it.
-    weight = fams.set_index("family_id")["variant_weight"]
-    breadth = np.power(
-        np.maximum(weight.reindex(materials["family_id"]).to_numpy(dtype=float), 1.0),
-        cfg.demand.breadth_exponent,
-    )
-    popularity = rng.lognormal(0.0, cfg.demand.popularity_sigma, n)
-    interval = interval * breadth * popularity
-
-    # a variant from a broad family also carries a smaller slice of the issue size
-    size_mean = np.maximum(size_mean / np.sqrt(breadth) * 2.0, 1.0)
-
-    return pd.DataFrame(
+    # family and behaviour stay out of the source tables; they live in the answer key
+    hidden = pd.DataFrame(
         {
             "material_id": materials["material_id"].to_numpy(),
-            "profile": profile,
-            "interval": interval,
-            "size_mean": size_mean,
-            "size_cv": size_cv,
-            "drift": drift,
+            "family_id": f["family_id"].to_numpy(),
+            "seed_profile": f["profile"].to_numpy(),
+            "mtbf_years": f["mtbf_years"].to_numpy(dtype=float),
+            "multi_store_share": f["multi_store_share"].to_numpy(dtype=float),
+            "shutdown_mult": f["shutdown_demand_mult"].to_numpy(dtype=float),
+            "canonical_manufacturer": canonical,
+            "area": f["area"].to_numpy(),
         }
     )
+    return materials, hidden
 
 
-def _sample_demand(
-    cfg: RunConfig,
-    params: pd.DataFrame,
-    rng: np.random.Generator,
-    stop_day: np.ndarray | None = None,
-) -> tuple[list[np.ndarray], list[np.ndarray]]:
+# ── positions ────────────────────────────────────────────────────────────────
+
+
+def build_positions(cfg: RunConfig, materials: pd.DataFrame, hidden: pd.DataFrame, rng):
     """
-    Vectorised demand sampling: gaps then sizes, per item, no day loop.
+    One row per (material, storeroom). Most materials sit only in their home store;
+    a share set per family also sit in CENTRAL or a sibling plant, splitting the
+    item's demand between them.
 
-    Demand rate drifts linearly across the window (`drift`), which is what makes a
-    policy set in year 1 wrong by year 3 — the source of emergent excess.
-
-    `stop_day` is the day the owning equipment was decommissioned. Demand ceases
-    there and the stock left behind becomes genuinely obsolete — which is the only
-    way obsolescence gets into this dataset. It is never injected.
+    Without this, capability 5 has no data at all: there is no "one store holds 40
+    idle while another is about to buy five" if every material exists exactly once.
     """
-    n_days = cfg.n_days
-    days_out: list[np.ndarray] = []
-    qty_out: list[np.ndarray] = []
+    home = materials["area"].map(STOREROOM_BY_AREA).to_numpy()
+    share = hidden["multi_store_share"].to_numpy()
+    ids = materials["material_id"].to_numpy()
+    n = len(materials)
 
-    interval = params["interval"].to_numpy()
-    size_mean = params["size_mean"].to_numpy()
-    size_cv = params["size_cv"].to_numpy()
-    drift = params["drift"].to_numpy()
+    rows: list[tuple[str, str, bool, float]] = []
+    others_all = np.array(S.STOREROOMS)
 
-    # generous upper bound on event count so one draw covers the window
-    max_events = np.maximum(4, np.ceil(n_days / np.maximum(interval, 1.0) * 3).astype(int))
-    cap = int(min(max_events.max(), 4000))
+    for i in range(n):
+        extra: list[str] = []
+        if rng.random() < share[i]:
+            others = others_all[others_all != home[i]]
+            k = min(1 + int(rng.random() < 0.35), cfg.multi_store.extra_stores_max, len(others))
+            # CENTRAL is the usual second home for site-wide spares
+            w = np.array([3.0 if s == "CENTRAL" else 1.0 for s in others])
+            extra = list(rng.choice(others, size=k, replace=False, p=w / w.sum()))
 
-    for i in range(len(params)):
-        k = int(min(max_events[i], cap))
-        gaps = rng.exponential(interval[i], size=k)
-        days = np.cumsum(gaps)
-
-        # apply drift by stretching/compressing the timeline
-        if abs(drift[i] - 1.0) > 1e-6:
-            frac = np.clip(days / n_days, 0, 1)
-            rate_scale = 1.0 + (drift[i] - 1.0) * frac
-            days = np.cumsum(gaps / np.maximum(rate_scale, 0.05))
-
-        limit = n_days if stop_day is None else min(n_days, int(stop_day[i]))
-        days = days[days < limit].astype(np.int32)
-        if days.size == 0:
-            days_out.append(np.empty(0, np.int32))
-            qty_out.append(np.empty(0, np.float64))
+        if not extra:
+            rows.append((ids[i], home[i], True, 1.0))
             continue
 
-        mean, cv = size_mean[i], size_cv[i]
-        shape = max(1.0 / max(cv, 1e-3) ** 2, 0.05)
-        qty = rng.gamma(shape, mean / shape, size=days.size)
-        qty = np.maximum(np.round(qty), 1.0)
+        secondary = rng.uniform(*cfg.multi_store.secondary_demand_share, size=len(extra))
+        if secondary.sum() > 0.75:                     # the home store keeps the majority
+            secondary = secondary / secondary.sum() * 0.75
+        rows.append((ids[i], home[i], True, float(1.0 - secondary.sum())))
+        for s, frac in zip(extra, secondary, strict=True):
+            rows.append((ids[i], str(s), False, float(frac)))
 
-        days_out.append(days)
-        qty_out.append(qty)
-
-    return days_out, qty_out
-
-
-def _stale_levels(
-    cfg: RunConfig,
-    params: pd.DataFrame,
-    demand_days,
-    demand_qty,
-    rng: np.random.Generator,
-) -> tuple[np.ndarray, np.ndarray]:
-    """
-    The incumbent policy: cover-day levels frozen early in history, ignoring
-    criticality, with a slice of hand-entry errors. Deliberately mediocre.
-    """
-    sp = cfg.stale_policy
-    n = len(params)
-    freeze = sp.set_on_offset_days
-
-    daily_rate = np.zeros(n)
-    for i in range(n):
-        d, q = demand_days[i], demand_qty[i]
-        early = q[d < freeze]
-        daily_rate[i] = early.sum() / freeze if early.size else 0.0
-
-    # items with no early demand still get a token level, as a planner would set
-    daily_rate = np.where(daily_rate > 0, daily_rate, params["size_mean"].to_numpy() / 365.0)
-
-    min_qty = np.ceil(daily_rate * sp.min_cover_days / sp.round_up_to) * sp.round_up_to
-    max_qty = np.ceil(daily_rate * sp.max_cover_days / sp.round_up_to) * sp.round_up_to
-
-    # A hand-entry error on a SAR 4 washer goes unnoticed for years; the same error
-    # on a SAR 200k mill roll gets caught at the next purchase approval. Scale the
-    # error rate down with value so dead money does not become an artefact of
-    # fat-fingering the most expensive items in the plant.
-    price = params["unit_price_sar"].to_numpy() if "unit_price_sar" in params else None
-    if price is None:
-        fat_prob = np.full(n, sp.fat_finger_share)
-    else:
-        damp = np.clip(sp.fat_finger_value_pivot / np.maximum(price, 1.0), 0.05, 1.0)
-        fat_prob = sp.fat_finger_share * damp
-    fat = rng.random(n) < fat_prob
-    bump = rng.choice([sp.fat_finger_factor, 1.0 / sp.fat_finger_factor], size=n)
-    min_qty = np.where(fat, min_qty * bump, min_qty)
-    max_qty = np.where(fat, max_qty * bump, max_qty)
-
-    min_qty = np.maximum(min_qty, 0.0)
-    max_qty = np.maximum(max_qty, min_qty + 1.0)
-    return min_qty, max_qty
-
-
-def commissioning_opening(
-    cfg: RunConfig,
-    params: pd.DataFrame,
-    demand_qty,
-    max_qty: np.ndarray,
-    rng: np.random.Generator,
-) -> np.ndarray:
-    """
-    Opening balance per item: normally the policy maximum, plus — for a slice of
-    capital spares — a decade-old commissioning package that was never consumed.
-
-    Only lumpy and insurance items are eligible. Those are the spares a
-    commissioning package actually covers: the failures that would stop the plant
-    and then, mostly, never happened. Consumables are excluded on purpose, because
-    a package sized against a fast mover is consumed within a year and leaves no
-    trace, while sizing one in "years of demand" produces quantities no storeroom
-    has ever held.
-    """
-    cs = cfg.commissioning
-    n = len(params)
-    eligible = np.isin(params["profile"].to_numpy(), cs.applies_to)
-    carries = eligible & (rng.random(n) < cs.share)
-    package = np.round(rng.uniform(*cs.units, size=n))
-    return np.where(carries, max_qty + package, max_qty)
-
-
-def _run_history(
-    cfg: RunConfig,
-    materials: pd.DataFrame,
-    params: pd.DataFrame,
-    demand_days,
-    demand_qty,
-    min_qty: np.ndarray,
-    max_qty: np.ndarray,
-    opening: np.ndarray | None = None,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Walk every item through the stale policy; emit movements and closing stock."""
-    n_days = cfg.n_days
-    leads = materials["lead_time_days"].to_numpy()
-    store = materials["area"].map(STOREROOM_BY_AREA).to_numpy()
-    price = materials["unit_price_sar"].to_numpy()
-    mid = materials["material_id"].to_numpy()
-
-    iss_day, iss_mat, iss_qty = [], [], []
-    rec_day, rec_mat, rec_qty = [], [], []
-    on_hand = np.zeros(len(materials))
-
-    for i in range(len(materials)):
-        dense = densify(demand_days[i], demand_qty[i], n_days)
-        res = walk(
-            dense,
-            opening=float(max_qty[i] if opening is None else opening[i]),
-            reorder_point=float(min_qty[i]),
-            order_up_to=float(max_qty[i]),
-            lead_time_days=int(leads[i]),
-            review_period_days=7,
-            n_days=n_days,
-        )
-        on_hand[i] = res.on_hand_end
-
-        if demand_days[i].size:
-            iss_day.append(demand_days[i])
-            iss_qty.append(demand_qty[i])
-            iss_mat.append(np.full(demand_days[i].size, i))
-        if res.receipts_day.size:
-            keep = res.receipts_day < n_days
-            rec_day.append(res.receipts_day[keep])
-            rec_qty.append(res.receipts_qty[keep])
-            rec_mat.append(np.full(int(keep.sum()), i))
-
-    def _cat(parts, dtype):
-        return np.concatenate(parts).astype(dtype) if parts else np.empty(0, dtype)
-
-    i_day, i_mat, i_qty = _cat(iss_day, np.int64), _cat(iss_mat, np.int64), _cat(iss_qty, float)
-    r_day, r_mat, r_qty = _cat(rec_day, np.int64), _cat(rec_mat, np.int64), _cat(rec_qty, float)
-
-    start = pd.Timestamp(cfg.history_start)
-    frames = []
-    if i_day.size:
-        frames.append(
-            pd.DataFrame(
-                {
-                    "date": start + pd.to_timedelta(i_day, "D"),
-                    "material_id": mid[i_mat],
-                    "storeroom_id": store[i_mat],
-                    "movement_type": "ISSUE",
-                    "qty": -i_qty,
-                    "work_order_id": [f"WO-{d}-{m}" for d, m in zip(i_day, i_mat, strict=True)],
-                    "unit_cost_sar": price[i_mat],
-                }
-            )
-        )
-    if r_day.size:
-        frames.append(
-            pd.DataFrame(
-                {
-                    "date": start + pd.to_timedelta(r_day, "D"),
-                    "material_id": mid[r_mat],
-                    "storeroom_id": store[r_mat],
-                    "movement_type": "RECEIPT",
-                    "qty": r_qty,
-                    "work_order_id": "",
-                    "unit_cost_sar": price[r_mat],
-                }
-            )
-        )
-
-    movements = (
-        pd.concat(frames, ignore_index=True).sort_values("date").reset_index(drop=True)
-        if frames
-        else pd.DataFrame(columns=S.MOVEMENTS.names)
-    )
-    movements.insert(0, "movement_id", np.arange(1, len(movements) + 1, dtype=np.int64))
-
-    last_issue = (
-        movements[movements["movement_type"] == "ISSUE"].groupby("material_id")["date"].max()
-    )
-    last_receipt = (
-        movements[movements["movement_type"] == "RECEIPT"].groupby("material_id")["date"].max()
-    )
-
-    stock = pd.DataFrame(
-        {
-            "material_id": mid,
-            "storeroom_id": store,
-            "on_hand": np.round(on_hand, 2),
-            "min_qty": min_qty,
-            "max_qty": max_qty,
-            "last_issue_date": last_issue.reindex(mid).to_numpy(),
-            "last_receipt_date": last_receipt.reindex(mid).to_numpy(),
-            "avg_unit_cost_sar": price,
-        }
-    )
-    return movements, stock
+    return pd.DataFrame(rows, columns=["material_id", "storeroom_id", "is_home", "demand_share"])

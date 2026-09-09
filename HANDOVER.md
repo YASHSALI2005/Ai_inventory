@@ -14,55 +14,75 @@ Build plan in plain words (algorithms named): **[`docs/build-plan.html`](docs/bu
 Client-facing scope, benchmarks and architecture: **[`docs/PROPOSAL.md`](docs/PROPOSAL.md)**.
 Read it before touching anything — it is the agreed statement of what we are building and why.
 
-## Status — 2026-09-09
+## Status — 2026-09-10
 
-**Phase 0 approved. Phase 1 (POC) started — vertical slice is running end to end.**
+**Phase 0 approved. Phase 1 (POC) in progress — vertical slice runs end to end at
+both presets, and the dataset now survives review.**
 
 Run it:
 
 ```
-python cli.py build --preset toy     # generate + run engine   (~0.5s)
-python cli.py score --preset toy     # grade against answer key
-python -m pytest -q                  # 12 tests
+python cli.py all --preset toy      # build + engine + scoreboard   (~1s)
+python cli.py all --preset full     # 20k materials                 (~14s)
+python -m pytest -q                 # 51 tests
+python -m ruff check .
 ```
+
+Stages are separate on purpose: `build` writes the dataset and answer key, `run`
+executes the engine and never touches `answer_key_dir`, `score` grades what `run`
+produced. `--data-dir` redirects everything, which is how the CLI smoke test works.
 
 | Step | State |
 |---|---|
-| `contracts/` schemas + config | Done. Cutoff date and the shortage-cost function live here |
-| `sim/` replenishment mechanics | Done. Shared by generator and scoring |
-| 1 · data generator + answer key | **Done at toy scale.** Not yet run at `--preset full` |
-| 2 · data quality (cap 4) | **Negative stock only.** Six checks + duplicate matcher still to write |
+| `contracts/` schemas + config | Done. Cutoff date, cost model and dead-money rule live here |
+| `sim/` replenishment | Done. Vectorised across items, stochastic lead time, shared by generator and scoring |
+| 1 · generator + answer key | **Done, both presets.** Typed equipment, positions, shutdown overlay, real work orders |
+| 2 · data quality (cap 4) | **2 of 8 checks.** Negative stock + ledger reconciliation |
 | 3 · demand classifier | Not started |
 | 4 · forecasters (cap 1) | Not started |
 | 5 · stocking policy (cap 3) | Not started |
-| 6 · dead money + transfers (caps 2, 5) | Not started |
+| 6 · dead money + transfers (caps 2, 5) | Scorers stubbed; detection not started |
 | 7 · API + screens | Not started |
 | 8 · chat (cap 7) | Not started |
 
-**Current score** (`python cli.py score`): NEGATIVE_STOCK 1/1 found, 0 false alarms.
-Thin because toy plants ~13 defects total; real scoring quality gets judged at
-`--preset full`.
+**Current score, full preset:** NEGATIVE_STOCK 100/100 found, 0 false alarms.
+LEDGER_MISMATCH raises 100 informational findings (excluded from precision — see
+`DECISIONS.md`).
 
-### Dataset properties, asserted in tests
+### Dataset properties — all asserted in tests, all measured by `scoring/dataset_report.py`
 
-Both inside their industry bands, and both **emergent** rather than injected:
+The report is the single place these are computed, so the console and the test
+suite cannot disagree about what "in band" means.
 
-- **35%** of lines idle for 24 months (band 30–50%)
-- **36%** of stock value dead (band 20–40%)
+| Property | Toy | Full | Target |
+|---|---|---|---|
+| Lines idle >24 months | 36% | 38% | 30–50% |
+| Stock value dead | 30% | 28% | 20–40% |
+| Shutdown issue-rate multiple | 3.9× | 3.5× | ≥3× baseline |
+| Issues per work order | 2.3 | 2.7 | ≥2 |
+| Planned WOs raised in advance | 100%, 37d median | 100%, 38d | 100% |
+| Unexplained ledger mismatches | 0 | 0 | 0 |
+| Unplanted negative balances | 0 | 0 | 0 |
+| Materials in >1 storeroom | 18% | 17% | ≥10% |
 
-If a change pushes either outside its band, `tests/test_generator.py` fails. That
-is deliberate — every downstream number is measured against this data, so a
-generator that drifts into producing a supermarket would make the forecasts and
-the backtest look excellent and mean nothing.
+Idle share, dead money, overstock, obsolescence and stockouts are all **emergent**
+— they come from the stale min/max policy running against drifting demand and from
+equipment being decommissioned mid-history. Only *data* defects are planted.
+
+> The toy preset's dead-value share is noisy: at 300 materials it is dominated by a
+> handful of expensive rows, so it moves several points on any RNG reshuffle. It is
+> in band, but do not treat small movements there as signal — check `--preset full`,
+> where 20k materials average it out.
 
 ## Next
 
-1. Remaining rule checks in `engine/quality.py`, scoring after each one.
+1. Remaining six rule checks in `engine/quality.py`, scoring after each one.
 2. Duplicate matcher — TF-IDF candidates + RapidFuzz scoring. No embeddings
    (see `DECISIONS.md`); the interface takes a list of scorers so they can be added.
+   Note the matcher must handle split history: half the planted duplicates carry
+   20–60% of the original's issues.
 3. One dashboard screen, to close the vertical slice.
 4. Then deepen step by step: classifier → forecasters → policy → dead money.
-5. Run `--preset full` once and check the realism bands still hold at 20k items.
 
 ## Things to avoid
 
@@ -73,6 +93,16 @@ the backtest look excellent and mean nothing.
 - **Do not plant overstock, obsolescence or critical-below-reorder.** They must
   emerge from the stale policy and from equipment decommissioning, and are scored
   against `truth`. Planting them would grade the engine on our own injection rules.
+- **Never write `stock.on_hand` by hand.** It is recomputed from the movement
+  ledger, and negatives are planted last. Any balance not backed by movements shows
+  up as a LEDGER_MISMATCH the engine is right to flag and we were wrong to create.
+- **Never mix per-day and per-event costs in the newsvendor fractile.** That bug
+  pinned every service level to the cap and silently disabled the whole idea.
+- **`shortage_cost_per_unit` is defined once**, in `CostModel`. It feeds the
+  service level, the SAR work-queue ranking and dead-money valuation. Three
+  different versions is how a demo contradicts itself on stage.
+- **Do not report "value idle for 24 months" as dead money.** That is 90% of stock
+  value and it is wrong: insurance spares correctly sit still for years.
 - **Fit on `cfg.train_slice()`, score on `cfg.eval_slice()`.** Never touch the
   movements frame directly for either.
 - **Do not apply `z · σ · √LT` across the board** — wrong for the insurance-spare

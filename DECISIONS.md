@@ -195,3 +195,277 @@ Reasoning: The largest real source of MRO dead money is the spares package bough
            20-40%). Both are asserted in tests so the generator cannot drift out.
 Rejected: cover-years sizing (produced quantities no storeroom has ever held)
 Reverses: —
+
+---
+
+## 2026-09-10 — Newsvendor inputs were in mismatched units; fractile was dead
+Model: Opus 5
+Type: reversal
+Reasoning: Shortage cost was expressed per unit-DAY and holding cost per unit-DAY,
+           giving a ratio around 58,000 for an A item and 1,460 for a C. The
+           fractile `short/(short+hold)` therefore exceeded 0.999 for all three
+           criticalities and pinned to `service_level_cap` every time. "Service
+           level from each item's own economics" was doing nothing at all, and the
+           scenario slider would have drawn a flat line in front of the client.
+           Both sides now sit on the same footing: cost of being short ONCE against
+           cost of holding one unit for a YEAR. A = 0.994, B = 0.960, C = 0.800.
+           `shortage_cost_per_unit_day` is kept for the backtest, where being short
+           for a week should hurt more than for an hour, but it is explicitly not
+           the fractile input.
+Rejected: keeping per-day on both sides (arithmetically fine, operationally inert)
+Reverses: CostModel as first written
+
+---
+
+## 2026-09-10 — Dead money defined once in config, not inside a test
+Model: Opus 5
+Type: decision
+Reasoning: The 36% figure previously existed only inside a test's private formula,
+           so nothing else could agree with it. `DeadMoneyRule` now holds the
+           justified-quantity rule and the target band, and the generator tests,
+           the console report and step-6 scoring all read it.
+           Recorded here because the number we do NOT report matters as much: 89.6%
+           of on-hand value has had no issue in 24 months. That is not dead money —
+           insurance spares correctly sit still for years — and reporting it would
+           inflate the prize 2.5x and collapse the first time a reliability engineer
+           asked whether a spare transformer is waste.
+Rejected: "value idle for 24 months" as the headline (bigger, indefensible)
+Reverses: —
+
+---
+
+## 2026-09-10 — family_id removed from the source tables; material_group added
+Model: Opus 5
+Type: decision
+Reasoning: A real SAP/PiLog extract has no column stating "these rows are the same
+           part family", and leaving one in would let the duplicate matcher and the
+           UOM check read the answer straight off the data. It moves to
+           `truth_materials.true_family_id`.
+           Partial disagreement with the review, and the reason is on the record: a
+           real extract DOES carry a coarse material group (SAP MATKL), so removing
+           every grouping signal would make the POC harder than reality in one
+           direction while easier in another. `material_group` lumps several seed
+           families into one bucket — a hint the engine can legitimately use, not a
+           giveaway. A test asserts it has strictly fewer distinct values than the
+           true family count.
+Rejected: no grouping column at all (unrealistically hard); keeping family_id (cheating)
+Reverses: MATERIALS as first written
+
+---
+
+## 2026-09-10 — Stocking is per POSITION, not per material
+Model: Opus 5
+Type: decision
+Reasoning: Capability 5 (transfers) had literally no data: with one row per
+           material there is no "one store holds 40 idle while another is about to
+           buy five". `stock`, `truth_positions` and movements are now keyed on
+           (material_id, storeroom_id), demand is split across stores per family,
+           and ~17% of materials sit in more than one storeroom. Truth is split into
+           `truth_materials` (what the item is) and `truth_positions` (what each
+           store holds), because the two have different keys.
+Rejected: a single-store model with synthetic transfers bolted on later
+Reverses: STOCK and TRUTH as first written
+
+---
+
+## 2026-09-10 — Issues are recorded when SERVED, not when demanded
+Model: Opus 5
+Type: decision
+Reasoning: The sim backorders when stock runs out, but the ledger logged the
+           demand as an issue on the day it was raised. SAP cannot post an issue
+           against stock that is not there — the maintenance job waits. The result
+           was positions whose movements summed to -6 with nothing planted, so the
+           ledger could never reconcile and LEDGER_MISMATCH would have fired on our
+           own bookkeeping. `sim.walk` now returns a served-by-day matrix and the
+           ledger is built from it.
+Rejected: clamping openings upward to hide the gap (fudges the arithmetic)
+Reverses: —
+
+---
+
+## 2026-09-10 — Every position opens with an ADJUST; stock is recomputed from the ledger
+Model: Opus 5
+Type: decision
+Reasoning: `sum(movements.qty) == on_hand` held for 0% of positions, so the
+           strongest data-quality check available — ledger reconciliation, the one
+           an auditor recognises on sight — could not exist. Each position now opens
+           with a day-0 ADJUST carrying its opening balance, injection adds opening
+           rows for duplicate copies, and `stock` is recomputed from the ledger
+           afterwards. Negative stock is planted LAST, because a negative balance IS
+           a ledger disagreement and the recompute would otherwise erase it.
+           Consequence worth noting: the reconciliation check is now asserted
+           against the exact planted set, not a count threshold. The threshold
+           version hid 52 positions that had gone negative on their own, each of
+           which the engine was right to flag and the scoreboard counted as a false
+           alarm — precision read 57% for being correct.
+Rejected: tolerating a small number of unexplained mismatches
+Reverses: —
+
+---
+
+## 2026-09-10 — Shutdowns actually consume parts
+Model: Opus 5
+Type: decision
+Reasoning: Measured issue rate inside a smelter shutdown was 1.5/day against a
+           2.0/day baseline — the outage had no effect on demand whatsoever, so the
+           shutdown table was decoration and step 4's "a planned shutdown is known
+           demand, not a surprise" had nothing behind it. Each family now carries a
+           `shutdown_demand_mult` (cathode blocks 20x, refractory 10x, O-rings 1x)
+           and outages add Poisson demand inside their window. Measured multiple is
+           now 3.9x at toy and 3.5x at full, with `shutdown_intensity` giving
+           headroom so an RNG reshuffle does not flip the check.
+Rejected: leaving shutdowns as calendar entries with no demand effect
+Reverses: —
+
+---
+
+## 2026-09-10 — Work orders carry advance notice, and group multiple parts
+Model: Opus 5
+Type: decision
+Reasoning: 100% of work orders were dated the same day as the issue and averaged
+           1.01 parts. A planned job raised the day it consumes parts gives a
+           forecaster nothing to know in advance, which is precisely what step 4
+           needs. WORK_ORDERS now carries `created_date` and `planned_date`; planned
+           jobs are raised 14-60 days ahead, shutdown jobs 90-240. Measured: 100%
+           raised in advance, median 37 days notice, 2.3 issues per job.
+           ponytail, recorded honestly: issues are grouped by (equipment, month) as
+           a proxy for one maintenance visit. Demand is sampled per material
+           independently, so ANY grouping imposed afterwards is synthetic. The
+           honest fix is to invert the model — sample work orders, then draw parts
+           from the asset's BOM — which is a larger change than this slice
+           justifies. Marked in the code.
+Rejected: WO-per-issue (no advance signal, nothing for step 4 to learn)
+Reverses: —
+
+---
+
+## 2026-09-10 — Truth profile derived from realised behaviour, not the family label
+Model: Opus 5
+Type: decision
+Reasoning: 43% of items labelled `consumable` had two or fewer issues in three
+           years, and one carried `true_demand_interval_days = 1409` — the truth
+           label contradicted the truth parameters printed beside it, so any
+           classifier scored against it would have been graded on noise. The label
+           now comes from the item's realised interval via `profile_cuts_days`; the
+           family's label is kept as `seed_profile` for debugging only.
+Rejected: keeping the family label as truth
+Reverses: —
+
+---
+
+## 2026-09-10 — Typed equipment, per-family manufacturers and size tokens
+Model: Opus 5
+Type: decision
+Reasoning: The master data failed the ten-second test: "OIL, GEAR LUBRICATING,
+           188MM" by Parker, "BATTERY, UPS, 80MM" by Flexitallic, hex bolts by Rio
+           Tinto Alcan, and a bolt, an oil, a battery, a bearing and a seal kit all
+           fitted to EQ-00001. A demo dataset a maintenance engineer laughs at
+           destroys every number computed from it.
+           Now: `seeds/equipment_types.csv` gives named, typed assets ("Pot 005,
+           Line 2", "Slurry pump SL001"); families declare their own manufacturer
+           pool and token type, so a bearing renders as 6205 and an oil as ISO VG
+           220; and materials attach only to assets of a matching type. Every asset
+           type is guaranteed at least one instance, which cut materials landing on
+           a generic asset from 40% to 7%.
+Rejected: a single global manufacturer list and one "{n}MM" token for everything
+Reverses: —
+
+---
+
+## 2026-09-10 — Commissioning packages buy ONE of an expensive spare
+Model: Opus 5
+Type: decision
+Reasoning: The package was 1-4 units regardless of price, which put five SAR 2m
+           spare transformers on the shelf and made them a third of all dead money
+           on their own. Above `single_unit_above_sar` the package is one unit. A
+           plant buys one spare transformer.
+Rejected: flat 1-4 units (dead money became an artefact of the generator)
+Reverses: the units range as first written
+
+---
+
+## 2026-09-10 — Scoring identity is per defect type
+Model: Opus 5
+Type: decision
+Reasoning: The first scorer keyed every finding on (type, material, storeroom).
+           ISSUE_WITHOUT_WORK_ORDER could therefore never score — the planted key
+           carried a movement_id and the finding key hardcoded "" — so every correct
+           orphan finding counted as a miss AND a false alarm. DUPLICATE_MATERIAL
+           was an ordered pair, so a correct finding naming the two masters the
+           other way round also failed. FINDINGS gains `movement_id` and
+           `related_material_id`; duplicates match as an unordered frozenset;
+           counts use Counter so one material can carry several planted defects.
+Rejected: one key shape for all types (silently zeroes two of seven checks)
+Reverses: —
+
+---
+
+## 2026-09-10 — The engine declares which checks ran
+Model: Opus 5
+Type: decision
+Reasoning: Inferring "implemented" from the finding types present means a check
+           that ran and found nothing is indistinguishable from one nobody has
+           written — a 100% miss reported as work not started, which is the most
+           flattering possible failure and the hardest to notice. The engine writes
+           `implemented_checks.json` listing scored and informational checks, and
+           scoring refuses to run without it.
+Rejected: inference from findings (hides total failure as absence)
+Reverses: —
+
+---
+
+## 2026-09-10 — Informational findings are counted, not penalised
+Model: Opus 5
+Type: decision
+Reasoning: LEDGER_MISMATCH and its kind have no planted counterpart, and counting
+           them as false alarms penalises the engine for finding real problems —
+           precision read 50% while every finding was correct. They are reported
+           with counts and excluded from precision. The counts stay prominent so a
+           check that starts firing on thousands of rows is still visible.
+Rejected: counting them as false alarms; hiding them entirely
+Reverses: —
+
+---
+
+## 2026-09-10 — sim walks all items at once
+Model: Opus 5
+Type: decision
+Reasoning: The per-item Python loop would have cost hours on the full preset once
+           the twenty-point service-level sweep multiplied it. The loop is now over
+           days with numpy across items, `on_order` is a running array instead of a
+           slice-sum per review (the O(n^2)), and lead times are drawn per order
+           from a lognormal — lead-time variance is half of what safety stock exists
+           for, and with a fixed lead time both policies look better than they are.
+           Combined with a vectorised work-order builder, which was 86% of the
+           generation run on its own, full-preset build+run+score went from 2m04s to
+           13.6s.
+Rejected: per-item loop with multiprocessing (same asymptotics, more moving parts)
+Reverses: —
+
+---
+
+## 2026-09-10 — Process chemicals marked out of scope
+Model: Opus 5
+Type: decision
+Reasoning: Caustic soda, lime, aluminium fluoride and cryolite are process raw
+           materials, not MRO spares. They stay in the seed file with `in_scope=0`
+           so the engine can be shown excluding them — a Ma'aden planner will ask
+           where the caustic went — but they are not stocked as spares and do not
+           enter the dead-money or reorder-point numbers, which would otherwise mix
+           two different working-capital conversations.
+Rejected: dropping them from the seed entirely (loses the chance to show exclusion)
+Reverses: —
+
+---
+
+## 2026-09-10 — git_sha warns rather than failing the build
+Model: Opus 5
+Type: decision
+Reasoning: The review offered failing the build or warning loudly. Warning, because
+           the pipeline has to run from a temp directory (the CLI smoke test does
+           exactly this) and from CI checkouts without history, and refusing to
+           build there costs more than the missing SHA does. `config_hash` plus
+           `seed` still pin the dataset exactly, so a run without a SHA is still
+           reproducible — just not traceable to code, which is what the warning says.
+Rejected: hard failure (breaks the test suite and any zip-and-run)
+Reverses: —
