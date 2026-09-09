@@ -16,5 +16,5 @@ venv/
 node_modules/
 ui/dist/
 
-# generated deliverables
+# generated deliverables (the dashboard screenshot is committed on purpose)
 docs/*.pptx

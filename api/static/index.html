@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ma'aden MRO Intelligence</title>
+
+<!--
+  ponytail: React and htm come from a CDN, and the fonts are a system stack so the
+  page needs no network for type. Before any client demo on a laptop that might be
+  offline, vendor the two UMD bundles into api/static/vendor/ — a dashboard that
+  renders a blank page in the meeting room is worse than no dashboard. Move to Vite
+  when the second screen or any real state arrives; for one read-only screen a
+  build step earns nothing.
+-->
+<script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/htm/3.1.1/htm.umd.js"></script>
+
+<style>
+:root{
+  --ground:#F4F2EF; --surface:#FFFFFF; --panel:#F5F3F0; --panel-2:#EDEAE5;
+  --ink:#1A1D21; --ink-2:#3C4148; --muted:#71767E;
+  --line:#DAD6D0; --line-2:#C3BDB5;
+  --accent:#A24E28; --accent-soft:#F3E4DB;
+  --teal:#2B6B67; --teal-soft:#DFEBEA;
+  --warn:#8A6212; --warn-soft:#F5EBD4;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#15171A; --surface:#1D2024; --panel:#212529; --panel-2:#282D32;
+    --ink:#E9E6E1; --ink-2:#C6C2BC; --muted:#949AA2;
+    --line:#31353B; --line-2:#434952;
+    --accent:#D9825A; --accent-soft:#3A2A22;
+    --teal:#5FAAA4; --teal-soft:#1E2E2D;
+    --warn:#D0A445; --warn-soft:#312813;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--ground); color:var(--ink);
+  font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+  font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased;
+}
+.mono,.num,td.n,th.n{font-family:"Cascadia Mono",Consolas,"SF Mono",Menlo,monospace;
+  font-variant-numeric:tabular-nums}
+
+.wrap{max-width:1120px;margin:0 auto;padding:34px 26px 70px}
+
+header{border-bottom:2px solid var(--ink);padding-bottom:18px;margin-bottom:26px}
+.eyebrow{font-family:Consolas,monospace;font-size:11px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--accent);margin-bottom:9px}
+h1{font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.runline{display:flex;flex-wrap:wrap;gap:6px 22px;margin-top:12px;
+  font-family:Consolas,monospace;font-size:11px;color:var(--muted);
+  letter-spacing:.04em;text-transform:uppercase}
+
+h2{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);margin:32px 0 12px}
+h2:first-of-type{margin-top:0}
+
+.tiles{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:3px;padding:16px 18px}
+.tile .v{font-family:Consolas,monospace;font-size:29px;font-weight:600;
+  letter-spacing:-.02em;line-height:1.05}
+.tile .k{font-size:12.5px;color:var(--muted);margin-top:8px;line-height:1.4}
+.tile .band{font-family:Consolas,monospace;font-size:11px;margin-top:9px;
+  padding-top:8px;border-top:1px solid var(--line);display:flex;
+  justify-content:space-between;gap:10px}
+.tile.hero{background:var(--accent-soft);border-color:var(--accent)}
+.tile.hero .v{color:var(--accent)}
+.in-band{color:var(--teal)} .out-band{color:var(--warn)}
+
+.scroller{overflow-x:auto;border:1px solid var(--line);border-radius:3px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:640px}
+th{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--muted);text-align:left;padding:11px 15px;background:var(--panel-2);
+  border-bottom:1px solid var(--line);white-space:nowrap}
+th.n,td.n{text-align:right}
+td{padding:11px 15px;border-bottom:1px solid var(--line);white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+tr.total td{background:var(--panel);font-weight:600;border-top:1px solid var(--line-2)}
+.good{color:var(--teal);font-weight:600}
+.bad{color:var(--warn);font-weight:600}
+
+.note{border:1px dashed var(--line-2);border-radius:3px;padding:13px 16px;
+  margin-top:12px;font-size:13px;color:var(--ink-2);line-height:1.5}
+.note b{color:var(--ink)}
+.note.warn{border-color:var(--warn);background:var(--warn-soft)}
+.pending{color:var(--muted);font-size:13px;margin-top:10px;line-height:1.55}
+.pending code{font-family:Consolas,monospace;font-size:12px;background:var(--panel-2);
+  padding:1px 5px;border-radius:2px}
+
+.err{background:var(--warn-soft);border:1px solid var(--warn);border-radius:3px;
+  padding:18px 20px;color:var(--ink)}
+.err h3{font-size:15px;margin-bottom:8px}
+.err code{font-family:Consolas,monospace;font-size:13px;display:block;margin-top:10px;
+  background:var(--surface);padding:9px 12px;border-radius:2px;border:1px solid var(--line)}
+footer{margin-top:38px;padding-top:16px;border-top:1px solid var(--line);
+  font-size:12px;color:var(--muted);line-height:1.6}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+// A blank screen in a meeting room is the worst outcome this page can produce, so
+// any failure — a script that did not load, a bug in here — is shown instead of
+// swallowed.
+function fatal(what, err) {
+  const root = document.getElementById("root");
+  if (root) {
+    root.innerHTML =
+      '<div class="wrap"><div class="err"><h3>' + what + "</h3><code>" +
+      String((err && (err.stack || err.message)) || err) + "</code></div></div>";
+  }
+}
+window.addEventListener("error", e => fatal("Page failed to render", e.error || e.message));
+
+for (const [name, obj] of [["React", window.React], ["ReactDOM", window.ReactDOM],
+                           ["htm", window.htm]]) {
+  if (!obj) fatal("Could not load " + name, name + " is not on the page — no network?");
+}
+
+const html = htm.bind(React.createElement);
+const { useState, useEffect } = React;
+
+const sar = n => "SAR " + Math.round(n).toLocaleString("en-US");
+const pct = n => (n * 100).toFixed(1) + "%";
+const pctInt = n => Math.round(n * 100) + "%";
+
+function Tile({ label, value, hero, band, actual }) {
+  const inBand = band ? actual >= band[0] && actual <= band[1] : null;
+  return html`
+    <div className=${"tile" + (hero ? " hero" : "")}>
+      <div className="v">${value}</div>
+      <div className="k">${label}</div>
+      ${band && html`
+        <div className="band">
+          <span className="${inBand ? "in-band" : "out-band"}">${inBand ? "in band" : "OUT OF BAND"}</span>
+          <span style=${{ color: "var(--muted)" }}>target ${pctInt(band[0])}–${pctInt(band[1])}</span>
+        </div>`}
+    </div>`;
+}
+
+function Scoreboard({ data }) {
+  const rows = data.by_type || [];
+  const s = data.summary || {};
+  const rate = (v) => (v === null || v === undefined || Number.isNaN(v) ? "—" : pctInt(v));
+  const recall = r => (r.planted ? r.found / r.planted : null);
+  const prec = r => (r.found + r.false_alarms ? r.found / (r.found + r.false_alarms) : null);
+
+  return html`
+    <div className="scroller">
+      <table>
+        <thead><tr>
+          <th>Defect type</th><th className="n">Planted</th><th className="n">Found</th>
+          <th className="n">Missed</th><th className="n">False alarms</th>
+          <th className="n">Recall</th><th className="n">Precision</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r => html`
+            <tr key=${r.defect_type}>
+              <td>${r.defect_type}</td>
+              <td className="n">${r.planted}</td>
+              <td className="n">${r.found}</td>
+              <td className=${"n " + (r.missed ? "bad" : "")}>${r.missed}</td>
+              <td className=${"n " + (r.false_alarms ? "bad" : "")}>${r.false_alarms}</td>
+              <td className=${"n " + (recall(r) === 1 ? "good" : "")}>${rate(recall(r))}</td>
+              <td className=${"n " + (prec(r) === 1 ? "good" : "")}>${rate(prec(r))}</td>
+            </tr>`)}
+          <tr className="total">
+            <td>Total — checks that ran</td>
+            <td className="n">${s.planted}</td>
+            <td className="n">${s.found}</td>
+            <td className=${"n " + (s.missed ? "bad" : "")}>${s.missed}</td>
+            <td className=${"n " + (s.false_alarms ? "bad" : "")}>${s.false_alarms}</td>
+            <td className=${"n " + (s.recall === 1 ? "good" : "")}>${rate(s.recall)}</td>
+            <td className=${"n " + (s.precision === 1 ? "good" : "")}>${rate(s.precision)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    ${s.informational && Object.keys(s.informational).length > 0 && html`
+      <div className="note">
+        <b>Informational findings</b> — real problems with no planted counterpart, so
+        they are counted but excluded from precision:
+        ${" " + Object.entries(s.informational).map(([k, v]) => k + " = " + v).join(", ")}.
+      </div>`}
+
+    ${s.not_yet_implemented && s.not_yet_implemented.length > 0 && html`
+      <p className="pending">
+        Checks not written yet: ${s.not_yet_implemented.map(t => html`<code>${t}</code> `)}
+        — these are excluded from the totals rather than scored as missed, so the board
+        reads as progress rather than as failure.
+      </p>`}`;
+}
+
+function App() {
+  const [state, setState] = useState({ status: "loading" });
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/summary").then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e))),
+      fetch("/api/scoreboard").then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e))),
+    ])
+      .then(([summary, score]) => setState({ status: "ready", summary, score }))
+      .catch(err => setState({ status: "error", detail: err.detail || String(err) }));
+  }, []);
+
+  if (state.status === "loading") return html`<div className="wrap"><p>Loading…</p></div>`;
+
+  if (state.status === "error") {
+    return html`<div className="wrap">
+      <div className="err">
+        <h3>No results to show</h3>
+        <div>${state.detail}</div>
+        <code>python cli.py all --preset full</code>
+      </div>
+    </div>`;
+  }
+
+  const { summary, score } = state;
+  const inv = summary.inventory, run = summary.run, c = summary.counts;
+
+  return html`
+    <div className="wrap">
+      <header>
+        <div className="eyebrow">Ma'aden Aluminium · Use Case 01 · POC</div>
+        <h1>Inventory Intelligence & MRO Optimization</h1>
+        <div className="runline">
+          <span>preset ${run.preset}</span>
+          <span>seed ${run.seed}</span>
+          <span>git ${run.git_sha}</span>
+          <span>config ${run.config_hash}</span>
+          <span>cutoff ${run.cutoff_date}</span>
+          <span>${c.materials.toLocaleString()} materials · ${c.positions.toLocaleString()} positions
+            · ${c.movements.toLocaleString()} movements</span>
+        </div>
+      </header>
+
+      <h2>Inventory</h2>
+      <div className="tiles">
+        <${Tile} hero label="Total stock value, ${c.storerooms} storerooms"
+                 value=${sar(inv.total_stock_value_sar)} />
+        <${Tile} label=${"Lines not issued in 24 months (" + inv.idle_24m_count.toLocaleString() + " of " + c.materials.toLocaleString() + ")"}
+                 value=${pct(inv.idle_24m_share)}
+                 band=${summary.targets.idle_24m_share} actual=${inv.idle_24m_share} />
+        <${Tile} label=${"Dead value — " + sar(inv.dead_value_sar)}
+                 value=${pct(inv.dead_value_share)}
+                 band=${summary.targets.dead_value_share} actual=${inv.dead_value_share} />
+      </div>
+
+      <div className="note warn">
+        <b>These three figures are measured from the answer key, not found by the engine.</b>
+        ${" " + inv.note} They are the size of the prize, not a claim about what the
+        system detected — step 6 adds the engine's own dead-money figure beside them so
+        the two can be compared.
+      </div>
+
+      <h2>Defect detection — graded against the sealed answer key</h2>
+      <${Scoreboard} data=${score} />
+
+      <footer>
+        Read-only view over precomputed results. Nothing on this page is calculated at
+        request time — every figure was written to ${" "}<code>results/</code>${" "}
+        during ${" "}<code>build</code>, <code>run</code> and <code>score</code>.
+        <br/>Generated ${run.generated_at}.
+      </footer>
+    </div>`;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(html`<${App} />`);
+</script>
+</body>
+</html>

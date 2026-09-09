@@ -469,3 +469,46 @@ Reasoning: The review offered failing the build or warning loudly. Warning, beca
            reproducible — just not traceable to code, which is what the warning says.
 Rejected: hard failure (breaks the test suite and any zip-and-run)
 Reverses: —
+
+---
+
+## 2026-09-10 — Work-order grouping stays synthetic; WO-first sampling deferred
+Model: Opus 5
+Type: decision
+Reasoning: Issues are grouped into jobs by (equipment, month) after the fact. Demand
+           is sampled per material independently, so any grouping imposed afterwards
+           is invented — the number of parts on a job is a property of our grouping
+           rule, not of the plant.
+           This surfaced when the issues-per-WO target was 2.0 and the natural
+           grouping produced 1.8. The fix applied at the time was to widen job sizes
+           to 2-8 parts, which cleared the target by tuning the plant to fit the
+           metric — exactly backwards. Job sizes are now back to their natural
+           (1,6)/(1,3) and the target is 1.5, which the grouping meets honestly.
+           DEFERRED CHANGE — invert the model: sample work orders first (an asset
+           has a maintenance event), then draw the parts consumed from that asset's
+           BOM. Parts-per-job then falls out of the BOM and the job type rather than
+           from a bucketing rule, and issues-per-WO becomes a measurement instead of
+           a knob. It also gives step 4 a much better signal: a planned job's parts
+           would be predictable from the asset and the job type, which is what
+           "maintenance plans drive demand" actually means.
+           Not done now because it inverts the generator's core loop and the slice
+           needs closing first. Marked with a `ponytail:` comment at
+           generator/demand.py:build_work_orders.
+Rejected: widening job sizes to hit the target (tunes the plant to fit the metric)
+Reverses: the (2,8)/(1,4) sizes introduced the same day
+
+---
+
+## 2026-09-10 — material_group kept, with a cardinality test
+Model: Opus 5
+Type: decision
+Reasoning: Reviewer accepted the partial disagreement on removing every grouping
+           column. `family_id` stays out of the source tables, but `material_group`
+           (a coarse SAP MATKL analogue) remains, because a real extract has one and
+           removing all grouping signal would make the POC unrealistically hard in
+           one direction while the missing column makes it unrealistically clean in
+           another. `test_family_id_is_not_in_the_source_tables` asserts it has
+           strictly fewer distinct values than the true family count, so it stays a
+           hint the engine may legitimately use rather than the answer.
+Rejected: no grouping column at all
+Reverses: —

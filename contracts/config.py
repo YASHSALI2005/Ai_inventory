@@ -247,15 +247,17 @@ class WorkOrderShaping(BaseModel):
     """
 
     group_freq: str = "MS"                      # one maintenance visit per asset per month
-    # A planned overhaul consumes a kit — seal kit, bearings, gaskets, oil — not one
-    # part. Sizes also have to clear the integer-chunking tail: a group of 5 split
-    # by 2 leaves jobs of 2, 2, 1, which drags the mean below the target on its own.
-    parts_per_planned: tuple[int, int] = (2, 8)
-    parts_per_breakdown: tuple[int, int] = (1, 4)
+    # Natural job sizes. These were briefly widened to (2,8)/(1,4) purely to clear a
+    # >=2.0 issues-per-WO target, which was tuning the plant to fit the metric. The
+    # target is now 1.5 and these are back to what a maintenance job actually
+    # consumes — see DECISIONS.md for the deferred WO-first rewrite that would make
+    # the number come out right for the right reason.
+    parts_per_planned: tuple[int, int] = (1, 6)
+    parts_per_breakdown: tuple[int, int] = (1, 3)
     planned_notice_days: tuple[int, int] = (14, 60)
     shutdown_notice_days: tuple[int, int] = (90, 240)
     breakdown_share: float = 0.40
-    target_issues_per_wo: float = 2.0
+    target_issues_per_wo: float = 1.5
 
 
 class ReturnsAdjustments(BaseModel):

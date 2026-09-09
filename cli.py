@@ -83,6 +83,10 @@ def cmd_score(args) -> int:
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     scores, summary = defects.score(cfg)
+    # headline figures are written here, once, so the dashboard computes nothing
+    from scoring import summary as summary_writer
+
+    summary_writer.build(cfg)
 
     print(
         f"run {manifest['config_hash']} · seed {manifest['seed']} · "
@@ -118,8 +122,38 @@ def cmd_all(args) -> int:
 
 
 def cmd_serve(args) -> int:
-    print("serve lands in step 7", file=sys.stderr)
-    return 1
+    """Serve the dashboard. Reads results/ only — recomputes nothing."""
+    import threading
+    import webbrowser
+
+    try:
+        import uvicorn
+
+        from api.app import create_app
+    except ImportError:
+        print(
+            "the API extras are not installed. Run:\n"
+            '  python -m pip install "fastapi>=0.115" "uvicorn[standard]>=0.30"',
+            file=sys.stderr,
+        )
+        return 1
+
+    from scoring.summary import SUMMARY_FILE
+
+    cfg = _cfg(args)
+    if not (cfg.results_dir / SUMMARY_FILE).exists():
+        print(
+            f"no results to serve — run `python cli.py all --preset {cfg.preset}` first",
+            file=sys.stderr,
+        )
+        return 1
+
+    url = f"http://{args.host}:{args.port}"
+    print(f"serving [{cfg.preset}] at {url}   (ctrl-c to stop)")
+    if not args.no_browser:
+        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+    uvicorn.run(create_app(cfg), host=args.host, port=args.port, log_level="warning")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -139,7 +173,13 @@ def main(argv: list[str] | None = None) -> int:
         ("all", cmd_all, "build, run, score"),
         ("serve", cmd_serve, "run the API"),
     ):
-        sub.add_parser(name, parents=[common], help=helptext).set_defaults(fn=fn)
+        parser = sub.add_parser(name, parents=[common], help=helptext)
+        parser.set_defaults(fn=fn)
+        if name == "serve":
+            parser.add_argument("--host", default="127.0.0.1")
+            parser.add_argument("--port", type=int, default=8000)
+            parser.add_argument("--no-browser", action="store_true",
+                                help="do not open a browser window")
 
     args = p.parse_args(argv)
     return args.fn(args)
