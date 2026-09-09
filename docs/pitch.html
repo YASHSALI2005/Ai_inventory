@@ -1,0 +1,659 @@
+<title>Ma'aden MRO Intelligence Pitch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  --ground:#EAE7E2;
+  --slide:#FFFFFF;
+  --panel:#F5F3F0;
+  --panel-2:#EDEAE5;
+  --ink:#16191C;
+  --ink-2:#40454B;
+  --muted:#787D85;
+  --line:#DFDAD3;
+  --line-2:#C7C0B7;
+  /* single accent: bauxite. flow ramp = same hue, four steps */
+  --f1:#EFE0D6;
+  --f2:#DCB79E;
+  --f3:#C08055;
+  --f4:#A24E28;
+  --accent:#A24E28;
+  --accent-ink:#FFFFFF;
+  --accent-soft:#F5E7DF;
+  --teal:#2B6B67;
+  --teal-soft:#E0EBEA;
+  --warn:#8C6412;
+  --warn-soft:#F4EBD6;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0E1012; --slide:#191C20; --panel:#212529; --panel-2:#282D32;
+    --ink:#EDEAE5; --ink-2:#C4C0BA; --muted:#8F959D;
+    --line:#31363C; --line-2:#454B53;
+    --f1:#33261F; --f2:#6E4A34; --f3:#B0704A; --f4:#D9825A;
+    --accent:#D9825A; --accent-ink:#191C20; --accent-soft:#33241D;
+    --teal:#5FAAA4; --teal-soft:#1C2C2B;
+    --warn:#CFA344; --warn-soft:#2E2612;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0E1012; --slide:#191C20; --panel:#212529; --panel-2:#282D32;
+  --ink:#EDEAE5; --ink-2:#C4C0BA; --muted:#8F959D;
+  --line:#31363C; --line-2:#454B53;
+  --f1:#33261F; --f2:#6E4A34; --f3:#B0704A; --f4:#D9825A;
+  --accent:#D9825A; --accent-ink:#191C20; --accent-soft:#33241D;
+  --teal:#5FAAA4; --teal-soft:#1C2C2B;
+  --warn:#CFA344; --warn-soft:#2E2612;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"Archivo","Helvetica Neue",Arial,sans-serif;
+  overflow:hidden;
+}
+.mono,.num{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+
+/* ============ stage ============ */
+#viewport{position:fixed;inset:0;display:grid;place-items:center}
+#track{width:1280px;height:720px;transform-origin:center center;position:relative}
+.slide{
+  position:absolute;inset:0;width:1280px;height:720px;
+  background:var(--slide);
+  padding:46px 54px 52px;
+  display:none;
+  flex-direction:column;
+  box-shadow:0 24px 70px -30px rgba(0,0,0,.45);
+}
+.slide.on{display:flex}
+
+/* ============ slide chrome ============ */
+.shead{display:flex;align-items:flex-start;gap:16px;padding-bottom:14px;border-bottom:2px solid var(--ink);margin-bottom:22px;flex:0 0 auto}
+.snum{
+  font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600;color:var(--accent);
+  border:1px solid var(--line-2);border-radius:2px;padding:4px 7px;margin-top:4px;letter-spacing:.04em;
+}
+.stitles{flex:1;min-width:0}
+.stitle{font-size:31px;font-weight:700;letter-spacing:-.02em;line-height:1.12;text-wrap:balance}
+.skicker{font-size:15px;color:var(--muted);margin-top:6px;font-weight:400;line-height:1.35}
+.sbody{flex:1;min-height:0;display:flex;flex-direction:column;gap:16px}
+
+.srail{
+  position:absolute;left:54px;right:54px;bottom:20px;
+  display:flex;justify-content:space-between;align-items:center;
+  font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--muted);
+  letter-spacing:.08em;text-transform:uppercase;
+}
+
+/* ============ generic blocks ============ */
+.lbl{font-size:10px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
+.row{display:flex;gap:14px}
+.col{display:flex;flex-direction:column;gap:14px}
+.grow{flex:1;min-width:0;min-height:0}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:15px 17px}
+.card.plain{background:transparent}
+.card.acc{background:var(--accent-soft);border-color:var(--accent)}
+
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:14px 16px;flex:1}
+.tile .v{font-family:"IBM Plex Mono",monospace;font-size:27px;font-weight:600;letter-spacing:-.02em;line-height:1.05;font-variant-numeric:tabular-nums}
+.tile .k{font-size:11.5px;color:var(--muted);margin-top:7px;line-height:1.35}
+.tile.hero .v{font-size:34px;color:var(--accent)}
+
+/* ============ 01 title ============ */
+.t-wrap{flex:1;display:flex;flex-direction:column;justify-content:center;gap:26px}
+.t-eyebrow{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
+.t-h1{font-size:57px;font-weight:700;letter-spacing:-.03em;line-height:1.03;max-width:19ch;text-wrap:balance}
+.t-sub{font-size:19px;color:var(--ink-2);max-width:56ch;line-height:1.45}
+.t-sub b{color:var(--ink);font-weight:600}
+.t-para{display:flex;gap:0;border:1px solid var(--line);border-radius:3px;overflow:hidden;max-width:760px}
+.t-para > div{flex:1;padding:15px 18px;background:var(--panel)}
+.t-para > div + div{border-left:1px solid var(--line)}
+.t-para .p-v{font-family:"IBM Plex Mono",monospace;font-size:21px;font-weight:600;line-height:1.1}
+.t-para .p-k{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.35}
+.t-para .a .p-v{color:var(--accent)}
+.t-para .b .p-v{color:var(--warn)}
+
+/* chain strip */
+.chain{display:flex;align-items:stretch;gap:0}
+.cn{flex:1;background:var(--panel);border:1px solid var(--line);padding:11px 12px;position:relative}
+.cn + .cn{border-left:none}
+.cn:first-child{border-radius:3px 0 0 3px}
+.cn:last-child{border-radius:0 3px 3px 0}
+.cn .cn-t{font-size:11.5px;font-weight:600;line-height:1.25}
+.cn .cn-l{font-size:10px;color:var(--muted);margin-top:2px}
+.cn .cn-c{font-family:"IBM Plex Mono",monospace;font-size:15px;font-weight:600;margin-top:8px;line-height:1}
+.cn .cn-u{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--muted);display:block;margin-top:3px}
+.cn.s1{border-top:3px solid var(--f1)} .cn.s1 .cn-c{color:var(--ink-2)}
+.cn.s2{border-top:3px solid var(--f2)} .cn.s2 .cn-c{color:var(--ink-2)}
+.cn.s3{border-top:3px solid var(--f3)} .cn.s3 .cn-c{color:var(--f3)}
+.cn.s4{border-top:3px solid var(--f4)} .cn.s4 .cn-c{color:var(--f4)}
+.cn.s5{border-top:3px solid var(--f4)} .cn.s5 .cn-c{color:var(--f4)}
+
+/* ============ bars ============ */
+.bar{display:flex;height:56px;border-radius:3px;overflow:hidden;border:1px solid var(--line-2)}
+.bseg{display:flex;flex-direction:column;justify-content:center;padding:0 14px;position:relative}
+.bseg .bv{font-family:"IBM Plex Mono",monospace;font-size:17px;font-weight:600;line-height:1}
+.bseg .bk{font-size:10.5px;margin-top:4px;line-height:1.2;opacity:.9}
+.bscale{display:flex;justify-content:space-between;font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--muted);margin-top:6px}
+
+/* symptom chips */
+.chips{display:flex;flex-direction:column;gap:7px}
+.chip{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--f3);border-radius:2px;padding:9px 12px;font-size:12.5px;line-height:1.3}
+.chip b{font-weight:600}
+.chip span{color:var(--muted);display:block;font-size:11px;margin-top:2px}
+
+.cause{background:var(--accent);color:var(--accent-ink);border-radius:3px;padding:14px 16px;text-align:center}
+.cause .c-k{font-size:10px;letter-spacing:.13em;text-transform:uppercase;opacity:.85}
+.cause .c-v{font-size:22px;font-weight:700;margin-top:5px;letter-spacing:-.01em}
+.cause .c-s{font-size:11.5px;margin-top:6px;opacity:.9;line-height:1.35}
+
+/* ============ quadrant ============ */
+.quad{flex:1;min-height:0;display:flex;align-items:center}
+.quad svg{width:100%;height:100%;display:block}
+
+.vs{display:flex;flex-direction:column;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.vs-r{display:grid;grid-template-columns:82px 1fr 1fr;background:var(--slide)}
+.vs-r > *{padding:7px 11px;font-size:11.5px;line-height:1.3}
+.vs-r .h{color:var(--muted);font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+.vs-r.head{background:var(--panel-2)}
+.vs-r.head > *{font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+.vs-r .a{color:var(--accent);font-weight:500}
+.vs-r .b{color:var(--teal);font-weight:500}
+
+/* ============ capability flow ============ */
+.flow{display:flex;align-items:stretch;gap:10px;flex:1;min-height:0}
+.fstage{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0}
+.fstage > .lbl{text-align:center;padding-bottom:4px;border-bottom:1px solid var(--line)}
+.fnode{
+  background:var(--panel);border:1px solid var(--line);border-radius:3px;
+  padding:12px 13px;flex:1;display:flex;flex-direction:column;justify-content:center;
+}
+.fnode .fn-n{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;color:var(--accent);margin-bottom:5px}
+.fnode .fn-t{font-size:14px;font-weight:600;line-height:1.2}
+.fnode .fn-d{font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.35}
+.fnode.deep{border-color:var(--accent);border-width:1px;background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
+.farrow{display:flex;align-items:center;color:var(--line-2);font-size:20px;flex:0 0 auto;padding-top:26px}
+
+.legend{display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:11.5px;color:var(--muted)}
+.lg{display:flex;align-items:center;gap:6px}
+.sw{width:13px;height:13px;border-radius:2px;border:1px solid var(--line-2);flex:0 0 auto}
+.sw.deep{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent);border-color:var(--accent)}
+.sw.std{background:var(--panel)}
+
+/* ============ architecture ============ */
+.arch{display:flex;align-items:stretch;gap:0;flex:1;min-height:0}
+.acol{flex:1;min-width:0;display:flex;flex-direction:column}
+.acol > .lbl{padding:0 0 8px;border-bottom:1px solid var(--line);margin-bottom:10px;text-align:center}
+.abox{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:10px 12px;margin-bottom:7px}
+.abox .ab-t{font-size:12.5px;font-weight:600;line-height:1.25}
+.abox .ab-s{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.3}
+.abox.hl{background:var(--accent-soft);border-color:var(--accent)}
+.abox.hl .ab-t{color:var(--accent)}
+.aarrow{flex:0 0 34px;display:flex;align-items:center;justify-content:center;color:var(--line-2);font-size:19px}
+
+.callout{display:flex;gap:12px}
+.callout .co{flex:1;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:3px;padding:12px 14px}
+.co .co-k{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.co .co-v{font-size:13px;margin-top:6px;line-height:1.4;color:var(--ink-2)}
+.co .co-v b{color:var(--ink);font-weight:600}
+
+/* ============ roadmap ============ */
+.road{display:flex;gap:0;align-items:stretch}
+.rp{flex:1;padding:13px 14px;background:var(--panel);border:1px solid var(--line);position:relative}
+.rp + .rp{border-left:none}
+.rp:first-child{border-radius:3px 0 0 3px}
+.rp:last-child{border-radius:0 3px 3px 0}
+.rp .rp-n{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.rp .rp-t{font-size:13.5px;font-weight:600;margin-top:6px;line-height:1.25}
+.rp .rp-o{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.35}
+.rp.done{border-top:3px solid var(--teal)}
+.rp.done .rp-n{color:var(--teal)}
+.rp.now{border-top:3px solid var(--accent);background:var(--accent-soft)}
+.rp.now .rp-n{color:var(--accent)}
+.rp.next{border-top:3px solid var(--f2)}
+.rp.later{border-top:3px solid var(--f1)}
+
+.proof{display:flex;gap:12px}
+.pf{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:13px 15px}
+.pf .pf-k{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.pf .pf-t{font-size:14px;font-weight:600;margin-top:6px}
+.pf .pf-d{font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.4}
+.pf .pf-out{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--accent);margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+
+.ask{background:var(--ink);color:var(--slide);border-radius:3px;padding:15px 20px;display:flex;align-items:center;gap:20px}
+.ask .a-k{font-size:10px;letter-spacing:.14em;text-transform:uppercase;opacity:.6;flex:0 0 auto}
+.ask .a-v{font-size:17px;font-weight:600;flex:1;line-height:1.3}
+.ask .a-s{font-size:11.5px;opacity:.7;flex:0 0 auto;text-align:right;line-height:1.4}
+
+/* ============ incident timeline ============ */
+.tl{display:flex;flex-direction:column;gap:0;flex:1;min-height:0}
+.tl-row{display:grid;grid-template-columns:74px 22px 1fr;align-items:start;flex:1;min-height:0}
+.tl-time{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;padding-top:9px;text-align:right;padding-right:12px;color:var(--muted)}
+.tl-line{position:relative;display:flex;justify-content:center}
+.tl-line::before{content:"";position:absolute;top:0;bottom:0;width:1px;background:var(--line-2)}
+.tl-row:first-child .tl-line::before{top:14px}
+.tl-row:last-child .tl-line::before{bottom:calc(100% - 14px)}
+.tl-dot{width:11px;height:11px;border-radius:50%;margin-top:9px;position:relative;border:2px solid var(--slide)}
+.tl-txt{padding:6px 0 12px 4px}
+.tl-t{font-size:14px;font-weight:600;line-height:1.25}
+.tl-d{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.35}
+.tl-cost{font-family:"IBM Plex Mono",monospace;font-size:11.5px;margin-top:5px;font-weight:500}
+.tl-row.g1 .tl-dot{background:var(--f2)} .tl-row.g2 .tl-dot{background:var(--f3)}
+.tl-row.g3 .tl-dot{background:var(--f4)} .tl-row.g4 .tl-dot{background:var(--f4)}
+.tl-row.ok .tl-dot{background:var(--teal)}
+.tl-row.ok .tl-time{color:var(--teal)}
+
+.meanwhile{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:3px;padding:15px 17px}
+.meanwhile .mw-k{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--warn);font-weight:600}
+.meanwhile .mw-v{font-size:14.5px;font-weight:600;margin-top:8px;line-height:1.35}
+.meanwhile .mw-d{font-size:12.5px;color:var(--muted);margin-top:7px;line-height:1.45}
+.meanwhile .mw-n{font-family:"IBM Plex Mono",monospace;font-size:23px;font-weight:600;color:var(--warn);margin-top:11px;line-height:1}
+
+.verdict{background:var(--ink);color:var(--slide);border-radius:3px;padding:14px 20px;font-size:16px;font-weight:600;line-height:1.35;text-align:center}
+.verdict span{opacity:.65;font-weight:400;display:block;font-size:12.5px;margin-top:5px}
+.verdict.good{background:var(--teal)}
+
+/* ============ leak bars ============ */
+.leakwrap{display:flex;gap:18px;flex:1;min-height:0}
+.leakcol{display:flex;flex-direction:column;gap:9px;min-width:0}
+.leakcol > .lbl{padding-bottom:6px;border-bottom:1px solid var(--line)}
+.lk{display:flex;flex-direction:column;gap:5px}
+.lk-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.lk-n{font-size:13px;font-weight:600;line-height:1.25}
+.lk-v{font-family:"IBM Plex Mono",monospace;font-size:14px;font-weight:600;white-space:nowrap}
+.lk-bar{height:16px;background:var(--panel-2);border-radius:2px;overflow:hidden;border:1px solid var(--line)}
+.lk-fill{height:100%}
+.lk-d{font-size:11px;color:var(--muted);line-height:1.35}
+.lk-sig{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--accent)}
+
+.bigcash{background:var(--accent-soft);border:1px solid var(--accent);border-radius:3px;padding:16px 18px;display:flex;flex-direction:column;justify-content:center;flex:1}
+.bigcash .bc-k{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.bigcash .bc-v{font-family:"IBM Plex Mono",monospace;font-size:38px;font-weight:600;color:var(--accent);line-height:1;margin-top:10px;letter-spacing:-.02em}
+.bigcash .bc-s{font-size:12.5px;color:var(--ink-2);margin-top:9px;line-height:1.4}
+.bigcash .bc-n{font-size:11px;color:var(--muted);margin-top:10px;padding-top:9px;border-top:1px solid var(--accent);line-height:1.4}
+
+/* ============ fixed-day outcome tiles ============ */
+.outs{display:flex;flex-direction:column;gap:7px}
+.out{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;
+  background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:10px 13px}
+.out .o-k{font-size:11px;color:var(--muted);grid-column:1/-1;margin-bottom:-3px}
+.out .o-was{font-family:"IBM Plex Mono",monospace;font-size:15px;font-weight:600;color:var(--muted);text-decoration:line-through;text-decoration-thickness:1px}
+.out .o-ar{color:var(--line-2);font-size:14px}
+.out .o-now{font-family:"IBM Plex Mono",monospace;font-size:15px;font-weight:600;color:var(--teal)}
+
+.capstamp{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:9.5px;font-weight:600;
+  background:var(--accent);color:var(--accent-ink);padding:2px 5px;border-radius:2px;margin-right:6px;vertical-align:1px}
+
+/* ============ capability grid (slide 03) ============ */
+.capgrid{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:1fr;gap:9px;flex:1;min-height:0}
+.cg{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:12px 13px;
+  display:flex;flex-direction:column;min-height:0}
+.cg-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
+.cg-n{font-family:"IBM Plex Mono",monospace;font-size:15px;font-weight:600;color:var(--accent);line-height:1}
+.cg-t{font-size:14.5px;font-weight:600;line-height:1.2;margin-bottom:6px}
+.cg-d{font-size:11.5px;color:var(--muted);line-height:1.4;flex:1}
+.cg-v{font-size:11.5px;font-weight:600;color:var(--accent);margin-top:8px;padding-top:8px;
+  border-top:1px solid var(--line);line-height:1.3}
+.cg.deep{background:var(--accent-soft);border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.cg.deep .cg-v{border-top-color:var(--accent)}
+.cg.note-cell{background:transparent;border-style:dashed;box-shadow:none}
+.cg.note-cell .cg-d b{color:var(--accent);font-weight:600}
+.cg .tag{margin-left:0}
+
+/* ============ nav ============ */
+#nav{
+  position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:5px;
+  background:var(--slide);border:1px solid var(--line);border-radius:20px;
+  padding:6px 9px;box-shadow:0 4px 16px -6px rgba(0,0,0,.3);z-index:10;
+}
+#nav button{
+  border:none;background:transparent;color:var(--muted);cursor:pointer;
+  font-family:"IBM Plex Mono",monospace;font-size:13px;padding:3px 8px;border-radius:12px;line-height:1;
+}
+#nav button:hover{background:var(--panel);color:var(--ink)}
+.dots{display:flex;gap:5px;padding:0 6px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--line-2);border:none;padding:0;cursor:pointer}
+.dot.on{background:var(--accent)}
+#count{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted);padding:0 7px;min-width:44px;text-align:center}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+@media print{
+  @page{size:1280px 720px;margin:0}
+  body,#viewport{overflow:visible;position:static;display:block;background:#fff}
+  #track{transform:none!important;width:auto;height:auto}
+  .slide{display:flex!important;position:relative;page-break-after:always;box-shadow:none;inset:auto}
+  #nav{display:none}
+}
+</style>
+
+<div id="viewport"><div id="track">
+
+<!-- ═══════════ 1 ═══════════ -->
+<section class="slide on">
+  <div class="t-wrap">
+    <div class="t-eyebrow">Use Case 01 · Proof of concept proposal</div>
+    <h1 class="t-h1">AI-Powered Inventory Intelligence &amp; MRO Optimization</h1>
+    <p class="t-sub">Ma'aden Aluminium's storerooms are full — and its plants still go down waiting for parts.
+      <b>Both are true at once, in the same building.</b> The money isn't missing; it is in the wrong parts.</p>
+
+    <div class="t-para">
+      <div class="a">
+        <div class="p-v">20–40%</div>
+        <div class="p-k">of MRO inventory is excess or obsolete — capital frozen in parts that will never be issued</div>
+      </div>
+      <div class="b">
+        <div class="p-v">10–15%</div>
+        <div class="p-k">of critical parts carry stockout risk <em>at the same time</em> — in the same storeroom</div>
+      </div>
+      <div>
+        <div class="p-v">3–5×</div>
+        <div class="p-k">cost premium when the missing part is bought as an emergency instead of planned</div>
+      </div>
+    </div>
+
+    <div class="col" style="gap:8px">
+      <div class="lbl">Scope — one integrated chain · two locations · 600 km apart</div>
+      <div class="chain">
+        <div class="cn s1"><div class="cn-t">Al Ba'itha mine</div><div class="cn-l">Qassim · standalone</div><div class="cn-c">4.0<span class="cn-u">Mt/y bauxite</span></div></div>
+        <div class="cn s2"><div class="cn-t">Rail link</div><div class="cn-l">mine → coast</div><div class="cn-c">600<span class="cn-u">km</span></div></div>
+        <div class="cn s3"><div class="cn-t">Alumina refinery</div><div class="cn-l">Ras Al Khair</div><div class="cn-c">1.8<span class="cn-u">Mt/y alumina</span></div></div>
+        <div class="cn s4"><div class="cn-t">Smelter</div><div class="cn-l">Ras Al Khair</div><div class="cn-c">750<span class="cn-u">kt/y primary Al</span></div></div>
+        <div class="cn s5"><div class="cn-t">Rolling mill</div><div class="cn-l">Ras Al Khair</div><div class="cn-c">380<span class="cn-u">kt/y flat-rolled</span></div></div>
+      </div>
+      <div style="display:flex;gap:0;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">
+        <span style="flex:2;text-align:center;border-top:1px solid var(--line-2);padding-top:5px">Central Arabia</span>
+        <span style="flex:.06"></span>
+        <span style="flex:3;text-align:center;border-top:1px solid var(--accent);padding-top:5px;color:var(--accent)">One 20 km² site on the Gulf coast — three plants, multiple storerooms</span>
+      </div>
+    </div>
+  </div>
+  <div class="srail"><span>MD-404-1000-OE-DG-SOW-0000_ · Rev 0.0</span><span>Phase 0 — for management review</span></div>
+</section>
+
+<!-- ═══════════ 2 ═══════════ -->
+<section class="slide">
+  <div class="shead">
+    <div class="snum">02</div>
+    <div class="stitles">
+      <h2 class="stitle">A day it goes wrong</h2>
+      <div class="skicker">One ordinary failure at Ras Al Khair — and what it costs before anyone has done anything wrong</div>
+    </div>
+  </div>
+  <div class="sbody">
+    <div class="row grow" style="gap:20px">
+
+      <div class="col" style="flex:1.5;min-height:0">
+        <div class="lbl">Rolling mill · one bearing</div>
+        <div class="tl">
+          <div class="tl-row g1">
+            <div class="tl-time">02:14</div><div class="tl-line"><span class="tl-dot"></span></div>
+            <div class="tl-txt">
+              <div class="tl-t">A bearing fails. The mill stops.</div>
+              <div class="tl-d">Normal wear. Nobody made a mistake here — machines fail.</div>
+            </div>
+          </div>
+          <div class="tl-row g2">
+            <div class="tl-time">02:40</div><div class="tl-line"><span class="tl-dot"></span></div>
+            <div class="tl-txt">
+              <div class="tl-t">Storeroom checked — not in stock.</div>
+              <div class="tl-d">400 metres away. It was never stocked. <b>This is the failure.</b></div>
+            </div>
+          </div>
+          <div class="tl-row g3">
+            <div class="tl-time">03:10</div><div class="tl-line"><span class="tl-dot"></span></div>
+            <div class="tl-txt">
+              <div class="tl-t">Emergency order raised.</div>
+              <div class="tl-d">Standard lead time six weeks. Air freight instead.</div>
+              <div class="tl-cost" style="color:var(--f4)">→ 3–5× the planned price</div>
+            </div>
+          </div>
+          <div class="tl-row g4">
+            <div class="tl-time">+3 days</div><div class="tl-line"><span class="tl-dot"></span></div>
+            <div class="tl-txt">
+              <div class="tl-t">Part lands. Mill restarts.</div>
+              <div class="tl-d">Three days of flat-rolled output that will not be recovered.</div>
+              <div class="tl-cost" style="color:var(--f4)">→ Downtime dwarfs the part</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col" style="flex:1;justify-content:center;gap:14px">
+        <div class="meanwhile">
+          <div class="mw-k">Meanwhile · same storeroom · three aisles away</div>
+          <div class="mw-v">400 filter cartridges for a unit removed in 2019</div>
+          <div class="mw-d">Fully stocked. Perfectly counted. Correctly recorded in SAP.
+            Not one of them will ever be issued.</div>
+          <div class="mw-n">SAR 300,000</div>
+        </div>
+        <div class="card plain" style="border:1px dashed var(--line-2)">
+          <div style="font-size:12.5px;color:var(--ink-2);line-height:1.45">
+            It is <b style="color:var(--ink)">not a distance problem</b> — the store is 400 m from the mill.
+            It is not a counting problem either; the stock records were right.
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="verdict">
+      The money to buy that bearing had already been spent.
+      <span>It was sitting on a shelf, three aisles away, as something else.</span>
+    </div>
+  </div>
+  <div class="srail"><span>Illustrative incident — the pattern, not a Ma'aden record</span><span>02 / 04</span></div>
+</section>
+
+
+<!-- ═══════════ 3 ═══════════ -->
+<section class="slide">
+  <div class="shead">
+    <div class="snum">03</div>
+    <div class="stitles">
+      <h2 class="stitle">What we are going to build</h2>
+      <div class="skicker">The seven capabilities in the Scope of Work — in order, in plain language, with the depth we propose for each</div>
+    </div>
+  </div>
+  <div class="sbody">
+
+    <div class="capgrid">
+      <div class="cg deep">
+        <div class="cg-h"><span class="cg-n">01</span><span class="tag t-deep">Deep</span></div>
+        <div class="cg-t">Predict demand</div>
+        <div class="cg-d">How many of this part will we need in the next six months — from consumption history <em>plus</em> the maintenance plan. A planned shutdown is a known spike, not a surprise.</div>
+        <div class="cg-v">Buy at planned prices, not 3–5× emergency</div>
+      </div>
+
+      <div class="cg deep">
+        <div class="cg-h"><span class="cg-n">02</span><span class="tag t-deep">Deep</span></div>
+        <div class="cg-t">Find the dead money</div>
+        <div class="cg-d">Never-issued items · spares for scrapped equipment · the same part under three numbers · 400 held where 40 would do.</div>
+        <div class="cg-v">The largest one-time cash release</div>
+      </div>
+
+      <div class="cg deep">
+        <div class="cg-h"><span class="cg-n">03</span><span class="tag t-deep">Deep</span></div>
+        <div class="cg-t">Set the right levels</div>
+        <div class="cg-d">Reorder point and safety stock computed per item from its own demand shape, lead time and criticality — not a number typed in years ago.</div>
+        <div class="cg-v">Less capital frozen, same service level</div>
+      </div>
+
+      <div class="cg">
+        <div class="cg-h"><span class="cg-n">04</span><span class="tag t-solid">Solid</span></div>
+        <div class="cg-t">Catch what is wrong</div>
+        <div class="cg-d">Negative stock · consumption with no work order · missing units of measure · blank manufacturer part numbers · impossible lead times.</div>
+        <div class="cg-v">Data trust — everything else depends on it</div>
+      </div>
+
+      <div class="cg">
+        <div class="cg-h"><span class="cg-n">05</span><span class="tag t-solid">Solid</span></div>
+        <div class="cg-t">Move it, don't buy it</div>
+        <div class="cg-d">One storeroom holds 40 idle while another is about to buy five. Costed by distance — across the Ras Al Khair site, or 600 km from the mine.</div>
+        <div class="cg-v">Free inventory; avoids the purchase entirely</div>
+      </div>
+
+      <div class="cg">
+        <div class="cg-h"><span class="cg-n">06</span><span class="tag t-demo">Interactive</span></div>
+        <div class="cg-t">Price the trade-off</div>
+        <div class="cg-d">“What if we accept 95% service instead of 98%?” — cash released plotted against risk accepted, with the items each scenario touches.</div>
+        <div class="cg-v">Turns a stocking argument into a decision</div>
+      </div>
+
+      <div class="cg deep">
+        <div class="cg-h"><span class="cg-n">07</span><span class="tag t-deep">Deep</span></div>
+        <div class="cg-t">Ask it a question</div>
+        <div class="cg-d">“Which critical spares at the smelter are below reorder point?” — plain language, over PiLog MDRM and ERP data.</div>
+        <div class="cg-v">Adoption — no BI training needed</div>
+      </div>
+
+      <div class="cg note-cell">
+        <div class="cg-h"><span class="cg-n" style="color:var(--muted)">→</span></div>
+        <div class="cg-t" style="font-size:13px">How they connect</div>
+        <div class="cg-d"><b>04</b> cleans the data · <b>01</b> predicts · <b>03</b> sets policy · <b>02</b> and <b>05</b> release the cash · <b>06</b> prices the trade-off · <b>07</b> is the front door.</div>
+        <div class="cg-v" style="color:var(--muted)">Four is the foundation. Seven is how people reach it.</div>
+      </div>
+    </div>
+
+    <div class="row" style="align-items:center;gap:14px">
+      <div class="legend">
+        <div class="lg"><span class="sw deep"></span> Deep — real algorithms, defensible under expert questioning</div>
+        <div class="lg"><span class="sw std"></span> Solid — real logic, narrower scope for a POC</div>
+      </div>
+      <div style="flex:1"></div>
+      <div class="card plain" style="border:1px dashed var(--line-2);padding:9px 13px">
+        <span style="font-size:11.5px;color:var(--ink-2)">
+          <b style="color:var(--ink)">Out of scope:</b> live ERP write-back · SSO · automatic purchase orders.
+          <b style="color:var(--ink)">It reads and recommends; a human decides.</b>
+        </span>
+      </div>
+    </div>
+
+  </div>
+  <div class="srail"><span>All seven demonstrated end to end · four built deep</span><span>03 / 04</span></div>
+</section>
+
+<!-- ═══════════ 4 ═══════════ -->
+<section class="slide">
+  <div class="shead">
+    <div class="snum">04</div>
+    <div class="stitles">
+      <h2 class="stitle">How it is built — and how it reaches your real data</h2>
+      <div class="skicker">Data flows one way. Nothing on the right computes; nothing in the middle touches your systems</div>
+    </div>
+  </div>
+  <div class="sbody">
+
+    <div class="arch">
+      <div class="acol">
+        <div class="lbl">Sources</div>
+        <div class="abox"><div class="ab-t">ERP — SAP</div><div class="ab-s">Stock, purchase orders, movements</div></div>
+        <div class="abox"><div class="ab-t">PiLog MDRM</div><div class="ab-s">Material master, ISO 8000 taxonomy</div></div>
+        <div class="abox"><div class="ab-t">CMMS / EAM</div><div class="ab-s">Work orders, equipment criticality</div></div>
+      </div>
+      <div class="aarrow">→</div>
+
+      <div class="acol" style="flex:.9">
+        <div class="lbl">Ingestion</div>
+        <div class="abox hl"><div class="ab-t">Adapter layer</div><div class="ab-s">One interface, any source</div></div>
+        <div class="abox"><div class="ab-t">Synthetic generator</div><div class="ab-s">Plugs in here for the POC — and is <b>replaced</b>, not rebuilt, for the pilot</div></div>
+      </div>
+      <div class="aarrow">→</div>
+
+      <div class="acol" style="flex:1.05">
+        <div class="lbl">Intelligence</div>
+        <div class="abox"><div class="ab-t">Data quality &amp; anomaly engine</div></div>
+        <div class="abox"><div class="ab-t">Demand classifier → forecaster</div><div class="ab-s">Routes each item to the right method</div></div>
+        <div class="abox"><div class="ab-t">Stocking policy engine</div><div class="ab-s">Reorder point, safety stock</div></div>
+        <div class="abox"><div class="ab-t">Dead-money &amp; transfer optimiser</div></div>
+      </div>
+      <div class="aarrow">→</div>
+
+      <div class="acol">
+        <div class="lbl">Surface</div>
+        <div class="abox"><div class="ab-t">Executive dashboard</div><div class="ab-s">Capital at risk, by site</div></div>
+        <div class="abox"><div class="ab-t">Planner work queue</div><div class="ab-s">Ranked in SAR, not by severity label</div></div>
+        <div class="abox"><div class="ab-t">Scenario simulator</div></div>
+        <div class="abox hl"><div class="ab-t">Conversational interface</div><div class="ab-s">Plain-language questions</div></div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <div class="co">
+        <div class="co-k">Design decision 1 — the adapter layer</div>
+        <div class="co-v">“How long before this runs on our real data?”<br>
+          <b>Replace one layer — not rebuild it.</b> The POC is built to be promoted to pilot, not thrown away.</div>
+      </div>
+      <div class="co">
+        <div class="co-k">Design decision 2 — the AI boundary</div>
+        <div class="co-v"><b>The AI narrates. It never computes.</b><br>
+          It calls the engine and reads back the result, always showing the numbers and the item list behind it.</div>
+      </div>
+    </div>
+
+  </div>
+  <div class="srail"><span>Open dependency: does a CMMS/EAM exist and is it reachable?</span><span>04 / 04</span></div>
+</section>
+
+
+</div></div>
+
+<nav id="nav">
+  <button id="prev" aria-label="Previous slide">←</button>
+  <span class="dots" id="dots"></span>
+  <span id="count"></span>
+  <button id="next" aria-label="Next slide">→</button>
+</nav>
+
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var track = document.getElementById('track');
+  var dots = document.getElementById('dots');
+  var count = document.getElementById('count');
+  var i = 0;
+
+  slides.forEach(function(_, n){
+    var d = document.createElement('button');
+    d.className = 'dot'; d.setAttribute('aria-label', 'Slide ' + (n+1));
+    d.onclick = function(){ go(n); };
+    dots.appendChild(d);
+  });
+  var dotEls = Array.prototype.slice.call(dots.children);
+
+  function go(n){
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach(function(s, k){ s.classList.toggle('on', k === i); });
+    dotEls.forEach(function(d, k){ d.classList.toggle('on', k === i); });
+    count.textContent = (i+1) + ' / ' + slides.length;
+  }
+
+  // the stage is a fixed 1280x720 canvas; scale it to whatever viewport it lands in
+  function fit(){
+    var pad = 56;
+    var s = Math.min((innerWidth - pad) / 1280, (innerHeight - pad) / 720);
+    track.style.transform = 'scale(' + s + ')';
+  }
+  addEventListener('resize', fit);
+
+  document.getElementById('prev').onclick = function(){ go(i-1); };
+  document.getElementById('next').onclick = function(){ go(i+1); };
+  addEventListener('keydown', function(e){
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { go(i+1); e.preventDefault(); }
+    if (e.key === 'ArrowLeft'  || e.key === 'PageUp')                    { go(i-1); e.preventDefault(); }
+    if (e.key === 'Home') go(0);
+    if (e.key === 'End')  go(slides.length - 1);
+  });
+
+  fit(); go(0);
+})();
+</script>

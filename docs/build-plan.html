@@ -1,0 +1,718 @@
+<title>Ma'aden MRO Build Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  --ground:#F4F2EF;
+  --surface:#FFFFFF;
+  --surface-2:#EDEAE5;
+  --ink:#1A1D21;
+  --ink-2:#3C4148;
+  --muted:#71767E;
+  --line:#DAD6D0;
+  --line-2:#C3BDB5;
+  --accent:#A24E28;
+  --accent-soft:#F3E4DB;
+  --teal:#2B6B67;
+  --teal-soft:#DFEBEA;
+  --warn:#8A6212;
+  --warn-soft:#F5EBD4;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#15171A; --surface:#1D2024; --surface-2:#24282D;
+    --ink:#E9E6E1; --ink-2:#C6C2BC; --muted:#949AA2;
+    --line:#31353B; --line-2:#434952;
+    --accent:#D9825A; --accent-soft:#3A2A22;
+    --teal:#5FAAA4; --teal-soft:#1E2E2D;
+    --warn:#D0A445; --warn-soft:#312813;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#15171A; --surface:#1D2024; --surface-2:#24282D;
+  --ink:#E9E6E1; --ink-2:#C6C2BC; --muted:#949AA2;
+  --line:#31353B; --line-2:#434952;
+  --accent:#D9825A; --accent-soft:#3A2A22;
+  --teal:#5FAAA4; --teal-soft:#1E2E2D;
+  --warn:#D0A445; --warn-soft:#312813;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--ground);color:var(--ink);
+  font-family:"Newsreader",Georgia,"Times New Roman",serif;
+  font-size:17px;line-height:1.62;-webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4,.ui,th,.lbl{font-family:"Archivo","Helvetica Neue",Arial,sans-serif}
+.mono,code,.tag,.num,.algo{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+
+.wrap{max-width:1200px;margin:0 auto;padding:0 26px}
+.doc{display:grid;grid-template-columns:minmax(0,1fr);gap:0}
+@media (min-width:1020px){.doc{grid-template-columns:196px minmax(0,1fr);gap:48px}}
+
+/* ---------- TOC rail ---------- */
+.rail{display:none}
+@media (min-width:1020px){
+  .rail{display:block;position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;
+    padding:46px 0 40px;border-right:1px solid var(--line)}
+}
+.rail .r-k{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--accent);margin-bottom:16px;padding-right:22px}
+.rail nav{display:flex;flex-direction:column;gap:1px;padding-right:22px}
+.rail a{display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:baseline;
+  text-decoration:none;color:var(--ink-2);padding:5px 0;font-family:"Archivo",sans-serif;
+  font-size:12.5px;line-height:1.3;border-left:2px solid transparent;padding-left:9px;margin-left:-11px}
+.rail a span:first-child{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--muted)}
+.rail a:hover{color:var(--accent)}
+.rail a.on{color:var(--accent);border-left-color:var(--accent);font-weight:600}
+.rail a.on span:first-child{color:var(--accent)}
+.rail .r-meta{margin-top:22px;padding:16px 22px 0 0;border-top:1px solid var(--line);
+  font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--muted);line-height:1.6}
+
+main{padding:46px 0 100px;min-width:0}
+
+/* ---------- masthead ---------- */
+.mast{border-bottom:2px solid var(--ink);padding-bottom:26px;margin-bottom:8px}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--accent);margin:0 0 14px}
+h1{font-size:clamp(31px,4.4vw,48px);line-height:1.04;font-weight:700;letter-spacing:-.022em;
+  margin:0 0 16px;text-wrap:balance;max-width:20ch}
+.stand{font-size:clamp(16.5px,1.9vw,20px);line-height:1.5;color:var(--ink-2);margin:0;max-width:60ch}
+.stand b{color:var(--ink);font-weight:600}
+.mast-meta{display:flex;flex-wrap:wrap;gap:8px 26px;margin-top:20px;
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--muted);
+  letter-spacing:.05em;text-transform:uppercase}
+
+/* ---------- sections ---------- */
+section{padding-top:52px;scroll-margin-top:16px}
+.sh{display:flex;align-items:baseline;gap:13px;margin-bottom:18px;flex-wrap:wrap}
+.sn{font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:600;color:var(--accent);
+  border:1px solid var(--line-2);border-radius:2px;padding:3px 7px}
+h2{font-size:clamp(21px,2.5vw,26px);font-weight:600;letter-spacing:-.014em;margin:0;text-wrap:balance}
+h3{font-size:11.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);margin:32px 0 12px}
+p{margin:0 0 15px;max-width:68ch}
+p:last-child{margin-bottom:0}
+strong{font-weight:600;color:var(--ink)}
+em{font-style:italic}
+.lede{font-size:19px;line-height:1.55;color:var(--ink-2);max-width:62ch}
+
+/* ---------- emphasis blocks ---------- */
+.pull{border-left:3px solid var(--accent);background:var(--accent-soft);
+  padding:17px 21px;margin:24px 0;border-radius:0 3px 3px 0}
+.pull p{margin:0;max-width:62ch}
+.pull p + p{margin-top:10px}
+.pull .k{font-family:"Archivo",sans-serif;font-size:10.5px;font-weight:600;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--accent);display:block;margin-bottom:8px}
+.note{border:1px dashed var(--line-2);padding:15px 18px;border-radius:3px;margin:22px 0;
+  font-size:15.5px;color:var(--ink-2)}
+.note p{max-width:64ch}
+.note .k{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--warn);display:block;margin-bottom:6px}
+
+/* ---------- tables ---------- */
+.scroller{overflow-x:auto;margin:22px 0;border:1px solid var(--line);border-radius:3px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:15px;min-width:560px}
+th{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);
+  text-align:left;padding:11px 15px;background:var(--surface-2);border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:11px 15px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.5}
+tbody tr:last-child td{border-bottom:none}
+td.c{text-align:center;white-space:nowrap}
+.cap{font-size:12.5px;color:var(--muted);margin:-12px 0 22px;font-family:"Archivo",sans-serif}
+
+.tag{display:inline-block;font-size:9.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  padding:2.5px 7px;border-radius:2px;white-space:nowrap}
+.t-deep{background:var(--accent);color:var(--surface)}
+.t-solid{background:var(--teal-soft);color:var(--teal);border:1px solid var(--teal)}
+.t-demo{background:var(--warn-soft);color:var(--warn);border:1px solid var(--warn)}
+
+/* ---------- capability build blocks ---------- */
+.cb{background:var(--surface);border:1px solid var(--line);border-radius:3px;
+  padding:18px 20px;margin:16px 0}
+.cb.deep{border-left:3px solid var(--accent)}
+.cb.solid{border-left:3px solid var(--teal)}
+.cb.demo{border-left:3px solid var(--warn)}
+.cb-h{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-bottom:4px}
+.cb-n{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;color:var(--accent)}
+.cb-t{font-family:"Archivo",sans-serif;font-size:17px;font-weight:600;letter-spacing:-.01em}
+.cb-why{font-size:14.5px;color:var(--ink-2);font-style:italic;margin:6px 0 14px;max-width:64ch}
+.cb ul{margin:0;padding-left:19px;max-width:66ch}
+.cb li{margin-bottom:10px;line-height:1.55;font-size:15.5px}
+.cb li:last-child{margin-bottom:0}
+.cb li::marker{color:var(--accent)}
+.cb ul ul{margin-top:8px;padding-left:19px}
+.cb ul ul li{font-size:15px;margin-bottom:6px}
+.algo{background:var(--surface-2);border:1px solid var(--line);border-radius:2px;
+  padding:1px 5px;font-size:13px;font-weight:500;white-space:nowrap}
+.cb .out{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);
+  font-family:"Archivo",sans-serif;font-size:13.5px;color:var(--accent);font-weight:600}
+
+/* ---------- build order steps ---------- */
+.steps{display:flex;flex-direction:column;gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:3px;overflow:hidden;margin:22px 0}
+.st{background:var(--surface);padding:14px 17px;display:grid;gap:3px 16px;grid-template-columns:26px 1fr}
+@media(min-width:720px){.st{grid-template-columns:26px minmax(0,1.05fr) minmax(0,1fr)}}
+.st-n{font-family:"IBM Plex Mono",monospace;font-size:12.5px;font-weight:600;color:var(--accent);padding-top:2px}
+.st-w{font-size:15.5px;line-height:1.45}
+.st-w b{font-weight:600}
+.st-y{font-size:13.5px;color:var(--muted);line-height:1.45;grid-column:2/-1}
+@media(min-width:720px){.st-y{grid-column:auto;border-left:1px solid var(--line);padding-left:16px}}
+
+/* ---------- glossary ---------- */
+.gloss{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);
+  border-radius:3px;overflow:hidden;margin:22px 0}
+.gr{background:var(--surface);padding:12px 16px;display:grid;gap:3px 18px;grid-template-columns:1fr}
+@media(min-width:640px){.gr{grid-template-columns:200px minmax(0,1fr)}}
+.gr .g-t{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;color:var(--accent);line-height:1.4}
+.gr .g-d{font-size:15px;line-height:1.5;color:var(--ink-2)}
+
+ul.plain{margin:0 0 16px;padding-left:20px;max-width:67ch}
+ul.plain li{margin-bottom:9px;line-height:1.55}
+ul.plain li::marker{color:var(--accent)}
+ol.q{margin:0;padding-left:23px;max-width:67ch}
+ol.q li{margin-bottom:11px;line-height:1.55}
+ol.q li::marker{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--accent)}
+
+footer{margin-top:64px;padding-top:22px;border-top:1px solid var(--line);
+  font-family:"Archivo",sans-serif;font-size:12.5px;color:var(--muted);line-height:1.6}
+footer p{max-width:70ch;margin-bottom:8px}
+
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+
+<div class="wrap"><div class="doc">
+
+<aside class="rail">
+  <div class="r-k">Contents</div>
+  <nav id="toc">
+    <a href="#s1"><span>01</span><span>The problem</span></a>
+    <a href="#s2"><span>02</span><span>What we build</span></a>
+    <a href="#s3"><span>03</span><span>The idea that matters</span></a>
+    <a href="#s4"><span>04</span><span>How each part is built</span></a>
+    <a href="#s5"><span>05</span><span>Stack</span></a>
+    <a href="#s6"><span>06</span><span>The data</span></a>
+    <a href="#s7"><span>07</span><span>Build order</span></a>
+    <a href="#s8"><span>08</span><span>How we prove it</span></a>
+    <a href="#s9"><span>09</span><span>Phases</span></a>
+    <a href="#s10"><span>10</span><span>What we need</span></a>
+    <a href="#s11"><span>—</span><span>Glossary</span></a>
+  </nav>
+  <div class="r-meta">
+    MD-404-1000-<br>OE-DG-SOW-0000_<br><br>
+    Rev 0.0 · Use Case 01<br>
+    Phase 0 · Plan
+  </div>
+</aside>
+
+<main>
+
+<header class="mast">
+  <p class="eyebrow">Build plan · Phase 0</p>
+  <h1>What We Are Going To Build</h1>
+  <p class="stand">An AI-powered inventory intelligence and MRO optimization platform for
+    Ma'aden Aluminium. <b>Written for a business reader</b> — where a technical choice changes
+    the outcome, it is named and explained in one line.</p>
+  <div class="mast-meta">
+    <span>Ma'aden Aluminium</span>
+    <span>MD-404-1000-OE-DG-SOW-0000_ Rev 0.0</span>
+    <span>Use Case 01</span>
+    <span>Phase 0 — for approval</span>
+  </div>
+</header>
+
+<!-- 01 -->
+<section id="s1">
+  <div class="sh"><span class="sn">01</span><h2>The problem in one page</h2></div>
+
+  <p>Ma'aden Aluminium runs bauxite mine → 600&nbsp;km rail → alumina refinery → smelter →
+  rolling mill. The refinery, smelter and mill all sit on <strong>one 20&nbsp;km² site</strong>
+  at Ras Al Khair.</p>
+
+  <p class="lede">Their storerooms are full. Their plants still go down waiting for parts.</p>
+
+  <p><strong>Both are true at the same time, in the same building.</strong> A bearing fails at
+  2am. The storeroom 400 metres away does not have it. It is air-freighted at 3–5× the price and
+  the mill sits idle for three days. Meanwhile, three aisles away in that same storeroom, SAR
+  300,000 of filter cartridges sit for a unit that was removed in 2019.</p>
+
+  <div class="pull">
+    <span class="k">The problem, in one sentence</span>
+    <p><strong>The money to buy that bearing had already been spent. It was sitting on a shelf,
+    three aisles away, as something else.</strong></p>
+  </div>
+
+  <p>This is not a warehouse problem, and not a counting problem — their stock records are
+  correct. It is a <strong>decision</strong> problem. The wrong things were bought, because
+  nobody could see across 20,000 items and several storerooms to know what would actually be
+  needed.</p>
+</section>
+
+<!-- 02 -->
+<section id="s2">
+  <div class="sh"><span class="sn">02</span><h2>What we are going to build</h2></div>
+
+  <p>A platform that reads Ma'aden's inventory and maintenance data and answers four questions
+  no stock report can answer today:</p>
+
+  <ul class="plain">
+    <li><strong>What will we need?</strong> — and when</li>
+    <li><strong>What are we holding that we will never need?</strong> — and what is it worth</li>
+    <li><strong>What should the stocking levels actually be?</strong> — per item, not by habit</li>
+    <li><strong>What is wrong with the data itself?</strong> — before any of the above is trusted</li>
+  </ul>
+
+  <p>Plus a plain-language interface, so a planner can ask a question instead of learning a
+  reporting tool.</p>
+
+  <h3>The seven capabilities in the Scope of Work</h3>
+  <div class="scroller">
+    <table>
+      <thead><tr><th style="width:34px">#</th><th style="width:23%">Capability</th><th>In plain words</th><th style="width:96px">Depth</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">1</td><td><strong>Predict demand</strong></td><td>How many of this part will we need in six months — from usage history <em>plus</em> the maintenance plan, so a planned shutdown is a known spike rather than a surprise</td><td class="c"><span class="tag t-deep">Deep</span></td></tr>
+        <tr><td class="mono">2</td><td><strong>Find the dead money</strong></td><td>Never-issued items, spares for scrapped equipment, the same part under three numbers, 400 held where 40 would do</td><td class="c"><span class="tag t-deep">Deep</span></td></tr>
+        <tr><td class="mono">3</td><td><strong>Set the right levels</strong></td><td>Reorder point and safety stock per item, from its own behaviour — not a number typed in years ago</td><td class="c"><span class="tag t-deep">Deep</span></td></tr>
+        <tr><td class="mono">4</td><td><strong>Catch what is wrong</strong></td><td>Negative stock, consumption with no work order, missing units of measure, blank manufacturer part numbers</td><td class="c"><span class="tag t-solid">Solid</span></td></tr>
+        <tr><td class="mono">5</td><td><strong>Move it, don't buy it</strong></td><td>One storeroom holds 40 idle while another is about to buy five — costed by distance</td><td class="c"><span class="tag t-solid">Solid</span></td></tr>
+        <tr><td class="mono">6</td><td><strong>Price the trade-off</strong></td><td>“95% service instead of 98%?” — cash released plotted against risk accepted</td><td class="c"><span class="tag t-demo">Interactive</span></td></tr>
+        <tr><td class="mono">7</td><td><strong>Ask it a question</strong></td><td>“Which critical spares at the smelter are below reorder point?”</td><td class="c"><span class="tag t-deep">Deep</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><strong>How they connect.</strong> 4 cleans the data → 1 predicts → 3 sets policy → 2 and 5
+  release the cash → 6 prices the trade-off → 7 is how people reach all of it.
+  <strong>Four is the foundation; seven is the front door.</strong></p>
+
+  <div class="note">
+    <span class="k">Explicitly out of scope for the proof of concept</span>
+    <p>Writing back into SAP · single sign-on · production transaction volumes · automatic
+    purchase orders. <strong>The system reads and recommends. A human decides.</strong> That
+    boundary is deliberate, and should survive into production above a value threshold.</p>
+  </div>
+</section>
+
+<!-- 03 -->
+<section id="s3">
+  <div class="sh"><span class="sn">03</span><h2>The one technical idea that matters</h2></div>
+
+  <p>Worth understanding even if you skip the rest of the technical detail.</p>
+
+  <p class="lede"><strong>MRO inventory is two different populations sharing one warehouse.</strong></p>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th style="width:24%"></th><th>Insurance spares</th><th>Consumables</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Examples</strong></td><td>Mill drive, main transformer, motor stator</td><td>Gaskets, filters, fasteners, lubricants</td></tr>
+        <tr><td><strong>How many</strong></td><td>A few thousand items</td><td>Tens of thousands</td></tr>
+        <tr><td><strong>Value each</strong></td><td>Very high</td><td>Low</td></tr>
+        <tr><td><strong>Lead time</strong></td><td>6–18 months</td><td>Days to weeks</td></tr>
+        <tr><td><strong>Used</strong></td><td>Maybe once a decade</td><td>Continuously</td></tr>
+        <tr><td><strong>If missing</strong></td><td><strong>The plant stops</strong></td><td>Inconvenience</td></tr>
+        <tr><td><strong>History to learn from</strong></td><td>Almost none</td><td>Plenty</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Every inventory system on the market applies one safety-stock formula to everything. That
+  formula assumes usage follows a normal bell curve. <strong>Fair for consumables, and wrong for
+  insurance spares</strong> — which is exactly where being wrong is most expensive.</p>
+
+  <div class="pull">
+    <span class="k">What follows from it</span>
+    <p>The first thing our system does with any item is decide <strong>which population it
+    belongs to</strong>, and route it to the right method.</p>
+    <p>That routing is the difference between a reporting dashboard and something that changes a
+    stocking decision.</p>
+  </div>
+</section>
+
+<!-- 04 -->
+<section id="s4">
+  <div class="sh"><span class="sn">04</span><h2>How each capability will be built</h2></div>
+
+  <p>Technical, but each block gives the business reason first. Algorithm names appear in
+  <span class="algo">this style</span> and are all defined in the glossary.</p>
+
+  <div class="cb solid">
+    <div class="cb-h"><span class="cb-n">04</span><span class="cb-t">Data quality &amp; anomaly detection</span><span class="tag t-solid">Solid</span></div>
+    <p class="cb-why">Built first, because nothing downstream is believable until this is done.</p>
+    <ul>
+      <li><strong>Rule checks</strong> — negative stock, blank mandatory fields, unit-of-measure
+        mismatch (EA vs BOX), impossible lead times, consumption with no matching work order.
+        Deterministic rules, no AI needed. Most of the value here comes from simply
+        <em>looking across everything at once</em>.</li>
+      <li><strong>Unusual-usage detection</strong> — flags consumption that does not fit an
+        item's own history, using <span class="algo">robust z-score (MAD)</span> rather than
+        mean and standard deviation. MRO usage is heavily skewed: one large issue would drag the
+        average and hide the next anomaly.</li>
+      <li><strong>Duplicate part detection</strong> — the Alcoa/Alba problem. Two stages:
+        <ul>
+          <li><em>Narrow the field:</em> <span class="algo">TF-IDF character n-grams</span> over
+            normalised descriptions plus exact manufacturer-part-number matching, to pull
+            candidate pairs out of 20,000 items without comparing 200 million combinations.</li>
+          <li><em>Score each pair:</em> <span class="algo">RapidFuzz token-set ratio</span>,
+            agreement on structured attributes (manufacturer, size, UOM), and
+            <span class="algo">sentence embeddings</span> for cases where the words differ but
+            the meaning does not — <code>BRG,BALL,6205</code> versus <code>BEARING BALL 6205</code>.</li>
+        </ul>
+      </li>
+      <li>Above a confidence threshold it is flagged; borderline pairs go to a human review
+        queue. <strong>We never auto-merge master data.</strong></li>
+    </ul>
+    <div class="out">→ Data the rest of the platform can be trusted to stand on</div>
+  </div>
+
+  <div class="cb deep">
+    <div class="cb-h"><span class="cb-n">01</span><span class="cb-t">Demand forecasting</span><span class="tag t-deep">Deep</span></div>
+    <p class="cb-why">Turning "we ran out" into "we knew four months ago".</p>
+    <ul>
+      <li><strong>Step one — classify every item.</strong> Using
+        <span class="algo">ADI</span> (average interval between demands) and
+        <span class="algo">CV²</span> (variability of demand size), each item falls into one of
+        four classes — <em>smooth, erratic, intermittent, lumpy</em> — by the
+        <span class="algo">Syntetos-Boylan-Croston</span> scheme. This is the population split
+        from §03, made concrete and automatic.</li>
+      <li><strong>Fast, regular items</strong> → <span class="algo">LightGBM</span> gradient
+        boosting over lagged usage, calendar features and maintenance-plan features. Handles
+        non-linear patterns and multiple inputs well.</li>
+      <li><strong>Intermittent and lumpy items</strong> (the majority in MRO) →
+        <span class="algo">Croston</span> and its two improvements:
+        <span class="algo">SBA</span>, which corrects a known upward bias, and
+        <span class="algo">TSB</span>, which updates the <em>probability</em> of demand every
+        period so it reacts when an item is quietly going obsolete — that matters a great deal
+        here. All three come from the <span class="algo">statsforecast</span> library.</li>
+      <li><strong>Insurance spares with no usable history</strong> → do not forecast. Model
+        <span class="algo">Poisson failure arrivals</span> from the installed equipment
+        population and its MTBF, and let criticality set a floor. Honest answer: for these
+        items, reliability data beats demand history.</li>
+      <li><strong>Maintenance overlay</strong> — planned work orders and shutdown schedules are
+        added as <em>known</em> future demand. Deterministic, not predicted, and a large part of
+        the practical accuracy.</li>
+      <li><strong>Accuracy measured with <span class="algo">MASE</span>, not MAPE.</strong> MAPE
+        breaks mathematically when demand is zero, and MRO demand is zero most days. Reported
+        <strong>separately per demand class</strong> — a single blended figure would hide
+        exactly where the model is weak.</li>
+    </ul>
+    <div class="out">→ Buy at planned prices instead of expediting at 3–5×</div>
+  </div>
+
+  <div class="cb deep">
+    <div class="cb-h"><span class="cb-n">03</span><span class="cb-t">Stocking policy — reorder points &amp; safety stock</span><span class="tag t-deep">Deep</span></div>
+    <p class="cb-why">The number that decides whether the part is on the shelf at 02:40.</p>
+    <ul>
+      <li><strong>Not</strong> <code>z · σ · √LT</code>, for the reason in §03.</li>
+      <li><span class="algo">Empirical / bootstrap quantiles</span> — resample the item's own
+        historical demand over its protection window (lead time + review period) and read the
+        quantile at the target service level. Non-parametric: no assumption about the shape of
+        demand, so lumpiness is handled naturally rather than smoothed away.</li>
+      <li><strong>Very sparse items</strong> → fit a <span class="algo">compound Poisson</span>
+        model (Poisson arrivals × a size distribution), the classical spare-parts approach;
+        negative binomial where it fits better.</li>
+      <li><strong>Service level per item, not one blanket number</strong> — derived from each
+        item's own economics via the <span class="algo">newsvendor critical fractile</span>
+        (holding cost against shortage cost). A cheap gasket and a mill drive should not both be
+        stocked to 95%.</li>
+      <li><strong>Criticality override.</strong> A criticality-A insurance spare is stocked at a
+        minimum of one regardless of what its history says. A business rule that deliberately
+        overrules the maths.</li>
+      <li>Output is a standard <span class="algo">(s, S)</span> or
+        <span class="algo">(R, s, Q)</span> policy per item — familiar to any planner.</li>
+      <li><em>Deferred:</em> multi-echelon optimisation across central and site stores
+        (<span class="algo">METRIC / VARI-METRIC</span>) is the right long-term answer, but
+        Phase 3 work, not POC.</li>
+    </ul>
+    <div class="out">→ Less capital frozen at the same or better service level</div>
+  </div>
+
+  <div class="cb deep">
+    <div class="cb-h"><span class="cb-n">02</span><span class="cb-t">Dead money — slow-moving, obsolete, excess, duplicate</span><span class="tag t-deep">Deep</span></div>
+    <p class="cb-why">Mostly deterministic. This is not where AI is needed — it is where seeing everything at once is needed.</p>
+    <ul>
+      <li><span class="algo">ABC</span> (Pareto by annual value) ×
+        <span class="algo">XYZ</span> (demand predictability) ×
+        <span class="algo">FSN</span> (fast / slow / non-moving) × criticality, placing every
+        item in a cell.</li>
+      <li><strong>Excess</strong> = on-hand minus the maximum the capability-3 policy engine
+        would justify. Valued in SAR.</li>
+      <li><strong>Obsolete</strong> = no issues in N months <em>and</em> no link to any active
+        equipment. That equipment link is what separates a genuinely obsolete part from an
+        insurance spare — which is why the CMMS dependency in §10 matters.</li>
+      <li><strong>Duplicate</strong> = output of capability 4's matcher.</li>
+      <li>Everything <strong>ranked by money</strong>, not by item count.</li>
+    </ul>
+    <div class="out">→ The largest and fastest one-time release of working capital</div>
+  </div>
+
+  <div class="cb solid">
+    <div class="cb-h"><span class="cb-n">05</span><span class="cb-t">Stock transfers</span><span class="tag t-solid">Solid</span></div>
+    <p class="cb-why">The cheapest part is the one you already own.</p>
+    <ul>
+      <li><span class="algo">Greedy assignment</span> — rank candidate moves by
+        (receiver's need × item value) − transfer cost, capping the donor so it is never pushed
+        below its own reorder point.</li>
+      <li><strong>Transfer cost tiered by distance.</strong> A move between two storerooms on the
+        Ras Al Khair site is hours and a forklift; a move to or from Al Ba'itha is 600&nbsp;km
+        and several days. A system that treats those the same will recommend hauling a SAR 200
+        gasket across the country.</li>
+      <li>A full <span class="algo">min-cost flow</span> formulation is available if optimality
+        ever justifies the complexity. For a POC, greedy is the right call.</li>
+    </ul>
+    <div class="out">→ Free inventory; avoids the purchase entirely</div>
+  </div>
+
+  <div class="cb demo">
+    <div class="cb-h"><span class="cb-n">06</span><span class="cb-t">Working-capital scenarios</span><span class="tag t-demo">Interactive</span></div>
+    <p class="cb-why">Turning a stocking argument into a priced executive decision.</p>
+    <ul>
+      <li>A <span class="algo">parameter sweep</span> across service levels, re-running the
+        policy engine at each and plotting cash released against expected stockouts.</li>
+      <li>The risk side comes from <span class="algo">Monte Carlo simulation</span> of demand
+        over the horizon.</li>
+      <li>Presented as a slider with a live curve, labelled on screen as a simplified model.</li>
+    </ul>
+    <div class="out">→ “What does 95% instead of 98% actually buy us?”, answered in SAR</div>
+  </div>
+
+  <div class="cb deep">
+    <div class="cb-h"><span class="cb-n">07</span><span class="cb-t">Conversational interface</span><span class="tag t-deep">Deep</span></div>
+    <p class="cb-why">Adoption. A planner who will not learn a BI tool will type a question.</p>
+    <ul>
+      <li><span class="algo">Claude with tool use</span> (function calling) against a
+        <strong>fixed set of typed tools</strong> — <code>get_items(filters)</code>,
+        <code>get_stockouts(site, criticality)</code>, <code>get_slob(threshold)</code>,
+        <code>get_transfer_candidates()</code>, and so on.</li>
+      <li><strong>Not free-form text-to-SQL.</strong> A model writing its own database queries is
+        unpredictable and hard to audit. A fixed tool surface is testable, reviewable and safe.</li>
+      <li><strong>The model never calculates.</strong> It chooses the tool, passes the arguments,
+        receives structured numbers back, and narrates them. Every answer displays the figures
+        and the item list it was given.</li>
+      <li>Optionally, <span class="algo">embedding search</span> over material descriptions for
+        “find me parts like this” — but any number in the answer still comes from the engine.</li>
+    </ul>
+    <div class="out">→ Insight without training, and without a fabricated figure</div>
+  </div>
+
+  <div class="pull">
+    <span class="k">Why the AI boundary matters</span>
+    <p>If that interface invents a stock figure once, in front of a planner, it will never be
+    trusted again. <strong>Restricting it to narration is a deliberate design decision, not a
+    limitation we ran into.</strong></p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section id="s5">
+  <div class="sh"><span class="sn">05</span><h2>Proposed stack</h2></div>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th style="width:20%">Layer</th><th style="width:36%">Choice</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Language</td><td class="mono">Python 3.12</td><td>Where the forecasting and data libraries live</td></tr>
+        <tr><td>API</td><td class="mono">FastAPI</td><td>Fast, typed, self-documenting</td></tr>
+        <tr><td>Data</td><td class="mono">pandas · numpy</td><td>Standard</td></tr>
+        <tr><td>Forecasting</td><td class="mono">statsforecast · LightGBM</td><td>Croston / SBA / TSB already implemented and tested</td></tr>
+        <tr><td>Matching</td><td class="mono">RapidFuzz · scikit-learn · sentence-transformers</td><td>Duplicate detection</td></tr>
+        <tr><td>Database</td><td class="mono">PostgreSQL</td><td>Standard; no exotic requirement</td></tr>
+        <tr><td>AI layer</td><td class="mono">Claude · tool use</td><td>Narration over a fixed tool surface</td></tr>
+        <tr><td>Frontend</td><td class="mono">React · TypeScript</td><td>Dashboard, work queue, scenario simulator, chat</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Nothing here is exotic, and that is deliberate. <strong>A domain expert must be able to
+  follow how a reorder point was calculated.</strong> An auditable system is worth more than a
+  clever one.</p>
+</section>
+
+<!-- 06 -->
+<section id="s6">
+  <div class="sh"><span class="sn">06</span><h2>The data</h2></div>
+
+  <p>The POC runs on a <strong>synthetic Ma'aden Aluminium dataset that we generate.</strong> No
+  client data needed, so we can start immediately.</p>
+
+  <div class="pull">
+    <span class="k">The design decision that makes this provable</span>
+    <p>A generator producing clean random data would give the AI nothing to find, and would let
+    us claim anything. <strong>So we plant the problems on purpose and keep a sealed answer key
+    the engine never sees</strong> — which turns “this looks plausible” into “it found 94 of the
+    100 problems we hid, with 6 false positives.”</p>
+  </div>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th style="width:28%">Component</th><th>Target shape</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Locations</strong></td><td>2 geographic sites, ~5 storerooms — the mine, plus refinery, smelter, rolling mill and a central warehouse at Ras Al Khair</td></tr>
+        <tr><td><strong>Material master</strong></td><td>~20,000 records on a PiLog-style ISO 8000 taxonomy (noun–modifier plus characteristics)</td></tr>
+        <tr><td><strong>Movements</strong></td><td>3 years of issues, receipts, transfers and returns, spread realistically across the four demand classes — intermittent and lumpy in the majority, as in reality</td></tr>
+        <tr><td><strong>Maintenance context</strong></td><td>Equipment hierarchy with criticality ratings, and maintenance plans including planned shutdowns</td></tr>
+        <tr><td><strong>Planted defects</strong><br><span class="cap">with sealed answer key</span></td><td>Duplicate part numbers under differing descriptions · obsolete spares for scrapped equipment · negative stock rows · blank manufacturer part numbers · UOM errors · overstocked items · critical items below reorder point</td></tr>
+        <tr><td><strong>Conventions</strong></td><td>Values in SAR; English and Arabic descriptions where PiLog multilingual handling is relevant</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 07 -->
+<section id="s7">
+  <div class="sh"><span class="sn">07</span><h2>Build order</h2></div>
+
+  <p>Each step is useless without the one before it.</p>
+
+  <div class="steps">
+    <div class="st"><div class="st-n">1</div><div class="st-w"><b>Synthetic data generator + answer key</b></div><div class="st-y">Everything is judged against it. Nothing can be measured until it exists</div></div>
+    <div class="st"><div class="st-n">2</div><div class="st-w"><b>Data quality / anomaly engine</b> — capability 4</div><div class="st-y">Nothing downstream is trustworthy first</div></div>
+    <div class="st"><div class="st-n">3</div><div class="st-w"><b>Demand classifier</b> — ADI × CV²</div><div class="st-y">Routes every item; gates capabilities 1 and 3</div></div>
+    <div class="st"><div class="st-n">4</div><div class="st-w"><b>Forecasters</b> — capability 1</div><div class="st-y">Croston / SBA / TSB + LightGBM + maintenance overlay</div></div>
+    <div class="st"><div class="st-n">5</div><div class="st-w"><b>Stocking policy engine</b> — capability 3</div><div class="st-y">Reorder points, safety stock, criticality override</div></div>
+    <div class="st"><div class="st-n">6</div><div class="st-w"><b>Dead money + transfers</b> — capabilities 2 and 5</div><div class="st-y">Both read the policy engine's output</div></div>
+    <div class="st"><div class="st-n">7</div><div class="st-w"><b>API, dashboard, work queue, scenarios</b> — capability 6</div><div class="st-y">Makes it visible</div></div>
+    <div class="st"><div class="st-n">8</div><div class="st-w"><b>Conversational layer</b> — capability 7</div><div class="st-y">Last — it narrates what the engine already computes</div></div>
+  </div>
+</section>
+
+<!-- 08 -->
+<section id="s8">
+  <div class="sh"><span class="sn">08</span><h2>How we prove it works</h2></div>
+
+  <p class="lede">The POC is designed to be <strong>measured, not just demonstrated.</strong></p>
+
+  <ul class="plain">
+    <li><strong>Defect scoring.</strong> The generator's sealed answer key lists every planted
+      problem. The system is scored against it — found versus planted, plus false positives. The
+      result is <em>“found 94 of 100 planted, 6 false positives”</em>, not <em>“it looks
+      good.”</em></li>
+    <li><strong>Backtesting.</strong> The recommended stocking policy is replayed over three
+      years of history and compared with a conventional min/max baseline on the same data —
+      counting stockout-days, units short, and capital employed. Same conditions, two methods.</li>
+  </ul>
+
+  <div class="note">
+    <span class="k">One commitment on numbers</span>
+    <p>Every industry benchmark we quote is labelled as borrowed. We do <strong>not</strong> use
+    the commonly circulated “50–60% of MRO is obsolete” figure — we could not trace it to a
+    primary study, and it appears to originate in consultant estimates. We use the conservative
+    <strong>20–40%</strong> band, and Phase 2 replaces it with Ma'aden's own measured number.</p>
+  </div>
+</section>
+
+<!-- 09 -->
+<section id="s9">
+  <div class="sh"><span class="sn">09</span><h2>Phases</h2></div>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th style="width:18%">Phase</th><th style="width:44%">What</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr><td><strong>0</strong> — done</td><td>Understanding and proposal</td><td>This document</td></tr>
+        <tr><td><strong>1</strong> — the ask</td><td>Proof of concept on synthetic data, scored</td><td>Feasibility proven; opportunity sized</td></tr>
+        <tr><td><strong>2</strong></td><td>Pilot on one site, real ERP + PiLog extract</td><td>A real, defensible savings figure</td></tr>
+        <tr><td><strong>3</strong></td><td>Scale to all Aluminium BU sites, live integration</td><td>Operational system</td></tr>
+        <tr><td><strong>4</strong></td><td>Extend to phosphate, gold, industrial minerals</td><td>Enterprise platform</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="cap">Durations deliberately left open until scope is agreed. Committing to dates
+  before the work is costed is how projects acquire deadlines nobody can meet.</p>
+
+  <div class="pull">
+    <span class="k">The design note that makes Phase 2 cheap</span>
+    <p>The synthetic generator sits behind the same interface a real SAP and PiLog connector
+    would use. So <em>“how long before this runs on our real data?”</em> is answered by
+    <strong>replacing one layer</strong> — not rebuilding the system. The POC is built to be
+    promoted, not thrown away.</p>
+  </div>
+</section>
+
+<!-- 10 -->
+<section id="s10">
+  <div class="sh"><span class="sn">10</span><h2>What we need from Ma'aden</h2></div>
+
+  <p>None of these block the POC. Each one sharpens it.</p>
+
+  <ol class="q">
+    <li><strong>Which ERP and version</strong> — SAP S/4HANA or ECC?</li>
+    <li><strong>Is there a CMMS or EAM</strong> (SAP PM, IBM Maximo)? Capability 1 needs
+      maintenance plans and equipment criticality; capability 2 needs the equipment link to tell
+      an obsolete part from an insurance spare. A real dependency, not an assumption we can
+      quietly make.</li>
+    <li><strong>How many storerooms, and how are they structured in SAP</strong> — separate
+      plants, or storage locations under one plant? This sets the transfer cost tiers.</li>
+    <li><strong>Total MRO inventory value and active SKU count</strong> — to size the opportunity
+      in SAR instead of in percentages.</li>
+    <li><strong>Are the Alba and ex-Alcoa material masters merged</strong>, or still separate?</li>
+  </ol>
+</section>
+
+<!-- glossary -->
+<section id="s11">
+  <div class="sh"><span class="sn">—</span><h2>Glossary of the technical terms used above</h2></div>
+
+  <p>Every algorithm named in §04, in one line each.</p>
+
+  <div class="gloss">
+    <div class="gr"><div class="g-t">ADI / CV²</div><div class="g-d">Two numbers describing an item's demand: how long between orders, and how much the size varies. Together they decide which forecasting method the item gets.</div></div>
+    <div class="gr"><div class="g-t">Syntetos-Boylan-Croston</div><div class="g-d">The standard scheme that uses ADI and CV² to sort items into four demand classes: smooth, erratic, intermittent, lumpy.</div></div>
+    <div class="gr"><div class="g-t">Croston</div><div class="g-d">The classic forecasting method for parts that are ordered rarely. It forecasts the gap between orders and the size separately, instead of averaging a lot of zeros.</div></div>
+    <div class="gr"><div class="g-t">SBA</div><div class="g-d">Syntetos-Boylan Approximation — Croston with a correction for a known tendency to forecast slightly too high.</div></div>
+    <div class="gr"><div class="g-t">TSB</div><div class="g-d">Teunter-Syntetos-Babai — like Croston, but it also updates the <em>probability</em> that demand happens at all, so it notices when a part is quietly going obsolete.</div></div>
+    <div class="gr"><div class="g-t">LightGBM</div><div class="g-d">A widely used gradient-boosting model. Good at learning patterns from many inputs at once — usage history, calendar, maintenance schedule.</div></div>
+    <div class="gr"><div class="g-t">Poisson arrivals</div><div class="g-d">A standard way of modelling random failures over time. Used for spares that have no usage history but do have known equipment behind them.</div></div>
+    <div class="gr"><div class="g-t">MASE</div><div class="g-d">Mean Absolute Scaled Error — an accuracy measure that still works when demand is zero on most days. The usual measure (MAPE) divides by zero and breaks.</div></div>
+    <div class="gr"><div class="g-t">Empirical quantile<br>(bootstrap)</div><div class="g-d">Instead of assuming demand follows a bell curve, resample the item's own history and read the answer straight off it. Makes no assumption, so it handles lumpy demand honestly.</div></div>
+    <div class="gr"><div class="g-t">Compound Poisson</div><div class="g-d">Random arrivals combined with a random order size — the classical model for spare parts that move very rarely.</div></div>
+    <div class="gr"><div class="g-t">Newsvendor<br>critical fractile</div><div class="g-d">A one-line calculation that turns "cost of holding" versus "cost of running out" into the right service level for <em>that</em> item — instead of applying 95% to everything.</div></div>
+    <div class="gr"><div class="g-t">(s, S) / (R, s, Q)</div><div class="g-d">Standard inventory policies. Roughly: when stock falls to <em>s</em>, order back up to <em>S</em> — or order a fixed quantity <em>Q</em>. Familiar to any planner.</div></div>
+    <div class="gr"><div class="g-t">METRIC / VARI-METRIC</div><div class="g-d">The classical models for optimising spares across a central warehouse and its satellites together rather than separately. Deferred to Phase 3.</div></div>
+    <div class="gr"><div class="g-t">ABC / XYZ / FSN</div><div class="g-d">Three ways of sorting inventory — by value, by predictability, and by movement speed. Combined, they say what kind of item you are looking at.</div></div>
+    <div class="gr"><div class="g-t">Robust z-score (MAD)</div><div class="g-d">A way of spotting outliers that is not itself thrown off by outliers. Necessary because MRO usage is very uneven.</div></div>
+    <div class="gr"><div class="g-t">TF-IDF character n-grams</div><div class="g-d">A fast text-similarity technique used to shortlist which of 20,000 part descriptions might be describing the same thing, before comparing them properly.</div></div>
+    <div class="gr"><div class="g-t">Sentence embeddings</div><div class="g-d">Turning a description into a set of numbers representing its meaning, so <code>BRG,BALL,6205</code> can be matched to <code>BEARING BALL 6205</code>.</div></div>
+    <div class="gr"><div class="g-t">Min-cost flow</div><div class="g-d">A classical optimisation for moving goods between locations at the lowest total cost. Available if greedy assignment ever proves insufficient.</div></div>
+    <div class="gr"><div class="g-t">Monte Carlo simulation</div><div class="g-d">Running thousands of simulated futures to see the range of outcomes, rather than a single best guess.</div></div>
+    <div class="gr"><div class="g-t">Tool use<br>(function calling)</div><div class="g-d">The AI is given a fixed menu of things it may ask the system for. It picks one and reads back the result — it cannot invent a query or a number.</div></div>
+  </div>
+</section>
+
+<footer>
+  <p><strong>Sources for the figures used.</strong> Company and site data: Arabian Business
+  (FY2025 results); Arab News (9M 2025); Fluor and Bechtel (Ras Al Khair capacities); MEED.
+  Master data: PiLog Group. MRO benchmarks: Verusen; ReliaMag; McKinsey as cited therein.
+  Forecasting methods: Syntetos &amp; Boylan; Croston; Teunter, Syntetos &amp; Babai.</p>
+  <p>Prepared as Phase 0 of the response to MD-404-1000-OE-DG-SOW-0000_ Rev 0.0, Use Case 01.
+  All financial and capacity figures are from public sources; all inventory percentages are
+  industry benchmarks pending re-baselining on Ma'aden data.</p>
+</footer>
+
+</main>
+</div></div>
+
+<script>
+(function(){
+  var links = Array.prototype.slice.call(document.querySelectorAll('#toc a'));
+  var secs  = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+  if (!('IntersectionObserver' in window)) return;
+  // highlight the section currently occupying the upper part of the viewport
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if (!e.isIntersecting) return;
+      var i = secs.indexOf(e.target);
+      links.forEach(function(a, k){ a.classList.toggle('on', k === i); });
+    });
+  }, { rootMargin: '0px 0px -72% 0px', threshold: 0 });
+  secs.forEach(function(s){ if (s) io.observe(s); });
+  links[0].classList.add('on');
+})();
+</script>

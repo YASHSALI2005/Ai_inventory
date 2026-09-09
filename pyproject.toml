@@ -1,0 +1,54 @@
+[project]
+name = "maaden-mro-poc"
+version = "0.1.0"
+description = "AI-powered MRO inventory intelligence POC for Ma'aden Aluminium (synthetic data)"
+requires-python = ">=3.12"
+
+dependencies = [
+    "numpy>=2.0",
+    "pandas>=2.2",
+    "pyarrow>=17.0",
+    "duckdb>=1.1",
+    "pydantic>=2.9",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# Pulled in from step 4 onward; the vertical slice does not need them.
+engine = [
+    "statsforecast>=1.7",
+    "lightgbm>=4.5",
+    "scikit-learn>=1.5",
+    "rapidfuzz>=3.9",
+]
+api = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+mro = "cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["contracts", "sim", "generator", "engine", "scoring"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+# docs/ holds one-shot deck generators, not pipeline code
+exclude = ["docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
