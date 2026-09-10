@@ -61,11 +61,9 @@ nav{background:var(--surface);border-right:1px solid var(--line);padding:26px 0 
   background:var(--accent);margin-right:8px;vertical-align:2px}
 nav .step{display:flex;align-items:baseline;gap:12px;width:100%;text-align:left;
   padding:10px 24px;font-size:15px;color:var(--ink-2);border-left:3px solid transparent}
-nav .step .no{font-family:Consolas,monospace;font-size:11px;color:var(--faint);width:14px}
 nav .step:hover{background:var(--tint)}
 nav .step.on{color:var(--ink);font-weight:600;border-left-color:var(--accent);
   background:var(--tint)}
-nav .step.on .no{color:var(--accent)}
 nav .theme-btn{margin:10px 24px 0;padding:8px 14px;border:1px solid var(--line);
   border-radius:4px;font-size:13px;color:var(--muted);background:transparent;
   text-align:left;display:flex;justify-content:space-between;align-items:center}
@@ -2005,7 +2003,7 @@ function App() {
         </div>
         ${SCREENS.map((s, i) => html`
           <button key=${s.key} className=${"step" + (route.screen === s.key ? " on" : "")} onClick=${() => go(s.key)}>
-            <span className="no">${i + 1}</span><span>${s.name}</span></button>`)}
+            <span>${s.name}</span></button>`)}
         <button className="present-btn" onClick=${() => { location.hash = toHash({ present: true, screen: idx >= 0 ? route.screen : "" }); }}>
           <span>Present</span><kbd>← → · Esc</kbd></button>
         <button className="theme-btn" onClick=${flipTheme} title="Switch between dark and light">
