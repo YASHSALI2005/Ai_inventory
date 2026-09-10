@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -63,6 +64,7 @@ def load(cfg: RunConfig) -> dict:
         ("manifest", "run_manifest.json"),
         ("checks", "implemented_checks.json"),
         ("classifier", "classifier_report.json"),
+        ("classifier_score", "classifier_score.json"),
         ("forecast", "forecast_report.json"),
         ("backtest", "backtest_report.json"),
         ("dead_money", "dead_money_report.json"),
@@ -70,6 +72,9 @@ def load(cfg: RunConfig) -> dict:
         path = cfg.results_dir / name
         if path.exists():
             out[key] = json.loads(path.read_text(encoding="utf-8"))
+    # the marks live beside the classifier's own output; the document wants one view
+    if "classifier" in out and "classifier_score" in out:
+        out["classifier"].update(out.pop("classifier_score"))
     return out
 
 
@@ -757,8 +762,24 @@ def _step_three(doc: Document, data: dict) -> None:
 
     if rep.get("agreement") is not None:
         para(doc, f"Checked against what the invented plant actually did, the "
-                  f"sorting agrees {pct(rep['agreement'])} of the time. The sorting "
-                  "only ever sees the first two years of history.")
+                  f"sorting agrees {pct(rep['agreement'])} of the time. It only ever "
+                  "sees the first two years of history — the same handicap it will "
+                  "have on the day it goes live.")
+
+    pattern = rep.get("largest_disagreement")
+    if pattern and pattern.get("share_genuinely_above_cv2_cutoff", 0) > 0.9:
+        callout(
+            doc, "Where it disagrees, and why we have not simply changed it",
+            f"Almost all of the remaining disagreement is one pattern: "
+            f"{pattern['materials']:,} parts that are used only occasionally, but in "
+            "wildly varying amounts. Our sorting calls them rare-and-large; the "
+            "reference list we are marked against only allows occasional. Every one "
+            "of them genuinely does vary enough in quantity to belong where we put "
+            "it, so this reads as a gap in the reference list rather than a mistake "
+            "in the sorting. We have left the reference list alone and reported the "
+            "lower figure, because widening it ourselves would be marking our own "
+            "homework.",
+        )
 
     by_store = rep.get("by_storeroom") or []
     if by_store:
@@ -1019,8 +1040,35 @@ def build_document(cfg: RunConfig, out_path: Path | None = None) -> Path:
     section_glossary(doc, data)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    doc.save(out_path)
-    return out_path
+    return _save(doc, out_path)
+
+
+def _save(doc, out_path: Path) -> Path:
+    """
+    Write beside the target and swap it in, so a half-written document never
+    replaces a good one.
+
+    If the target is locked — almost always because it is open in Word — fall back
+    to a dated copy and say so, rather than failing the whole pipeline over a file
+    handle. `cli.py all` ends with this step, and losing a run because somebody left
+    the report open would be a poor trade.
+    """
+    tmp = out_path.with_suffix(".tmp.docx")
+    doc.save(tmp)
+    try:
+        os.replace(tmp, out_path)
+        return out_path
+    except PermissionError:
+        fallback = out_path.with_name(
+            f"{out_path.stem}-{datetime.now().strftime('%Y%m%d-%H%M')}{out_path.suffix}"
+        )
+        os.replace(tmp, fallback)
+        print(
+            f"  {out_path.name} is open elsewhere — wrote {fallback.name} instead. "
+            "Close it and re-run `report` to update the main copy.",
+            file=sys.stderr,
+        )
+        return fallback
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1041,8 +1089,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-
-# `datetime` is imported for callers that want a timestamp; keep the reference
-# explicit so linters do not strip it from the import block.
-_ = datetime

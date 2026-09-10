@@ -53,7 +53,7 @@ def cmd_build(args) -> int:
 
 def cmd_run(args) -> int:
     """The engine. Reads source tables only — never the answer key."""
-    from engine import quality
+    from engine import classify, quality
 
     cfg = _cfg(args)
     if not (cfg.source_dir / "stock.parquet").exists():
@@ -63,14 +63,23 @@ def cmd_run(args) -> int:
     t0 = time.time()
     findings = quality.run(cfg)
     by_type = findings.defect_type.value_counts().to_dict()
-    print(f"engine: {len(findings):,} findings   ({time.time() - t0:.1f}s)")
+    print(f"engine, data quality: {len(findings):,} findings   ({time.time() - t0:.1f}s)")
     for k, v in sorted(by_type.items()):
         print(f"  {k:<26} {v:>6}")
+
+    t1 = time.time()
+    result = classify.run(cfg)
+    mix = result.report["class_mix"]
+    print(f"engine, demand classes: {len(result.per_position):,} positions   "
+          f"({time.time() - t1:.1f}s)")
+    for k in S.DEMAND_CLASS:
+        n = mix.get(k, 0)
+        print(f"  {k:<26} {n:>6}  ({n / max(len(result.per_material), 1):.0%})")
     return 0
 
 
 def cmd_score(args) -> int:
-    from scoring import defects
+    from scoring import classifier, defects
 
     cfg = _cfg(args)
     manifest_path = cfg.results_dir / S.RUN_MANIFEST_FILE
@@ -83,6 +92,7 @@ def cmd_score(args) -> int:
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     scores, summary = defects.score(cfg)
+    classifier_result = classifier.score(cfg)
     # headline figures are written here, once, so the dashboard computes nothing
     from scoring import summary as summary_writer
 
@@ -99,6 +109,11 @@ def cmd_score(args) -> int:
     if misses:
         print()
         print(defects.render_duplicate_misses(misses))
+
+    if classifier_result.get("status") != "not_implemented":
+        print()
+        print("demand classes, graded against how the plant really behaves:")
+        print(classifier.render(classifier_result))
 
     print()
     print("emergent problems (scored against truth, not a planted list):")
