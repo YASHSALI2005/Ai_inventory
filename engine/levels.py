@@ -323,8 +323,18 @@ def compute(cfg: RunConfig) -> Levels:
         "positions": int(len(levels)),
         "review_period_days": REVIEW_PERIOD_DAYS,
         "simulations_per_position": N_SIMULATIONS,
+        # A single figure per criticality no longer describes this: the service
+        # level now varies with price WITHIN a criticality, because holding an
+        # expensive spare costs more while the stoppage it prevents costs the same.
+        # Reporting one number would hide exactly the behaviour we just added.
         "service_level_by_criticality": {
-            k: round(cfg.costs.critical_fractile(1000.0, k), 4) for k in S.CRITICALITY
+            k: {
+                "median": round(float(g["service_level"].median()), 4),
+                "low": round(float(g["service_level"].min()), 4),
+                "high": round(float(g["service_level"].max()), 4),
+                "positions": int(len(g)),
+            }
+            for k, g in levels.groupby("criticality")
         },
         "median_reorder_point": float(levels["reorder_point"].median()),
         "median_current_min": float(levels["min_qty"].median()),

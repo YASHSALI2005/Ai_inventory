@@ -61,6 +61,14 @@ _M = (6, 8, 10, 12, 16, 20, 24, 30, 36)
 _M_LEN = (20, 25, 30, 40, 50, 60, 80, 100, 120)
 _KW = (0.75, 1.5, 2.2, 4, 7.5, 11, 18.5, 30, 45, 75, 110, 160, 250, 400, 630, 1000)
 _AH = (7, 12, 26, 40, 65, 100, 150, 200)
+# Power transformers are called by their rating, not by a motor kW figure. The
+# small end of the range is distribution plant in kVA, the rest is MVA.
+_KVA = (630, 1000, 1600, 2500)
+_MVA = (5, 8, 10, 16, 25, 31.5, 40, 63, 80, 100)
+# Off-the-road tyres are called by their designation, and the rim size is the
+# part of it a storeman actually matches on. These are real haul-truck sizes.
+_OTR = ("27.00R49", "30.00R51", "33.00R51", "37.00R57", "40.00R57",
+        "46/90R57", "53/80R63", "59/80R63")
 
 
 def _size_token(kind: str, rng: np.random.Generator, n: int) -> np.ndarray:
@@ -83,6 +91,14 @@ def _size_token(kind: str, rng: np.random.Generator, n: int) -> np.ndarray:
         return np.array([f"{v:g}KW" for v in rng.choice(np.array(_KW), size=n)])
     if kind == "ah":
         return np.array([f"{v}AH" for v in rng.choice(np.array(_AH), size=n)])
+    if kind == "mva":
+        pick = rng.random(n) < 0.25
+        kva = rng.choice(np.array(_KVA), size=n)
+        mva = rng.choice(np.array(_MVA), size=n)
+        return np.array([f"{k}KVA" if small else f"{m:g}MVA"
+                         for small, k, m in zip(pick, kva, mva, strict=True)])
+    if kind == "rim_in":
+        return np.array(rng.choice(np.array(_OTR), size=n))
     # "none": a rating or mark rather than a dimension
     return np.array([f"TYPE {c}" for c in rng.choice(np.array(list("ABCDEFGHJK")), size=n)])
 
@@ -110,6 +126,8 @@ _SPEC_FOR_TOKEN = {
     "m_thread": ("metal", "grade"),
     "kw": ("electrical", "grade"),
     "ah": ("electrical",),
+    "mva": ("electrical",),
+    "rim_in": ("wear", "grade"),
     "iso_vg": ("grade",),
     "none": ("grade", "metal", "wear"),
 }

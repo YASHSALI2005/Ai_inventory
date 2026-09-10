@@ -185,12 +185,20 @@ def test_total_cost_is_reported_because_either_half_can_be_gamed():
     assert '"total_cost_sar"' in text
 
 
-def test_service_levels_differ_by_criticality():
+def test_service_levels_differ_by_criticality_and_by_price():
+    """
+    Two things move the service level now, and the second one is the new part: a
+    cheap part is held to the cap whatever its class, because holding it costs
+    almost nothing, while an expensive one is held to less. Criticality separates
+    them at the prices where holding is a real cost.
+    """
     cfg = RunConfig(preset="toy")
-    a = cfg.costs.critical_fractile(1000.0, "A")
-    c = cfg.costs.critical_fractile(1000.0, "C")
-    assert a > c
-    assert c < 0.9, "a C-class washer should not be stocked to the same standard as a drive"
+    price = 250_000.0
+    assert cfg.costs.critical_fractile(price, "A") > cfg.costs.critical_fractile(price, "C")
+    assert (cfg.costs.critical_fractile(20.0, "C")
+            > cfg.costs.critical_fractile(2_000_000.0, "C")), (
+        "within one class, the expensive part is the one to hold less of"
+    )
 
 
 # ── order quantity: a policy that orders every week is not free ──────────────

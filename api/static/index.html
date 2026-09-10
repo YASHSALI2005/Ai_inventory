@@ -8,11 +8,11 @@
 <!--
   React, ReactDOM and htm are vendored into static/vendor rather than pulled from a
   CDN. A dashboard that renders a blank page in a meeting room is worse than no
-  dashboard, and a demo laptop on a client site may have no route to the internet at
+  dashboard, and a demo laptop on a plant site may have no route to the internet at
   all. Same files, pinned versions, no network.
 
-  The usage chart is inline SVG for the same reason, and because a chart library
-  would be a new dependency for four rectangles and a line.
+  Both charts are inline SVG for the same reason, and because a chart library would
+  be a new dependency for some rectangles, a polyline and a dashed line.
 -->
 <script src="/static/vendor/react.production.min.js"></script>
 <script src="/static/vendor/react-dom.production.min.js"></script>
@@ -54,12 +54,11 @@ body{
 .mono,.num,td.n,th.n{font-family:"Cascadia Mono",Consolas,"SF Mono",Menlo,monospace;
   font-variant-numeric:tabular-nums}
 button{font:inherit;color:inherit;cursor:pointer;background:none;border:none}
-a{color:var(--accent)}
 
-/* ── shell: left nav + one working column ─────────────────────────────────── */
-.shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+/* ── shell ────────────────────────────────────────────────────────────────── */
+.shell{display:grid;grid-template-columns:236px 1fr;min-height:100vh}
 nav{background:var(--panel);border-right:1px solid var(--line);padding:22px 0;
-  display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
+  display:flex;flex-direction:column;gap:3px;position:sticky;top:0;height:100vh}
 nav .brand{padding:0 20px 18px;border-bottom:1px solid var(--line);margin-bottom:14px}
 nav .brand .mark{font-family:Consolas,monospace;font-size:10.5px;letter-spacing:.15em;
   text-transform:uppercase;color:var(--accent)}
@@ -74,35 +73,55 @@ nav .foot{margin-top:auto;padding:16px 20px 0;border-top:1px solid var(--line);
   font-family:Consolas,monospace;font-size:10.5px;color:var(--muted);line-height:1.8}
 main{padding:30px 30px 70px;max-width:1280px;overflow-x:hidden}
 
-header{border-bottom:2px solid var(--ink);padding-bottom:16px;margin-bottom:22px}
+header{border-bottom:2px solid var(--ink);padding-bottom:15px;margin-bottom:22px}
 h1{font-size:25px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
-header .lede{font-size:13.5px;color:var(--muted);margin-top:7px}
+header .lede{font-size:13.5px;color:var(--muted);margin-top:8px;max-width:76ch}
+header .lede b{color:var(--ink-2)}
 h2{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
-  color:var(--muted);margin:30px 0 11px}
-h2:first-of-type{margin-top:0}
+  color:var(--muted);margin:30px 0 11px;display:flex;align-items:center;gap:6px}
+
+/* ── the little i ─────────────────────────────────────────────────────────── */
+.info{display:inline-flex;align-items:center;justify-content:center;width:14px;
+  height:14px;border-radius:50%;border:1px solid var(--line-2);color:var(--muted);
+  font-family:Georgia,serif;font-style:italic;font-size:10px;line-height:1;
+  cursor:help;vertical-align:middle;flex:0 0 auto;text-transform:none;
+  letter-spacing:0;font-weight:400}
+.info:hover,.info:focus{border-color:var(--accent);color:var(--accent);outline:none}
 
 /* ── tiles ────────────────────────────────────────────────────────────────── */
-.tiles{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(215px,1fr))}
-.tile{background:var(--surface);border:1px solid var(--line);border-radius:3px;padding:15px 17px}
-.tile .v{font-family:Consolas,monospace;font-size:26px;font-weight:600;
-  letter-spacing:-.02em;line-height:1.08}
-.tile .k{font-size:12.5px;color:var(--muted);margin-top:7px;line-height:1.4}
-.tile .band{font-family:Consolas,monospace;font-size:11px;margin-top:9px;
-  padding-top:8px;border-top:1px solid var(--line);display:flex;
+.tiles{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(215px,1fr))}
+.tiles.three{grid-template-columns:repeat(auto-fit,minmax(290px,1fr))}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:3px;
+  padding:18px 20px}
+.tile .v{font-family:Consolas,monospace;font-size:32px;font-weight:600;
+  letter-spacing:-.025em;line-height:1.05}
+.tile .k{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.4;
+  display:flex;align-items:center;gap:5px}
+.tile .band{font-family:Consolas,monospace;font-size:11px;margin-top:10px;
+  padding-top:9px;border-top:1px solid var(--line);display:flex;
   justify-content:space-between;gap:10px}
+.tile-note{font-size:12.5px;line-height:1.55;color:var(--ink-2);margin-top:12px;
+  padding-top:11px;border-top:1px solid var(--line)}
 .tile.hero{background:var(--accent-soft);border-color:var(--accent)}
 .tile.hero .v{color:var(--accent)}
 .tile.good .v{color:var(--teal)} .tile.bad .v{color:var(--red)}
 .in-band{color:var(--teal)} .out-band{color:var(--warn)}
 
+.headline{background:var(--surface);border:1px solid var(--line-2);border-left:3px solid var(--accent);
+  border-radius:3px;padding:13px 16px;margin-bottom:14px;font-size:14.5px}
+.headline b{font-size:16px}
+
 /* ── tables ───────────────────────────────────────────────────────────────── */
-.scroller{overflow-x:auto;border:1px solid var(--line);border-radius:3px;background:var(--surface)}
-table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:640px}
+.scroller{overflow-x:auto;border:1px solid var(--line);border-radius:3px;
+  background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13px;min-width:640px}
 th{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
-  color:var(--muted);text-align:left;padding:10px 13px;background:var(--panel-2);
-  border-bottom:1px solid var(--line);white-space:nowrap}
+  color:var(--muted);text-align:left;padding:9px 10px;background:var(--panel-2);
+  border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:bottom}
 th.n,td.n{text-align:right}
-td{padding:9px 13px;border-bottom:1px solid var(--line);white-space:nowrap}
+th.n .info{margin-left:3px}
+td{padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;
+  vertical-align:top}
 tbody tr:last-child td{border-bottom:none}
 tr.total td{background:var(--panel);font-weight:600;border-top:1px solid var(--line-2)}
 tr.click{cursor:pointer}
@@ -110,19 +129,22 @@ tr.click:hover td{background:var(--panel)}
 .good{color:var(--teal);font-weight:600}
 .bad{color:var(--red);font-weight:600}
 .dim{color:var(--muted)}
-td .sub{font-size:11.5px;color:var(--muted);margin-top:2px;white-space:normal}
-td.item{white-space:normal;max-width:330px;min-width:250px}
+td.n .u{font-size:11px}
+td .sub{font-size:11.5px;color:var(--muted);margin-top:3px;white-space:normal}
+td.item{white-space:normal;max-width:215px;min-width:165px}
 td.item .d{line-height:1.35}
+.mixchip{display:inline-block;margin-right:7px;white-space:nowrap}
 
-/* ── chips and bands ──────────────────────────────────────────────────────── */
-.chips{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 12px}
-.chip{border:1px solid var(--line-2);border-radius:14px;padding:5px 13px;font-size:12.5px;
-  background:var(--surface);color:var(--ink-2);white-space:nowrap}
+/* ── chips, pills, actions ────────────────────────────────────────────────── */
+.chiprow{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:0 0 9px}
+.chiplab{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--muted);width:104px;flex:0 0 auto;display:flex;align-items:center;gap:5px}
+.chip{border:1px solid var(--line-2);border-radius:14px;padding:5px 13px;
+  font-size:12.5px;background:var(--surface);color:var(--ink-2);white-space:nowrap}
 .chip:hover{border-color:var(--ink-2)}
 .chip.on{background:var(--ink);color:var(--ground);border-color:var(--ink);font-weight:600}
 .chip .c{font-family:Consolas,monospace;font-size:11px;opacity:.7;margin-left:6px}
-.pill{display:inline-block;font-family:Consolas,monospace;font-size:10.5px;
-  letter-spacing:.05em;text-transform:uppercase;padding:2px 7px;border-radius:2px;
+.pill{display:inline-block;font-size:10.5px;padding:2px 7px;border-radius:2px;
   white-space:nowrap}
 .b-stocked_out{background:var(--red-soft);color:var(--red)}
 .b-below_reorder{background:var(--accent-soft);color:var(--accent)}
@@ -134,13 +156,21 @@ td.item .d{line-height:1.35}
 .c-erratic{background:var(--warn-soft);color:var(--warn)}
 .c-intermittent{background:var(--blue-soft);color:var(--blue)}
 .c-lumpy{background:var(--violet-soft);color:var(--violet)}
+.act{display:inline-block;font-size:12px;font-weight:600;padding:3px 8px;
+  border-radius:2px;white-space:nowrap;border-left:3px solid}
+.a-order{background:var(--red-soft);color:var(--red);border-color:var(--red)}
+.a-move{background:var(--teal-soft);color:var(--teal);border-color:var(--teal)}
+.a-warn{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}
+.a-review{background:var(--blue-soft);color:var(--blue);border-color:var(--blue)}
+.a-ok{background:transparent;color:var(--muted);border-color:var(--line-2);font-weight:400}
 .crit{font-family:Consolas,monospace;font-weight:600}
 .crit-A{color:var(--red)} .crit-B{color:var(--warn)} .crit-C{color:var(--muted)}
 
 .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
 select,input[type=search]{font:inherit;font-size:13.5px;padding:6px 10px;
-  border:1px solid var(--line-2);border-radius:3px;background:var(--surface);color:var(--ink)}
-input[type=search]{min-width:250px}
+  border:1px solid var(--line-2);border-radius:3px;background:var(--surface);
+  color:var(--ink)}
+input[type=search]{min-width:270px}
 .pager{display:flex;gap:10px;align-items:center;justify-content:space-between;
   margin-top:12px;font-size:13px;color:var(--muted)}
 .pager button{border:1px solid var(--line-2);border-radius:3px;padding:5px 12px;
@@ -148,16 +178,15 @@ input[type=search]{min-width:250px}
 .pager button[disabled]{opacity:.4;cursor:default}
 
 .note{border:1px dashed var(--line-2);border-radius:3px;padding:12px 15px;
-  margin-top:11px;font-size:13px;color:var(--ink-2);line-height:1.55}
+  margin-top:11px;font-size:13px;color:var(--ink-2);line-height:1.6}
 .note b{color:var(--ink)}
 .note.warn{border-color:var(--warn);background:var(--warn-soft)}
-.pending{color:var(--muted);font-size:13px;margin-top:10px;line-height:1.55}
-.pending code,.note code{font-family:Consolas,monospace;font-size:12px;
+.note code,footer code{font-family:Consolas,monospace;font-size:12px;
   background:var(--panel-2);padding:1px 5px;border-radius:2px}
 
 /* ── drawer ───────────────────────────────────────────────────────────────── */
 .scrim{position:fixed;inset:0;background:rgba(20,20,22,.42);z-index:40}
-.drawer{position:fixed;top:0;right:0;bottom:0;width:min(680px,96vw);z-index:41;
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(690px,96vw);z-index:41;
   background:var(--surface);border-left:1px solid var(--line-2);overflow-y:auto;
   box-shadow:-18px 0 44px rgba(0,0,0,.16)}
 .drawer .dh{padding:20px 24px 16px;border-bottom:1px solid var(--line);
@@ -167,16 +196,23 @@ input[type=search]{min-width:250px}
   margin-top:7px;line-height:1.7}
 .drawer .x{position:absolute;top:17px;right:18px;font-size:22px;line-height:1;
   color:var(--muted);padding:2px 7px}
-.drawer .body{padding:20px 24px 60px}
-.stats{display:grid;gap:9px;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));
-  margin-bottom:20px}
-.stat{border:1px solid var(--line);border-radius:3px;padding:11px 13px;background:var(--panel)}
-.stat .k{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.drawer .body{padding:18px 24px 60px}
+.drawer h2{margin-top:22px}
+.do-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  border:1px solid var(--line-2);border-radius:3px;padding:11px 14px;
+  background:var(--panel);margin-bottom:16px;font-size:13px}
+.do-lab{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.stats{display:grid;gap:9px;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));
+  margin-bottom:18px}
+.stat{border:1px solid var(--line);border-radius:3px;padding:11px 13px;
+  background:var(--panel)}
+.stat .k{font-size:10px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--muted);display:flex;align-items:center;gap:4px}
 .stat .v{font-family:Consolas,monospace;font-size:19px;font-weight:600;margin-top:5px;
   letter-spacing:-.01em}
 .stat .u{font-size:11px;color:var(--muted);margin-top:2px}
 .why{border:1px solid var(--accent);background:var(--accent-soft);border-radius:3px;
-  padding:15px 17px;margin:18px 0;font-size:13.5px;line-height:1.65;color:var(--ink)}
+  padding:15px 17px;margin:0 0 6px;font-size:13.5px;line-height:1.65;color:var(--ink)}
 .why .lab{font-family:Consolas,monospace;font-size:10px;letter-spacing:.12em;
   text-transform:uppercase;color:var(--accent);margin-bottom:8px}
 .why p+p{margin-top:9px}
@@ -201,6 +237,7 @@ footer{margin-top:36px;padding-top:15px;border-top:1px solid var(--line);
   nav .brand{border:none;padding:0 14px 0 0;margin:0}
   nav .foot{display:none}
   main{padding:20px 16px 60px}
+  .chiplab{width:100%}
 }
 </style>
 </head>
@@ -229,67 +266,626 @@ for (const [name, obj] of [["React", window.React], ["ReactDOM", window.ReactDOM
 const html = htm.bind(React.createElement);
 const { useState, useEffect, useCallback } = React;
 
-const sar = n => "SAR " + Math.round(n || 0).toLocaleString("en-US");
-const sarShort = n => {
-  const v = Math.abs(n || 0);
-  if (v >= 1e9) return "SAR " + (n / 1e9).toFixed(2) + "bn";
-  if (v >= 1e6) return "SAR " + (n / 1e6).toFixed(1) + "m";
-  return sar(n);
+/* ── numbers ──────────────────────────────────────────────────────────────────
+   Money is shown in millions with one decimal, everywhere, on every page. A
+   figure like "SAR 1,412,694,541" is not read, it is skipped; "SAR 1,412.7m" is
+   read. The only exception is a quantity of parts, which is a count of things.  */
+const M = n => {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  if (n === 0) return "SAR 0";
+  const v = n / 1e6;
+  if (Math.abs(v) >= 1000) return "SAR " + (v / 1000).toFixed(2) + "bn";
+  return "SAR " + v.toFixed(1) + "m";
 };
 const num = n => (n === null || n === undefined ? "—" : Math.round(n).toLocaleString("en-US"));
-const num1 = n => (n === null || n === undefined ? "—" : (Math.round(n * 10) / 10).toLocaleString("en-US"));
+const num1 = n => (n === null || n === undefined ? "—"
+  : (Math.round(n * 10) / 10).toLocaleString("en-US"));
 const pct = n => (n === null || n === undefined ? "—" : (n * 100).toFixed(1) + "%");
 const pctInt = n => (n === null || n === undefined ? "—" : Math.round(n * 100) + "%");
 const signPct = n => (n === null || n === undefined ? "—"
   : (n >= 0 ? "+" : "") + Math.round(n * 100) + "%");
 
-const BAND_LABEL = {
-  stocked_out: "Stocked out",
-  below_reorder: "Below our reorder point",
-  below_old_min: "Below the old minimum",
-  never_issued: "Never issued",
-  idle_24m: "Idle 24 months",
-  well_stocked: "Well stocked",
-};
-const BAND_ORDER = ["stocked_out", "below_reorder", "below_old_min", "idle_24m",
-                    "never_issued", "well_stocked"];
-const CLASS_ORDER = ["smooth", "erratic", "intermittent", "lumpy"];
-const CLASS_PLAIN = {
-  smooth: "moves steadily",
-  erratic: "moves often, in wildly different amounts",
-  intermittent: "moves rarely, in similar amounts",
-  lumpy: "moves rarely, in wildly different amounts",
-};
-
 const getJSON = url => fetch(url).then(r =>
   r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.detail || r.status))));
 
-function Pill({ kind, value }) {
-  if (!value) return null;
-  return html`<span className=${"pill " + kind + "-" + value}>
-    ${kind === "b" ? BAND_LABEL[value] || value : value}</span>`;
+/* ── the words ────────────────────────────────────────────────────────────────
+   Everything a person reads on pages 1-3 is in plain English. The technical name
+   lives in the tooltip, so an engineer can still find it and a planner never has
+   to learn it to use the screen. Page 4 is the exception and says so.           */
+const BAND_LABEL = {
+  stocked_out: "None left",
+  below_reorder: "Below our level",
+  below_old_min: "Below the old minimum",
+  never_issued: "Never used here",
+  idle_24m: "Not used in 2 years",
+  well_stocked: "Enough on the shelf",
+};
+const BAND_ORDER = ["stocked_out", "below_reorder", "below_old_min", "idle_24m",
+                    "never_issued", "well_stocked"];
+
+const ACTION = {
+  order_now: { label: "Order now", cls: "a-order" },
+  stocked_elsewhere: { label: "Stocked elsewhere", cls: "a-move" },
+  below_safe_level: { label: "Below safe level", cls: "a-warn" },
+  review_obsolete: { label: "Review — obsolete?", cls: "a-review" },
+  nothing_needed: { label: "Nothing needed", cls: "a-ok" },
+};
+const ACTION_ORDER = ["order_now", "stocked_elsewhere", "below_safe_level",
+                      "review_obsolete", "nothing_needed"];
+
+const CLASS_LABEL = {
+  smooth: "Used regularly",
+  erratic: "Regular, varying amounts",
+  intermittent: "Now and then",
+  lumpy: "Rarely, in bursts",
+};
+const CLASS_TIP = {
+  smooth: "Technical name: smooth. Moves most months, in similar amounts.",
+  erratic: "Technical name: erratic. Moves most months, but the amount jumps about.",
+  intermittent: "Technical name: intermittent. Long gaps between uses, similar amounts each time.",
+  lumpy: "Technical name: lumpy. Long gaps between uses, and the amount jumps about — the hardest kind to plan.",
+};
+const CLASS_ORDER = ["smooth", "erratic", "intermittent", "lumpy"];
+// The mix column would run off the side of the page if it named all four groups for
+// five stores. Two biggest, then a count — the shape is what the column is for.
+const topMix = mix => Object.entries(mix).sort((a, b) => b[1] - a[1]).slice(0, 2)
+  .map(e => e[0]);
+const restMix = mix => Object.entries(mix).sort((a, b) => b[1] - a[1]).slice(2)
+  .reduce((t, e) => t + e[1], 0);
+
+const TIP = {
+  reorder: "Reorder point — when the shelf falls to this number, order more.",
+  order_up_to: "Order up to — the number we bring it back to when we order.",
+  on_hand: "How many are on the shelf in this storeroom right now.",
+  old_min: "The plant's existing minimum and maximum, set by hand years ago.",
+  dead: "Stock the plant is very unlikely to use: either the machine it belongs to is gone, or there is more of it than three years of use would justify. Valued at what the books say it is worth.",
+  idle: "Parts that have not been issued to any job in the last two years.",
+  critical_low: "Parts whose absence stops production, sitting below the level we say is safe.",
+  cost_to_level: "What it would cost to buy these back up to their safe level.",
+  value_on_shelf: "What is on the shelf, valued at the price the books carry it at.",
+  forecast6: "How many we expect to be used in the next six months.",
+  last_issued: "The last time this part was given out to a job.",
+  crit: "How badly it hurts if this part is missing. A stops production, B slows it, C means somebody waits.",
+  class: "How this part moves: steadily, or in occasional bursts. It decides how it is planned.",
+  what_to_do: "The one thing to do about this part today.",
+  waiting: "Days a storeroom record spent with nothing on the shelf while a job wanted it, added up across the year.",
+  capital: "Average value sitting on the shelves through the year.",
+  total_cost: "Being short, holding stock, and placing orders, added together.",
+  storeroom: "One of the five stores: the mine, the refinery, the smelter, the rolling mill, and the central warehouse.",
+  moved: "The same part sitting spare in one store while another store is below its safe level.",
+};
+
+function Info({ text }) {
+  return html`<span className="info" title=${text} tabIndex="0" role="img"
+    aria-label=${text}>i</span>`;
 }
 
-function Tile({ label, value, hero, tone, band, actual, foot }) {
+function Pill({ kind, value, tip }) {
+  if (!value) return null;
+  const label = kind === "b" ? (BAND_LABEL[value] || value)
+    : kind === "c" ? (CLASS_LABEL[value] || value) : value;
+  return html`<span className=${"pill " + kind + "-" + value} title=${tip || ""}>${label}</span>`;
+}
+
+function Action({ value, qty, uom }) {
+  const a = ACTION[value] || ACTION.nothing_needed;
+  const label = value === "order_now" && qty > 0
+    ? "Order " + num1(qty) + " " + (uom || "") : a.label;
+  return html`<span className=${"act " + a.cls}>${label}</span>`;
+}
+
+function Tile({ label, value, tip, hero, tone, band, actual, foot, note }) {
   const inBand = band ? actual >= band[0] && actual <= band[1] : null;
   return html`
     <div className=${"tile" + (hero ? " hero" : "") + (tone ? " " + tone : "")}>
       <div className="v">${value}</div>
-      <div className="k">${label}</div>
+      <div className="k">${label}${tip && html` <${Info} text=${tip} />`}</div>
       ${band && html`
         <div className="band">
           <span className=${inBand ? "in-band" : "out-band"}>${inBand ? "in band" : "OUT OF BAND"}</span>
           <span className="dim">target ${pctInt(band[0])}–${pctInt(band[1])}</span>
         </div>`}
       ${foot && html`<div className="band"><span className="dim">${foot}</span></div>`}
+      ${note && html`<p className="tile-note">${note}</p>`}
     </div>`;
 }
 
+function Page({ title, lede, children }) {
+  return html`
+    <div>
+      <header>
+        <h1>${title}</h1>
+        <div className="lede"><b>How to read this page:</b> ${lede}</div>
+      </header>
+      ${children}
+    </div>`;
+}
+
+/* ── page 1: Today ────────────────────────────────────────────────────────── */
+function Today({ summary, stores }) {
+  const inv = summary.inventory, c = summary.counts;
+  return html`
+    <${Page} title="Today"
+             lede=${"three numbers, and what to do about each. Everything else on "
+                    + "this system is detail underneath them."}>
+      <div className="tiles three">
+        <${Tile} hero value=${M(inv.dead_value_sar)}
+                 label="Money that will never come back" tip=${TIP.dead}
+                 foot=${pct(inv.dead_value_share) + " of everything on the shelves"}
+                 note=${"Stock for machines that have been scrapped, or far more of "
+                        + "something than three years of use would justify. It is "
+                        + "already paid for. The job is to decide, part by part, "
+                        + "whether to keep it, move it or write it off — and to stop "
+                        + "buying more of it."} />
+        <${Tile} value=${num(inv.idle_24m_count)}
+                 label="Parts nobody has used in 2 years" tip=${TIP.idle}
+                 foot=${pct(inv.idle_24m_share) + " of the " + num(c.materials) + " parts on file"}
+                 note=${"Not all of this is waste — a spare transformer is supposed "
+                        + "to sit still for years. But every one of these needs a "
+                        + "reason to be there, and today most of them do not have "
+                        + "one written down anywhere."} />
+        <${Tile} tone="bad"
+                 value=${stores ? num(stores.critical_below_level_count) : "—"}
+                 label="Critical parts below their safe level" tip=${TIP.critical_low}
+                 foot=${stores ? M(stores.critical_below_level_sar) + " to put right" : ""}
+                 note=${"These are the parts whose absence stops production, and "
+                        + "there are not enough of them on the shelf right now. This "
+                        + "is the list to work through first; the Stock board shows "
+                        + "them in the order they should be dealt with."} />
+      </div>
+      <div className="note">
+        The first two figures are measured from the sealed answer key that came with
+        the invented data, not found by the system — they are the size of the prize,
+        not a claim about what was detected. The third is the system's own finding.
+      </div>
+    <//>`;
+}
+
+/* ── page 2: the stock board ──────────────────────────────────────────────── */
+function Board({ setOpen }) {
+  const [f, setF] = useState({ storeroom: "", band: "", demand_class: "", action: "",
+                               q: "", page: 1 });
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState(null);
+  const [typed, setTyped] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setF(s => ({ ...s, q: typed, page: 1 })), 250);
+    return () => clearTimeout(t);
+  }, [typed]);
+
+  useEffect(() => {
+    const qs = new URLSearchParams({
+      storeroom: f.storeroom, band: f.band, demand_class: f.demand_class,
+      action: f.action, q: f.q, page: String(f.page),
+    });
+    getJSON("/api/positions?" + qs).then(setData).catch(e => setErr(String(e.message || e)));
+  }, [f.storeroom, f.band, f.demand_class, f.action, f.q, f.page]);
+
+  if (err) return html`<div className="err"><h3>Nothing to show yet</h3><div>${err}</div>
+    <code>python cli.py all --preset full</code></div>`;
+  if (!data) return html`<p>Loading…</p>`;
+
+  const set = (k, v) => setF(s => ({ ...s, [k]: s[k] === v ? "" : v, page: 1 }));
+
+  return html`
+    <${Page} title="Stock board"
+             lede=${"one row per part in one storeroom, most urgent first. The first "
+                    + "column is the only one you have to read — it says what to do. "
+                    + "Click any row for the whole story behind it."}>
+      <div className="headline">
+        <b>${num(data.needs_action)} parts need action today.</b>
+        ${" " + M(data.cost_to_level_sar)} would bring every one of them back to a
+        safe level.
+        ${data.total < data.total_unfiltered
+          ? html` <span className="dim">(of ${num(data.total)} shown, filtered from
+              ${" " + num(data.total_unfiltered)})</span>` : ""}
+      </div>
+
+      <div className="toolbar">
+        <select value=${f.storeroom} title=${TIP.storeroom}
+                onChange=${e => setF(s => ({ ...s, storeroom: e.target.value, page: 1 }))}>
+          <option value="">All storerooms</option>
+          ${data.storerooms.map(s => html`<option key=${s} value=${s}>${s}</option>`)}
+        </select>
+        <input type="search" placeholder="Search by name, part number or maker…"
+               value=${typed} onInput=${e => setTyped(e.target.value)} />
+      </div>
+
+      <div className="chiprow">
+        <span className="chiplab">What to do <${Info} text=${TIP.what_to_do} /></span>
+        ${ACTION_ORDER.filter(a => data.actions[a]).map(a => html`
+          <button key=${a} className=${"chip" + (f.action === a ? " on" : "")}
+                  onClick=${() => set("action", a)}>
+            ${ACTION[a].label}<span className="c">${num(data.actions[a])}</span></button>`)}
+      </div>
+      <div className="chiprow">
+        <span className="chiplab">State <${Info} text="What the shelf looks like right now." /></span>
+        ${BAND_ORDER.filter(b => data.bands[b]).map(b => html`
+          <button key=${b} className=${"chip" + (f.band === b ? " on" : "")}
+                  onClick=${() => set("band", b)}>
+            ${BAND_LABEL[b]}<span className="c">${num(data.bands[b])}</span></button>`)}
+      </div>
+      <div className="chiprow">
+        <span className="chiplab">How it moves <${Info} text=${TIP.class} /></span>
+        ${CLASS_ORDER.filter(c => data.classes[c]).map(c => html`
+          <button key=${c} title=${CLASS_TIP[c]}
+                  className=${"chip" + (f.demand_class === c ? " on" : "")}
+                  onClick=${() => set("demand_class", c)}>
+            ${CLASS_LABEL[c]}<span className="c">${num(data.classes[c])}</span></button>`)}
+      </div>
+
+      <div className="scroller">
+        <table>
+          <thead><tr>
+            <th>Part</th>
+            <th>What to do <${Info} text=${TIP.what_to_do} /></th>
+            <th>How it moves <${Info} text=${TIP.class} /></th>
+            <th>If missing <${Info} text=${TIP.crit} /></th>
+            <th className="n">On shelf <${Info} text=${TIP.on_hand} /></th>
+            <th className="n">Old min/max <${Info} text=${TIP.old_min} /></th>
+            <th className="n">Our level <${Info} text=${TIP.reorder} /></th>
+            <th className="n">Next 6 mo <${Info} text=${TIP.forecast6} /></th>
+            <th className="n">Value <${Info} text=${TIP.value_on_shelf} /></th>
+          </tr></thead>
+          <tbody>
+            ${data.rows.map(r => html`
+              <tr key=${r.material_id + r.storeroom_id} className="click"
+                  onClick=${() => setOpen([r.material_id, r.storeroom_id])}>
+                <td className="item">
+                  <div className="d">${r.description}</div>
+                  <div className="sub">${r.material_id} · ${r.storeroom_id} · ${r.mpn}
+                    ${" · last used " + (r.last_issue_date || "never")}</div>
+                </td>
+                <td><${Action} value=${r.action} qty=${r.order_now_qty} uom=${r.uom} /></td>
+                <td><${Pill} kind="c" value=${r.demand_class} tip=${CLASS_TIP[r.demand_class]} /></td>
+                <td className=${"crit crit-" + r.criticality}>${r.criticality}</td>
+                <td className=${"n " + (r.on_hand <= 0 ? "bad" : "")}>${num1(r.on_hand)}
+                  <span className="dim u">${" " + r.uom}</span></td>
+                <td className="n dim">${num1(r.min_qty)} / ${num1(r.max_qty)}</td>
+                <td className="n">${num1(r.reorder_point)}</td>
+                <td className="n">${num1(r.forecast_6m)}</td>
+                <td className="n">${M(r.value_sar)}</td>
+              </tr>`)}
+            ${data.rows.length === 0 && html`
+              <tr><td colSpan="9" className="dim">Nothing matches those filters.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="pager">
+        <span>Page ${data.page} of ${data.pages} · ${data.page_size} rows a page</span>
+        <span>
+          <button disabled=${data.page <= 1}
+                  onClick=${() => setF(s => ({ ...s, page: s.page - 1 }))}>Previous</button>
+          ${" "}
+          <button disabled=${data.page >= data.pages}
+                  onClick=${() => setF(s => ({ ...s, page: s.page + 1 }))}>Next</button>
+        </span>
+      </div>
+
+      <div className="note">
+        Rows are ordered by what it costs to ignore them, not by how many are missing:
+        a part that stops production outranks a cheap one, however many of the cheap
+        one are short. <b>Stocked elsewhere</b> is listed before <b>Order now</b> on
+        purpose — moving a part between storerooms is free and buying one is not.
+      </div>
+    <//>`;
+}
+
+/* ── page 3: storerooms ───────────────────────────────────────────────────── */
+function Storerooms({ stores, setOpen }) {
+  if (!stores) return html`<p>Loading…</p>`;
+  const moves = stores.transfers || [];
+  return html`
+    <${Page} title="Storerooms"
+             lede=${"where the stock is, and where it is in the wrong place. The "
+                    + "second table is money the plant already owns and does not "
+                    + "need to spend again."}>
+      <h2>What each store holds</h2>
+      <div className="scroller">
+        <table>
+          <thead><tr>
+            <th>Store <${Info} text=${TIP.storeroom} /></th>
+            <th className="n">Parts kept here <${Info} text="Number of parts stocked in this store." /></th>
+            <th className="n">Value on the shelf <${Info} text=${TIP.value_on_shelf} /></th>
+            <th className="n">Need action <${Info} text=${TIP.what_to_do} /></th>
+            <th className="n">To put right <${Info} text=${TIP.cost_to_level} /></th>
+            <th className="n">Not used in 2 years <${Info} text=${TIP.idle} /></th>
+            <th>How the parts here move <${Info} text=${TIP.class} /></th>
+          </tr></thead>
+          <tbody>${stores.by_storeroom.map(r => html`
+            <tr key=${r.storeroom_id}>
+              <td className="mono">${r.storeroom_id}</td>
+              <td className="n">${num(r.positions)}</td>
+              <td className="n">${M(r.value_sar)}</td>
+              <td className=${"n " + (r.needs_action ? "bad" : "")}>${num(r.needs_action)}</td>
+              <td className="n">${M(r.cost_to_level_sar)}</td>
+              <td className="n">${num(r.idle_count)}
+                <span className="dim"> (${pctInt(r.idle_count / r.positions)})</span></td>
+              <td>${topMix(r.class_mix).map(k => html`
+                <span key=${k} className="mixchip">
+                  <${Pill} kind="c" value=${k} tip=${CLASS_TIP[k]} />
+                  <span className="dim mono">${" " + num(r.class_mix[k])}</span></span>`)}
+                ${restMix(r.class_mix) > 0 && html`
+                  <span className="dim">+${num(restMix(r.class_mix))} other</span>`}</td>
+            </tr>`)}</tbody>
+        </table>
+      </div>
+
+      <h2>Stock that could be moved instead of bought <${Info} text=${TIP.moved} /></h2>
+      <div className="headline">
+        <b>${num(stores.transfer_count)} parts</b> are sitting spare in one store while
+        another store is below its safe level — ${M(stores.transfer_total_sar)} of stock
+        the plant already owns.
+      </div>
+      <div className="scroller">
+        <table>
+          <thead><tr>
+            <th>Part</th><th>Move</th>
+            <th className="n">How many</th>
+            <th>If missing <${Info} text=${TIP.crit} /></th>
+            <th className="n">Worth</th>
+          </tr></thead>
+          <tbody>${moves.slice(0, 25).map((r, i) => html`
+            <tr key=${i} className="click"
+                onClick=${() => setOpen([r.material_id, r.to_storeroom])}>
+              <td className="item"><div className="d">${r.description}</div>
+                <div className="sub">${r.material_id} · ${r.to_storeroom} has
+                  ${" " + num1(r.to_on_hand)} and needs ${num1(r.to_reorder_point)}</div></td>
+              <td className="mono">${r.from_storeroom} → ${r.to_storeroom}</td>
+              <td className="n">${num1(r.qty)} <span className="dim u">${r.uom}</span></td>
+              <td className=${"crit crit-" + r.criticality}>${r.criticality}</td>
+              <td className="n">${M(r.value_sar)}</td>
+            </tr>`)}
+            ${moves.length === 0 && html`
+              <tr><td colSpan="5" className="dim">Nothing is spare in one store and
+                short in another right now.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+      <div className="note">
+        The sending store only offers what it holds <b>above</b> its own safe level, so
+        nobody is stripped to fix somebody else. Ranking these by distance and delivery
+        time is not built yet — today they are ranked by what they are worth.
+      </div>
+    <//>`;
+}
+
+/* ── page 4: how well it works ────────────────────────────────────────────── */
+function Scoreboard({ data }) {
+  const rows = data.by_type || [];
+  const s = data.summary || {};
+  const rate = v => (v === null || v === undefined || Number.isNaN(v) ? "—" : pctInt(v));
+  const recall = r => (r.planted ? r.found / r.planted : null);
+  const prec = r => (r.found + r.false_alarms ? r.found / (r.found + r.false_alarms) : null);
+  return html`
+    <div className="scroller">
+      <table>
+        <thead><tr>
+          <th>Defect type</th><th className="n">Planted</th><th className="n">Found</th>
+          <th className="n">Missed</th><th className="n">False alarms</th>
+          <th className="n">Recall</th><th className="n">Precision</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r => html`
+            <tr key=${r.defect_type}>
+              <td>${r.defect_type}</td>
+              <td className="n">${r.planted}</td><td className="n">${r.found}</td>
+              <td className=${"n " + (r.missed ? "bad" : "")}>${r.missed}</td>
+              <td className=${"n " + (r.false_alarms ? "bad" : "")}>${r.false_alarms}</td>
+              <td className=${"n " + (recall(r) === 1 ? "good" : "")}>${rate(recall(r))}</td>
+              <td className=${"n " + (prec(r) === 1 ? "good" : "")}>${rate(prec(r))}</td>
+            </tr>`)}
+          <tr className="total">
+            <td>Total — checks that ran</td>
+            <td className="n">${s.planted}</td><td className="n">${s.found}</td>
+            <td className=${"n " + (s.missed ? "bad" : "")}>${s.missed}</td>
+            <td className=${"n " + (s.false_alarms ? "bad" : "")}>${s.false_alarms}</td>
+            <td className=${"n " + (s.recall === 1 ? "good" : "")}>${rate(s.recall)}</td>
+            <td className=${"n " + (s.precision === 1 ? "good" : "")}>${rate(s.precision)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>`;
+}
+
+/* The frontier. Two axes that pull against each other, and the plant's own policy
+   as a point off the end of the curve — which is the finding, not a gap.        */
+function Frontier({ fr }) {
+  if (!fr || !fr.curve) return null;
+  const W = 640, H = 280, L = 62, R = 96, T = 16, B = 46;
+  const iw = W - L - R, ih = H - T - B;
+  const pts = fr.curve.map(r => ({ x: r.stockout_days, y: r.avg_capital_sar,
+                                   s: r.service_level }));
+  const extra = [
+    { x: fr.baseline.stockout_days, y: fr.baseline.avg_capital_sar, tag: "the plant today" },
+    { x: fr.recommended.stockout_days, y: fr.recommended.avg_capital_sar, tag: "ours" },
+  ];
+  const xs = pts.concat(extra).map(p => p.x), ys = pts.concat(extra).map(p => p.y);
+  const x0 = 0, x1 = Math.max(...xs) * 1.05;
+  const y0 = Math.min(...ys) * 0.9, y1 = Math.max(...ys) * 1.05;
+  const X = v => L + ((v - x0) / (x1 - x0)) * iw;
+  const Y = v => T + ih - ((v - y0) / (y1 - y0)) * ih;
+  const path = pts.map((p, i) => (i ? "L" : "M") + X(p.x) + " " + Y(p.y)).join(" ");
+
+  return html`
+    <div className="chartbox">
+      <svg viewBox=${"0 0 " + W + " " + H} width="100%"
+           style=${{ minWidth: "560px", display: "block" }}
+           role="img" aria-label="capital against days waiting">
+        ${[0, 0.5, 1].map(f => html`
+          <g key=${"g" + f}>
+            <line x1=${L} x2=${W - R} y1=${Y(y0 + (y1 - y0) * f)} y2=${Y(y0 + (y1 - y0) * f)}
+                  stroke="var(--line)" />
+            <text x=${L - 7} y=${Y(y0 + (y1 - y0) * f) + 3.5} textAnchor="end"
+                  fill="var(--muted)" fontSize="9.5" fontFamily="Consolas,monospace">
+              ${M(y0 + (y1 - y0) * f)}</text>
+          </g>`)}
+        <path d=${path} fill="none" stroke="var(--accent)" strokeWidth="2" />
+        ${pts.map((p, i) => html`
+          <g key=${"p" + i}>
+            <circle cx=${X(p.x)} cy=${Y(p.y)} r="3.5" fill="var(--accent)" />
+            ${(i === 0 || i === pts.length - 1) && html`
+              <text x=${X(p.x) + 8} y=${Y(p.y) + 3} fill="var(--accent)" fontSize="9.5"
+                    fontFamily="Consolas,monospace">${pctInt(p.s)}</text>`}
+          </g>`)}
+        ${extra.map((p, i) => html`
+          <g key=${"e" + i}>
+            <circle cx=${X(p.x)} cy=${Y(p.y)} r="5.5"
+                    fill=${i ? "var(--teal)" : "var(--red)"} />
+            <text x=${X(p.x) + 9} y=${Y(p.y) + 3.5}
+                  fill=${i ? "var(--teal)" : "var(--red)"} fontSize="10.5">${p.tag}</text>
+          </g>`)}
+        <line x1=${L} x2=${W - R} y1=${T + ih} y2=${T + ih} stroke="var(--line-2)" />
+        ${[0, 0.5, 1].map(f => html`
+          <text key=${"x" + f} x=${X(x0 + (x1 - x0) * f)} y=${H - 22} textAnchor="middle"
+                fill="var(--muted)" fontSize="9.5" fontFamily="Consolas,monospace">
+            ${num(x0 + (x1 - x0) * f)}</text>`)}
+        <text x=${L + iw / 2} y=${H - 6} textAnchor="middle" fill="var(--muted)"
+              fontSize="10.5">days a part was wanted and not there (whole year, all records)</text>
+        <text x=${14} y=${T + ih / 2} fill="var(--muted)" fontSize="10.5"
+              transform=${"rotate(-90 14 " + (T + ih / 2) + ")"} textAnchor="middle">
+          average value on the shelves</text>
+      </svg>
+    </div>`;
+}
+
+function Evidence({ summary, score, bt, fc, fr }) {
+  const b = (bt && bt.baseline) || {}, p = (bt && bt.policy) || {},
+        ch = (bt && bt.change) || {};
+  const zeroLosers = ((fc && fc.mase_by_class) || [])
+    .filter(r => r.mase >= r.zero).map(r => r.class);
+  const run = summary.run;
+
+  const row = (label, key, money) => html`
+    <tr key=${key}>
+      <td>${label}</td>
+      <td className="n">${money ? M(b[key]) : num(b[key])}</td>
+      <td className="n">${money ? M(p[key]) : num(p[key])}</td>
+      <td className=${"n " + (ch[key] < 0 ? "good" : ch[key] > 0 ? "bad" : "")}>
+        ${signPct(ch[key])}</td>
+    </tr>`;
+
+  return html`
+    <${Page} title="How well it works"
+             lede=${"the evidence page, written for engineers. This is the only page "
+                    + "that uses technical words — everywhere else they are in the "
+                    + "tooltips. Every figure here is graded against something: a "
+                    + "sealed answer key, or a year the system was never shown."}>
+      <h2>Finding the faults — graded against the sealed answer key</h2>
+      <${Scoreboard} data=${score} />
+      <div className="note">
+        Faults were planted in the invented data and the list sealed away. The engine
+        never reads it; the scoring step does. <b>Recall</b> is how many of the planted
+        faults were found, <b>precision</b> how many of the reports were real.
+      </div>
+
+      ${fc && html`
+        <h2>Forecast accuracy on the held-out year</h2>
+        <div className="scroller">
+          <table>
+            <thead><tr><th>Demand class</th><th className="n">Records</th>
+              <th>Method</th><th className="n">MASE, ours</th>
+              <th className="n">Repeat last year</th><th className="n">Always zero</th></tr></thead>
+            <tbody>${fc.mase_by_class.map(r => html`
+              <tr key=${r.class}>
+                <td>${r.class}</td>
+                <td className="n">${num(r.positions)}</td>
+                <td className="mono">${r.method}</td>
+                <td className=${"n " + (r.mase < r.naive && r.mase < r.zero ? "good" : "")}>
+                  ${r.mase.toFixed(2)}</td>
+                <td className="n dim">${r.naive.toFixed(2)}</td>
+                <td className=${"n " + (r.zero < r.mase ? "bad" : "dim")}>${r.zero.toFixed(2)}</td>
+              </tr>`)}</tbody>
+          </table>
+        </div>
+        <div className="note">
+          MASE — mean absolute scaled error. Lower is better; 1.00 means no better than
+          repeating last year, which we beat on all four classes.
+          ${zeroLosers.length > 0 ? html` <b>We lose to forecasting zero on
+            ${" " + zeroLosers.join(" and ")} parts, and that is expected.</b> A part issued
+            four times in three years is zero in most months, so always answering
+            "none" scores well on the average month and is useless on the four that
+            matter — it can never tell you to order anything. That is why the stock
+            levels come from the demand distribution and not from the forecast.` : ""}
+        </div>`}
+
+      ${bt && html`
+        <h2>The held-out year, replayed under both sets of levels</h2>
+        <div className="scroller">
+          <table>
+            <thead><tr><th></th><th className="n">The plant's levels</th>
+              <th className="n">Ours</th><th className="n">Change</th></tr></thead>
+            <tbody>
+              ${row("Days waiting for a part", "stockout_days")}
+              ${row("Units short over the year", "units_short")}
+              ${row("Average value on the shelves", "avg_capital_sar", true)}
+              ${row("Cost of being short", "shortage_cost_sar", true)}
+              ${row("Cost of holding stock", "holding_cost_sar", true)}
+              ${row("Cost of placing orders", "ordering_cost_sar", true)}
+              ${row("Purchase orders placed", "orders_placed")}
+              <tr className="total"><td>All three costs together</td>
+                <td className="n">${M(b.total_cost_sar)}</td>
+                <td className="n">${M(p.total_cost_sar)}</td>
+                <td className=${"n " + (ch.total_cost_sar < 0 ? "good" : "bad")}>
+                  ${signPct(ch.total_cost_sar)}</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div className="note warn">
+          <b>Read this honestly: we spend more to waste less.</b> Our levels hold
+          ${" " + signPct(ch.avg_capital_sar)} more stock, not less. In exchange the
+          plant waits ${" " + signPct(ch.stockout_days)} fewer days for a part, and the
+          three costs together come out ${" " + signPct(ch.total_cost_sar)}. That runs
+          the opposite way to the usual pitch: better stocking here moves cash to where
+          it stops production losses. Releasing cash is a different exercise — finding
+          the stock that is dead — and that is the next step.
+        </div>
+        <div className="scroller" style=${{ marginTop: "12px" }}>
+          <table>
+            <thead><tr><th>If the part is missing</th><th className="n">Records</th>
+              <th className="n">Days waiting now</th><th className="n">With ours</th>
+              <th className="n">Value now</th><th className="n">With ours</th></tr></thead>
+            <tbody>${(bt.by_criticality || []).map(r => html`
+              <tr key=${r.criticality}>
+                <td><span className=${"crit crit-" + r.criticality}>${r.criticality}</span>
+                  ${" "}${{ A: "the plant stops", B: "production slows",
+                            C: "somebody waits" }[r.criticality] || ""}</td>
+                <td className="n">${num(r.positions)}</td>
+                <td className="n">${num(r.baseline_stockout_days)}</td>
+                <td className="n good">${num(r.policy_stockout_days)}</td>
+                <td className="n">${M(r.baseline_capital_sar)}</td>
+                <td className="n">${M(r.policy_capital_sar)}</td>
+              </tr>`)}</tbody>
+          </table>
+        </div>`}
+
+      ${fr && fr.curve && html`
+        <h2>What a service level costs — the same year, priced ten ways</h2>
+        <${Frontier} fr=${fr} />
+        <div className="note warn">
+          <b>${(fr.at_the_plants_own_service_level || {}).plain || ""}</b>
+          ${" "}Our own levels are the green point, and they are deliberately not on
+          the curve: every point on the curve uses one blanket service level for
+          everything, while ours gives each part its own from what its absence costs
+          against what holding it costs.
+        </div>`}
+
+      <footer>
+        Read-only view over precomputed results. Nothing on any page is calculated at
+        request time — every figure was written to <code>results/</code> during
+        ${" "}<code>build</code>, <code>run</code> and <code>score</code>.
+        <br/>Run ${run.config_hash} · seed ${run.seed} · git ${run.git_sha} ·
+        cut-off ${run.cutoff_date} · generated ${run.generated_at}.
+      </footer>
+    <//>`;
+}
 /* ── the usage chart ─────────────────────────────────────────────────────────
    Three series over the same months: what was actually issued, what we forecast,
    and the part of the forecast that is not a forecast at all — demand already on
-   the maintenance schedule. The cutoff line matters more than it looks: it is the
-   line the engine was not allowed to see past.                                */
+   the maintenance schedule. The cut-off line matters more than it looks: it is
+   the line the engine was not allowed to see past.                             */
 function UsageChart({ usage, forecast, planned, trainMonths, startMonth, uom }) {
   const W = 620, H = 190, L = 46, R = 12, T = 12, B = 30;
   const n = usage.length, fN = forecast.length;
@@ -308,12 +904,12 @@ function UsageChart({ usage, forecast, planned, trainMonths, startMonth, uom }) 
   };
   const ticks = [];
   for (let i = 0; i < total; i += 6) ticks.push(i);
-
   const cutX = L + trainMonths * step;
 
   return html`
     <div className="chartbox">
-      <svg viewBox=${"0 0 " + W + " " + H} width="100%" style=${{ minWidth: "560px", display: "block" }}
+      <svg viewBox=${"0 0 " + W + " " + H} width="100%"
+           style=${{ minWidth: "560px", display: "block" }}
            role="img" aria-label="monthly usage and forecast">
         ${[0, 0.5, 1].map(f => html`
           <g key=${f}>
@@ -342,7 +938,7 @@ function UsageChart({ usage, forecast, planned, trainMonths, startMonth, uom }) 
         <line x1=${cutX} x2=${cutX} y1=${T} y2=${T + ih} stroke="var(--accent)"
               strokeWidth="1.2" strokeDasharray="4 3" />
         <text x=${cutX + 4} y=${T + 10} fill="var(--accent)" fontSize="9.5"
-              fontFamily="Consolas,monospace">fitted up to here</text>
+              fontFamily="Consolas,monospace">learnt up to here</text>
 
         <line x1=${L} x2=${W - R} y1=${T + ih} y2=${T + ih} stroke="var(--line-2)" />
         ${ticks.map(i => html`
@@ -353,8 +949,8 @@ function UsageChart({ usage, forecast, planned, trainMonths, startMonth, uom }) 
               fontFamily="Consolas,monospace">${uom} per month</text>
       </svg>
       <div className="legend">
-        <span><i style=${{ background: "var(--ink-2)" }}></i>issued</span>
-        <span><i style=${{ background: "var(--accent)" }}></i>forecast</span>
+        <span><i style=${{ background: "var(--ink-2)" }}></i>given out</span>
+        <span><i style=${{ background: "var(--accent)" }}></i>expected</span>
         <span><i style=${{ background: "var(--teal)" }}></i>already on the maintenance schedule</span>
       </div>
     </div>`;
@@ -393,19 +989,55 @@ function Drawer({ id, onClose }) {
 
     return html`
       <div className="body">
+        <div className="do-line">
+          <span className="do-lab">What to do</span>
+          <${Action} value=${d.action} qty=${d.order_now_qty} uom=${d.uom} />
+          ${d.cost_to_level_sar > 0 && html`
+            <span className="dim">${" · " + M(d.cost_to_level_sar)} to bring it back
+              to a safe level</span>`}
+        </div>
+
         <div className="stats">
-          <div className="stat"><div className="k">On hand</div>
+          <div className="stat"><div className="k">On the shelf <${Info} text=${TIP.on_hand} /></div>
             <div className=${"v " + (d.on_hand <= 0 ? "bad" : "")}>${num1(d.on_hand)}</div>
             <div className="u">${d.uom}</div></div>
-          <div className="stat"><div className="k">Last issued</div>
+          <div className="stat"><div className="k">Last used <${Info} text=${TIP.last_issued} /></div>
             <div className="v">${sinceIssue === null ? "never" : num(sinceIssue)}</div>
             <div className="u">${sinceIssue === null ? "in three years of history" : "days ago"}</div></div>
-          <div className="stat"><div className="k">Forecast</div>
+          <div className="stat"><div className="k">Expected use <${Info} text=${TIP.forecast6} /></div>
             <div className="v">${num1(d.forecast_6m / 6)}</div>
-            <div className="u">${d.uom} per month, next 6</div></div>
-          <div className="stat"><div className="k">Value on the shelf</div>
-            <div className="v">${sarShort(d.value_sar)}</div>
-            <div className="u">at moving average</div></div>
+            <div className="u">${d.uom} a month, next 6</div></div>
+          <div className="stat"><div className="k">Value on the shelf <${Info} text=${TIP.value_on_shelf} /></div>
+            <div className="v">${M(d.value_sar)}</div>
+            <div className="u">at book value</div></div>
+        </div>
+
+        <div className="why">
+          <div className="lab">Why this number</div>
+          <p>
+            This part was given out ${d.issues_24m === 0 ? "not once" : num(d.issues_24m) +
+            (d.issues_24m === 1 ? " time" : " times")} in the last 24 months
+            ${d.issues_24m > 0 ? html`, ${num1(d.qty_24m)} ${d.uom} in total —
+              about ${num1(monthly)} ${d.uom} a month` : ""}.
+            So it moves <b>${(CLASS_LABEL[d.demand_class] || d.demand_class).toLowerCase()}</b>
+            ${" "}(roughly every ${num1(d.adi)} months, and the amount varies by
+            ${" " + num1(d.cv2)} — the technical name is ${d.demand_class}), which is
+            why it is planned with ${d.forecast_method}.
+            ${d.planned_wo_qty > 0 ? html` On top of that, ${num1(d.planned_wo_qty)}
+              ${" " + d.uom} is already on the maintenance schedule for the year
+              ahead — that part is known, not predicted.` : ""}
+          </p>
+          <p>
+            The plant's existing rule reorders at <b>${num1(d.min_qty)}</b> and fills to
+            ${" "}<b>${num1(d.max_qty)}</b>. We reorder at <b>${num1(d.reorder_point)}</b>
+            ${" "}and fill to <b>${num1(d.order_up_to)}</b>${" "}
+            ${d.reorder_point > d.min_qty
+              ? html`— higher, because being there ${pct(d.service_level)} of the
+                     time is what this part's own economics justify.`
+              : html`— lower, because the old rule was holding more than this part's
+                     own history justifies.`}
+          </p>
+          <p><q>${d.reason}</q></p>
         </div>
 
         <h2>Three years of movement, and the year ahead</h2>
@@ -413,39 +1045,12 @@ function Drawer({ id, onClose }) {
                        trainMonths=${d.train_months} startMonth=${d.months_start}
                        uom=${d.uom} />
 
-        <div className="why">
-          <div className="lab">Why this number</div>
-          <p>
-            This part was issued ${d.issues_24m === 0 ? "not once" : num(d.issues_24m) +
-            (d.issues_24m === 1 ? " time" : " times")} in the last 24 months
-            ${d.issues_24m > 0 ? html`, ${num1(d.qty_24m)} ${d.uom} in total —
-              about ${num1(monthly)} ${d.uom} a month` : ""}.
-            That makes it <b>${d.demand_class}</b> — it ${CLASS_PLAIN[d.demand_class] || ""}
-            ${" "}(demand roughly every ${num1(d.adi)} months, size variability
-            ${" " + num1(d.cv2)}), so it is forecast with <b>${d.forecast_method}</b>.
-            ${d.planned_wo_qty > 0 ? html` On top of the forecast, ${num1(d.planned_wo_qty)}
-              ${" " + d.uom} is already on the maintenance schedule for the year ahead —
-              that part is known, not predicted.` : ""}
-          </p>
-          <p>
-            The plant's rule reorders at <b>${num1(d.min_qty)}</b> and fills to
-            ${" "}<b>${num1(d.max_qty)}</b>. We reorder at <b>${num1(d.reorder_point)}</b>
-            ${" "}and fill to <b>${num1(d.order_up_to)}</b>${" "}
-            ${d.reorder_point > d.min_qty
-              ? html`— higher, because ${pctInt(d.service_level)} of the time is how
-                     often an ${d.criticality}-critical part has to be there.`
-              : html`— lower, because the old rule was holding more than this part's
-                     own history justifies.`}
-          </p>
-          <p><q>${d.reason}</q></p>
-        </div>
-
         ${d.elsewhere && d.elsewhere.length > 0 && html`
-          <h2>Also stocked elsewhere</h2>
+          <h2>Also kept in other stores</h2>
           <div className="scroller">
             <table>
-              <thead><tr><th>Storeroom</th><th className="n">On hand</th>
-                <th className="n">Our reorder point</th><th>State</th>
+              <thead><tr><th>Store</th><th className="n">On the shelf</th>
+                <th className="n">Our safe level</th><th>State</th>
                 <th className="n">Value</th></tr></thead>
               <tbody>${d.elsewhere.map(e => html`
                 <tr key=${e.storeroom_id}>
@@ -453,12 +1058,10 @@ function Drawer({ id, onClose }) {
                   <td className="n">${num1(e.on_hand)}</td>
                   <td className="n">${num1(e.reorder_point)}</td>
                   <td><${Pill} kind="b" value=${e.band} /></td>
-                  <td className="n">${sarShort(e.value_sar)}</td>
+                  <td className="n">${M(e.value_sar)}</td>
                 </tr>`)}</tbody>
             </table>
-          </div>
-          <div className="note">One storeroom short while another is long is a transfer,
-            not a purchase. Ranking those is capability 5, and it is not built yet.</div>`}
+          </div>`}
       </div>`;
   };
 
@@ -472,10 +1075,13 @@ function Drawer({ id, onClose }) {
           <div className="t">${d ? d.description : id[0]}</div>
           <div className="m">
             ${id[0]} · ${id[1]}
-            ${d ? html`<br/>${d.manufacturer} · MPN ${d.mpn} · ${d.material_group}
+            ${d ? html`<br/>${d.manufacturer} · part number ${d.mpn} · ${d.material_group}
               <br/><span className=${"crit crit-" + d.criticality}>
-                ${d.criticality}-critical</span> · lead time ${num(d.lead_time_days)} days
-              ${d.lead_time_substituted ? " (substituted — the record was not usable)" : ""}` : ""}
+                ${{ A: "A — the plant stops without it",
+                    B: "B — production slows without it",
+                    C: "C — somebody waits" }[d.criticality] || d.criticality}</span>
+              ${" · takes " + num(d.lead_time_days) + " days to arrive"}
+              ${d.lead_time_substituted ? " (the record was not usable — this is the typical figure for this kind of part)" : ""}` : ""}
           </div>
         </div>
         ${inner()}
@@ -483,314 +1089,19 @@ function Drawer({ id, onClose }) {
     </div>`;
 }
 
-/* ── screen 2: the stock board ────────────────────────────────────────────── */
-function Board({ open, setOpen }) {
-  const [f, setF] = useState({ storeroom: "", band: "", demand_class: "", q: "", page: 1 });
-  const [data, setData] = useState(null);
-  const [err, setErr] = useState(null);
-  const [typed, setTyped] = useState("");
-
-  useEffect(() => {
-    const t = setTimeout(() => setF(s => ({ ...s, q: typed, page: 1 })), 250);
-    return () => clearTimeout(t);
-  }, [typed]);
-
-  useEffect(() => {
-    const qs = new URLSearchParams({
-      storeroom: f.storeroom, band: f.band, demand_class: f.demand_class,
-      q: f.q, page: String(f.page),
-    });
-    getJSON("/api/positions?" + qs).then(setData).catch(e => setErr(String(e.message || e)));
-  }, [f.storeroom, f.band, f.demand_class, f.q, f.page]);
-
-  if (err) return html`<div className="err"><h3>No positions to show</h3><div>${err}</div>
-    <code>python cli.py run --preset full</code></div>`;
-  if (!data) return html`<p>Loading…</p>`;
-
-  const set = (k, v) => setF(s => ({ ...s, [k]: s[k] === v ? "" : v, page: 1 }));
-
-  return html`
-    <div>
-      <header>
-        <h1>Stock board</h1>
-        <div className="lede">
-          Ranked by what it costs to ignore, not by quantity — the units missing below
-          our reorder point, priced at what being short of them costs.
-          Showing ${num(data.total)} of ${num(data.total_unfiltered)} positions;
-          ${" " + sarShort(data.value_at_risk_sar)} at risk, ${sarShort(data.value_sar)} on the shelf.
-        </div>
-      </header>
-
-      <div className="toolbar">
-        <select value=${f.storeroom} onChange=${e => setF(s => ({ ...s, storeroom: e.target.value, page: 1 }))}>
-          <option value="">All storerooms</option>
-          ${data.storerooms.map(s => html`<option key=${s} value=${s}>${s}</option>`)}
-        </select>
-        <input type="search" placeholder="Search description, MPN, maker or id…"
-               value=${typed} onInput=${e => setTyped(e.target.value)} />
-      </div>
-
-      <div className="chips">
-        ${BAND_ORDER.filter(b => data.bands[b]).map(b => html`
-          <button key=${b} className=${"chip" + (f.band === b ? " on" : "")}
-                  onClick=${() => set("band", b)}>
-            ${BAND_LABEL[b]}<span className="c">${num(data.bands[b])}</span></button>`)}
-      </div>
-      <div className="chips">
-        ${CLASS_ORDER.filter(c => data.classes[c]).map(c => html`
-          <button key=${c} className=${"chip" + (f.demand_class === c ? " on" : "")}
-                  onClick=${() => set("demand_class", c)}>
-            ${c}<span className="c">${num(data.classes[c])}</span></button>`)}
-      </div>
-
-      <div className="scroller">
-        <table>
-          <thead><tr>
-            <th>Item</th><th className="n">At risk</th><th>Class</th><th>Crit</th>
-            <th className="n">On hand</th><th className="n">Old min / max</th>
-            <th className="n">Our reorder</th>
-            <th className="n">Forecast 6m</th><th className="n">On shelf</th>
-          </tr></thead>
-          <tbody>
-            ${data.rows.map(r => html`
-              <tr key=${r.material_id + r.storeroom_id} className="click"
-                  onClick=${() => setOpen([r.material_id, r.storeroom_id])}>
-                <td className="item">
-                  <div className="d"><${Pill} kind="b" value=${r.band} />${" "}${r.description}</div>
-                  <div className="sub">${r.material_id} · ${r.storeroom_id} · ${r.mpn}
-                    ${" · last issued " + (r.last_issue_date || "never")}</div>
-                </td>
-                <td className=${"n " + (r.value_at_risk_sar > 0 ? "bad" : "dim")}>
-                  ${r.value_at_risk_sar > 0 ? sarShort(r.value_at_risk_sar) : "—"}</td>
-                <td><${Pill} kind="c" value=${r.demand_class} /></td>
-                <td className=${"crit crit-" + r.criticality}>${r.criticality}</td>
-                <td className=${"n " + (r.on_hand <= 0 ? "bad" : "")}>${num1(r.on_hand)}</td>
-                <td className="n dim">${num1(r.min_qty)} / ${num1(r.max_qty)}</td>
-                <td className="n">${num1(r.reorder_point)}</td>
-                <td className="n">${num1(r.forecast_6m)}</td>
-                <td className="n">${sarShort(r.value_sar)}</td>
-              </tr>`)}
-            ${data.rows.length === 0 && html`
-              <tr><td colSpan="9" className="dim">Nothing matches those filters.</td></tr>`}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="pager">
-        <span>Page ${data.page} of ${data.pages} · ${data.page_size} rows a page</span>
-        <span>
-          <button disabled=${data.page <= 1}
-                  onClick=${() => setF(s => ({ ...s, page: s.page - 1 }))}>Previous</button>
-          ${" "}
-          <button disabled=${data.page >= data.pages}
-                  onClick=${() => setF(s => ({ ...s, page: s.page + 1 }))}>Next</button>
-        </span>
-      </div>
-
-      <div className="note">
-        <b>At risk</b> is the shortage cost of the units missing below our reorder point —
-        criticality weight × unit price × units short. It is the same
-        ${" "}<code>shortage_cost_per_unit</code> that sets each item's service level and
-        prices the backtest, so the board and the scoreboard cannot disagree.
-      </div>
-    </div>`;
-}
-
-/* ── screen 1: the overview ───────────────────────────────────────────────── */
-function Scoreboard({ data }) {
-  const rows = data.by_type || [];
-  const s = data.summary || {};
-  const rate = v => (v === null || v === undefined || Number.isNaN(v) ? "—" : pctInt(v));
-  const recall = r => (r.planted ? r.found / r.planted : null);
-  const prec = r => (r.found + r.false_alarms ? r.found / (r.found + r.false_alarms) : null);
-  return html`
-    <div className="scroller">
-      <table>
-        <thead><tr>
-          <th>Defect type</th><th className="n">Planted</th><th className="n">Found</th>
-          <th className="n">Missed</th><th className="n">False alarms</th>
-          <th className="n">Recall</th><th className="n">Precision</th>
-        </tr></thead>
-        <tbody>
-          ${rows.map(r => html`
-            <tr key=${r.defect_type}>
-              <td>${r.defect_type}</td>
-              <td className="n">${r.planted}</td><td className="n">${r.found}</td>
-              <td className=${"n " + (r.missed ? "bad" : "")}>${r.missed}</td>
-              <td className=${"n " + (r.false_alarms ? "bad" : "")}>${r.false_alarms}</td>
-              <td className=${"n " + (recall(r) === 1 ? "good" : "")}>${rate(recall(r))}</td>
-              <td className=${"n " + (prec(r) === 1 ? "good" : "")}>${rate(prec(r))}</td>
-            </tr>`)}
-          <tr className="total">
-            <td>Total — checks that ran</td>
-            <td className="n">${s.planted}</td><td className="n">${s.found}</td>
-            <td className=${"n " + (s.missed ? "bad" : "")}>${s.missed}</td>
-            <td className=${"n " + (s.false_alarms ? "bad" : "")}>${s.false_alarms}</td>
-            <td className=${"n " + (s.recall === 1 ? "good" : "")}>${rate(s.recall)}</td>
-            <td className=${"n " + (s.precision === 1 ? "good" : "")}>${rate(s.precision)}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>`;
-}
-
-function Overview({ summary, score, bt, fc, stores, setOpen }) {
-  const inv = summary.inventory, run = summary.run, c = summary.counts;
-  const b = (bt && bt.baseline) || {}, p = (bt && bt.policy) || {}, ch = (bt && bt.change) || {};
-  const zeroLosers = (fc && fc.mase_by_class || [])
-    .filter(r => r.mase >= r.zero).map(r => r.class);
-
-  return html`
-    <div>
-      <header>
-        <h1>Inventory Intelligence ${"&"} MRO Optimization</h1>
-        <div className="lede">
-          Ma'aden Aluminium · Use Case 01 · synthetic data, sealed answer key ·
-          ${" " + c.materials.toLocaleString()} materials,
-          ${" " + c.positions.toLocaleString()} positions,
-          ${" " + c.movements.toLocaleString()} movements
-        </div>
-      </header>
-
-      <h2>What is on the shelves</h2>
-      <div className="tiles">
-        <${Tile} hero label=${"Total stock value, " + c.storerooms + " storerooms"}
-                 value=${sarShort(inv.total_stock_value_sar)} />
-        <${Tile} label=${"Lines not issued in 24 months (" + num(inv.idle_24m_count) + ")"}
-                 value=${pct(inv.idle_24m_share)}
-                 band=${summary.targets.idle_24m_share} actual=${inv.idle_24m_share} />
-        <${Tile} label=${"Dead value — " + sarShort(inv.dead_value_sar)}
-                 value=${pct(inv.dead_value_share)}
-                 band=${summary.targets.dead_value_share} actual=${inv.dead_value_share} />
-      </div>
-      <div className="note warn">
-        <b>These three are measured from the answer key, not found by the engine.</b>
-        ${" " + inv.note} They are the size of the prize, not a claim about what the
-        system detected — step 6 puts the engine's own dead-money figure beside them.
-      </div>
-
-      ${bt && html`
-        <h2>The held-out year, replayed twice — the plant's levels against ours</h2>
-        <div className="tiles">
-          <${Tile} tone="good" value=${signPct(ch.stockout_days)}
-                   label="Days spent waiting for a part"
-                   foot=${num(b.stockout_days) + " → " + num(p.stockout_days)} />
-          <${Tile} tone="bad" value=${signPct(ch.avg_capital_sar)}
-                   label="Capital sitting on the shelves"
-                   foot=${sarShort(b.avg_capital_sar) + " → " + sarShort(p.avg_capital_sar)} />
-          <${Tile} hero value=${signPct(ch.total_cost_sar)}
-                   label="Both costs together — shortage plus holding"
-                   foot=${sarShort(b.total_cost_sar) + " → " + sarShort(p.total_cost_sar)} />
-        </div>
-        <div className="note warn">
-          <b>Read this honestly: we spend more to waste less.</b> Our levels hold
-          ${" " + signPct(ch.avg_capital_sar)} more stock, not less. In exchange the
-          plant waits ${" " + signPct(ch.stockout_days)} fewer days for a part, and the
-          two costs together come out ${" " + signPct(ch.total_cost_sar)}. That runs the
-          opposite way to the usual pitch: better stocking here moves cash to where it
-          stops production losses. Releasing cash is a different exercise — finding the
-          stock that is dead — and that is the next step.
-          ${bt.capital_moved_out_sar !== undefined ? html` Underneath the net,
-            ${" " + sarShort(bt.capital_moved_out_sar)} comes off
-            ${" " + num(bt.positions_lowered)} positions while
-            ${" " + sarShort(bt.capital_moved_in_sar)} goes onto
-            ${" " + num(bt.positions_raised)}.` : ""}
-        </div>
-
-        <div className="scroller" style=${{ marginTop: "12px" }}>
-          <table>
-            <thead><tr><th>If the part is missing</th><th className="n">Positions</th>
-              <th className="n">Days waiting now</th><th className="n">With ours</th>
-              <th className="n">Value now</th><th className="n">With ours</th></tr></thead>
-            <tbody>${(bt.by_criticality || []).map(r => html`
-              <tr key=${r.criticality}>
-                <td><span className=${"crit crit-" + r.criticality}>${r.criticality}</span>
-                  ${" "}${{ A: "the plant stops", B: "production slows",
-                            C: "somebody waits" }[r.criticality] || ""}</td>
-                <td className="n">${num(r.positions)}</td>
-                <td className="n">${num(r.baseline_stockout_days)}</td>
-                <td className="n good">${num(r.policy_stockout_days)}</td>
-                <td className="n">${sarShort(r.baseline_capital_sar)}</td>
-                <td className="n">${sarShort(r.policy_capital_sar)}</td>
-              </tr>`)}</tbody>
-          </table>
-        </div>`}
-
-      ${stores && html`
-        <h2>By storeroom</h2>
-        <div className="scroller">
-          <table>
-            <thead><tr><th>Storeroom</th><th className="n">Positions</th>
-              <th className="n">Value on the shelf</th><th className="n">Idle or never issued</th>
-              <th className="n">Stocked out</th><th>Demand mix</th></tr></thead>
-            <tbody>${stores.by_storeroom.map(r => html`
-              <tr key=${r.storeroom_id}>
-                <td className="mono">${r.storeroom_id}</td>
-                <td className="n">${num(r.positions)}</td>
-                <td className="n">${sarShort(r.value_sar)}</td>
-                <td className="n">${num(r.idle_count)}
-                  <span className="dim"> (${pctInt(r.idle_count / r.positions)})</span></td>
-                <td className=${"n " + (r.stocked_out ? "bad" : "")}>${num(r.stocked_out)}</td>
-                <td>${CLASS_ORDER.filter(k => r.class_mix[k]).map(k => html`
-                  <span key=${k} style=${{ marginRight: "6px" }}>
-                    <${Pill} kind="c" value=${k} />
-                    <span className="dim mono" style=${{ fontSize: "11px" }}>
-                      ${" " + num(r.class_mix[k])}</span></span>`)}</td>
-              </tr>`)}</tbody>
-          </table>
-        </div>`}
-
-      <h2>Defect detection — graded against the sealed answer key</h2>
-      <${Scoreboard} data=${score} />
-
-      ${fc && html`
-        <h2>Forecast accuracy, on the year the engine never saw</h2>
-        <div className="scroller">
-          <table>
-            <thead><tr><th>Demand class</th><th className="n">Positions</th>
-              <th>Method</th><th className="n">Ours</th>
-              <th className="n">Repeat last year</th><th className="n">Forecast zero</th></tr></thead>
-            <tbody>${fc.mase_by_class.map(r => html`
-              <tr key=${r.class}>
-                <td><${Pill} kind="c" value=${r.class} /></td>
-                <td className="n">${num(r.positions)}</td>
-                <td className="mono">${r.method}</td>
-                <td className=${"n " + (r.mase < r.naive && r.mase < r.zero ? "good" : "")}>
-                  ${r.mase.toFixed(2)}</td>
-                <td className="n dim">${r.naive.toFixed(2)}</td>
-                <td className=${"n " + (r.zero < r.mase ? "bad" : "dim")}>${r.zero.toFixed(2)}</td>
-              </tr>`)}</tbody>
-          </table>
-        </div>
-        <div className="note">
-          Lower is better; 1.00 means no better than repeating last year. We beat that
-          on all four classes.
-          ${zeroLosers.length > 0 ? html` <b>We lose to forecasting zero on
-            ${zeroLosers.join(" and ")} parts, and that is expected.</b> A part issued
-            four times in three years is zero in most months, so always saying "none"
-            scores well on the average month and is useless on the four that matter —
-            it can never tell you to order anything. That is why the levels are set
-            from the demand distribution rather than from the forecast.` : ""}
-        </div>`}
-
-      <footer>
-        Read-only view over precomputed results. Nothing on this page is calculated at
-        request time — every figure was written to ${" "}<code>results/</code>${" "}
-        during ${" "}<code>build</code>, <code>run</code> and <code>score</code>.
-        <br/>Run ${run.config_hash} · seed ${run.seed} · git ${run.git_sha} ·
-        cutoff ${run.cutoff_date} · generated ${run.generated_at}.
-      </footer>
-    </div>`;
-}
-
 /* ── shell ────────────────────────────────────────────────────────────────── */
+const SCREENS = [
+  { key: "", name: "Today" },
+  { key: "board", name: "Stock board" },
+  { key: "storerooms", name: "Storerooms" },
+  { key: "evidence", name: "How well it works" },
+];
+
 function parseHash() {
-  const h = (location.hash || "#/").slice(1);
-  const parts = h.split("/").filter(Boolean);
-  if (parts[0] === "board") {
-    return { screen: "board", open: parts.length >= 3 ? [parts[1], parts[2]] : null };
-  }
-  return { screen: "overview", open: null };
+  const parts = (location.hash || "#/").slice(1).split("/").filter(Boolean);
+  const screen = SCREENS.some(s => s.key === parts[0]) ? parts[0] : "";
+  const open = parts.length >= 3 ? [parts[1], parts[2]] : null;
+  return { screen: open ? (screen || "board") : screen, open };
 }
 
 function App() {
@@ -810,17 +1121,17 @@ function App() {
       getJSON("/api/backtest").catch(() => null),
       getJSON("/api/forecast_scores").catch(() => null),
       getJSON("/api/storerooms").catch(() => null),
+      getJSON("/api/frontier").catch(() => null),
     ])
-      .then(([summary, score, bt, fc, stores]) =>
-        setState({ status: "ready", summary, score, bt, fc, stores }))
+      .then(([summary, score, bt, fc, stores, fr]) =>
+        setState({ status: "ready", summary, score, bt, fc, stores, fr }))
       .catch(err => setState({ status: "error", detail: err.message || String(err) }));
   }, []);
 
   const setOpen = useCallback(id => {
-    location.hash = id ? "#/board/" + id[0] + "/" + id[1] : "#/board";
+    const base = parseHash().screen || "board";
+    location.hash = id ? "#/" + base + "/" + id[0] + "/" + id[1] : "#/" + base;
   }, []);
-
-  const go = screen => { location.hash = "#/" + (screen === "overview" ? "" : screen); };
 
   if (state.status === "loading")
     return html`<div style=${{ padding: "30px" }}>Loading…</div>`;
@@ -830,6 +1141,14 @@ function App() {
       <code>python cli.py all --preset full</code></div></div>`;
 
   const run = state.summary.run;
+  const screen = route.screen;
+  const page =
+    screen === "board" ? html`<${Board} setOpen=${setOpen} />`
+    : screen === "storerooms" ? html`<${Storerooms} stores=${state.stores} setOpen=${setOpen} />`
+    : screen === "evidence" ? html`<${Evidence} summary=${state.summary} score=${state.score}
+                                                bt=${state.bt} fc=${state.fc} fr=${state.fr} />`
+    : html`<${Today} summary=${state.summary} stores=${state.stores} />`;
+
   return html`
     <div className="shell">
       <nav>
@@ -838,22 +1157,15 @@ function App() {
           <div className="name">MRO Intelligence</div>
           <div className="sub">Use Case 01 · POC</div>
         </div>
-        <button className=${"link" + (route.screen === "overview" ? " on" : "")}
-                onClick=${() => go("overview")}>Overview</button>
-        <button className=${"link" + (route.screen === "board" ? " on" : "")}
-                onClick=${() => go("board")}>Stock board</button>
+        ${SCREENS.map(s => html`
+          <button key=${s.key} className=${"link" + (screen === s.key ? " on" : "")}
+                  onClick=${() => { location.hash = "#/" + s.key; }}>${s.name}</button>`)}
         <div className="foot">
           preset ${run.preset}<br/>seed ${run.seed}<br/>git ${run.git_sha}<br/>
-          cutoff ${run.cutoff_date}
+          cut-off ${run.cutoff_date}
         </div>
       </nav>
-      <main>
-        ${route.screen === "board"
-          ? html`<${Board} open=${route.open} setOpen=${setOpen} />`
-          : html`<${Overview} summary=${state.summary} score=${state.score}
-                              bt=${state.bt} fc=${state.fc} stores=${state.stores}
-                              setOpen=${setOpen} />`}
-      </main>
+      <main>${page}</main>
       ${route.open && html`<${Drawer} id=${route.open} onClose=${() => setOpen(null)} />`}
     </div>`;
 }

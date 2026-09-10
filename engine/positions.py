@@ -154,9 +154,98 @@ def build(cfg: RunConfig) -> pd.DataFrame:
     df["units_below_reorder"] = short_units
     df["value_at_risk_sar"] = short_units * weight
 
+    # what to bring it back up to, in money — the figure a planner can take to a
+    # buyer. Not the same as what being short of it costs, which is much larger and
+    # much less useful as an instruction.
+    df["cost_to_level_sar"] = (
+        (df["order_up_to"] - df["on_hand"].clip(lower=0.0)).clip(lower=0.0)
+        * df["unit_price_sar"]
+    )
+    df["order_now_qty"] = (
+        (df["order_up_to"] - df["on_hand"].clip(lower=0.0)).clip(lower=0.0).round()
+    )
+
     df = df.sort_values(["value_at_risk_sar", "value_sar"], ascending=False)
     df["rank"] = np.arange(1, len(df) + 1)
-    return df.reset_index(drop=True)
+    df = df.reset_index(drop=True)
+    df["action"] = _actions(df)
+    return df
+
+
+def _actions(df: pd.DataFrame) -> np.ndarray:
+    """
+    One instruction per row, in the order a planner would take them.
+
+    A board that says what is wrong is a report; a board that says what to do is a
+    tool. "Stocked elsewhere" comes before "Order" on purpose — a transfer is free
+    and a purchase is not, and a planner who orders a part that is already sitting
+    in the next storeroom has been let down by the screen.
+    """
+    short = df["on_hand"].clip(lower=0.0) < df["reorder_point"]
+    surplus = (df["on_hand"] - df["order_up_to"]).clip(lower=0.0)
+    surplus_elsewhere = (
+        df.assign(_s=surplus).groupby("material_id")["_s"].transform("sum") - surplus
+    ) > 0
+    idle = df["band"].isin(["idle_24m", "never_issued"]) & (df["value_sar"] > 0)
+    below_old = df["on_hand"] < df["min_qty"].fillna(0.0)
+
+    out = np.full(len(df), "nothing_needed", dtype=object)
+    out[idle.to_numpy()] = "review_obsolete"
+    out[below_old.to_numpy()] = "below_safe_level"
+    out[short.to_numpy()] = "order_now"
+    out[(short & surplus_elsewhere).to_numpy()] = "stocked_elsewhere"
+    return out
+
+
+def transfers(df: pd.DataFrame, limit: int = 60) -> list[dict]:
+    """
+    One storeroom is long while another is short of the same part.
+
+    SOW capability 5, and the cheapest recommendation in the whole system: it frees
+    stock that is already paid for and avoids a purchase entirely. Deliberately
+    conservative — the sending storeroom only offers what it holds ABOVE its own
+    order-up-to level, so nobody is stripped to fix somebody else.
+    """
+    df = df.copy()
+    df["surplus"] = (df["on_hand"] - df["order_up_to"]).clip(lower=0.0)
+    df["need"] = np.where(
+        df["on_hand"].clip(lower=0.0) < df["reorder_point"],
+        (df["order_up_to"] - df["on_hand"].clip(lower=0.0)).clip(lower=0.0),
+        0.0,
+    )
+    rows = []
+    both = df[df["material_id"].isin(
+        set(df.loc[df["surplus"] > 0, "material_id"])
+        & set(df.loc[df["need"] > 0, "material_id"])
+    )]
+    for material, grp in both.groupby("material_id"):
+        givers = grp[grp["surplus"] > 0].sort_values("surplus", ascending=False)
+        takers = grp[grp["need"] > 0].sort_values("need", ascending=False)
+        pool = givers["surplus"].to_numpy(dtype=float).copy()
+        for _, taker in takers.iterrows():
+            want = float(taker["need"])
+            for i, (_, giver) in enumerate(givers.iterrows()):
+                if want <= 0 or pool[i] <= 0:
+                    continue
+                move = float(min(pool[i], want))
+                pool[i] -= move
+                want -= move
+                rows.append(
+                    {
+                        "material_id": str(material),
+                        "description": str(taker["description"]),
+                        "from_storeroom": str(giver["storeroom_id"]),
+                        "to_storeroom": str(taker["storeroom_id"]),
+                        "qty": round(move, 2),
+                        "uom": str(taker["uom"]),
+                        "value_sar": float(move * taker["unit_price_sar"]),
+                        "criticality": str(taker["criticality"]),
+                        "to_on_hand": float(taker["on_hand"]),
+                        "to_reorder_point": float(taker["reorder_point"]),
+                    }
+                )
+    rows.sort(key=lambda r: -r["value_sar"])
+    return rows[:limit]
 
 
 def by_storeroom(df: pd.DataFrame) -> list[dict]:
@@ -171,6 +260,12 @@ def by_storeroom(df: pd.DataFrame) -> list[dict]:
                 "value_at_risk_sar": float(grp["value_at_risk_sar"].sum()),
                 "idle_count": int(grp["band"].isin(["idle_24m", "never_issued"]).sum()),
                 "stocked_out": int((grp["band"] == "stocked_out").sum()),
+                "needs_action": int(grp["action"].isin(
+                    ["order_now", "stocked_elsewhere", "below_safe_level"]).sum()),
+                "cost_to_level_sar": float(
+                    grp.loc[grp["action"].isin(["order_now", "stocked_elsewhere"]),
+                            "cost_to_level_sar"].sum()
+                ),
                 "class_mix": {k: int(v) for k, v in
                               grp["demand_class"].value_counts().items()},
             }
@@ -182,7 +277,25 @@ def run(cfg: RunConfig) -> pd.DataFrame:
     df = build(cfg)
     cfg.results_dir.mkdir(parents=True, exist_ok=True)
     df.to_parquet(cfg.results_dir / POSITIONS_FILE, index=False)
+    moves = transfers(df)
+    critical = df[(df["criticality"] == "A")
+                  & (df["on_hand"].clip(lower=0.0) < df["reorder_point"])]
+    payload = {
+        "by_storeroom": by_storeroom(df),
+        "transfers": moves,
+        "transfer_total_sar": float(sum(r["value_sar"] for r in moves)),
+        "transfer_count": len(moves),
+        "action_counts": {k: int(v) for k, v in df["action"].value_counts().items()},
+        "needs_action_count": int((df["action"].isin(
+            ["order_now", "stocked_elsewhere", "below_safe_level"])).sum()),
+        "cost_to_level_sar": float(
+            df.loc[df["action"].isin(["order_now", "stocked_elsewhere"]),
+                   "cost_to_level_sar"].sum()
+        ),
+        "critical_below_level_count": int(len(critical)),
+        "critical_below_level_sar": float(critical["cost_to_level_sar"].sum()),
+    }
     (cfg.results_dir / STOREROOM_FILE).write_text(
-        json.dumps({"by_storeroom": by_storeroom(df)}, indent=2), encoding="utf-8"
+        json.dumps(payload, indent=2), encoding="utf-8"
     )
     return df

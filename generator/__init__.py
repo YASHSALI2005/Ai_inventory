@@ -83,10 +83,24 @@ def generate(cfg: RunConfig) -> B.Generated:
     min_qty, max_qty = D.stale_levels(cfg, params, demand_days, demand_qty, price, rng)
     opening, had_commissioning = D.commissioning_opening(cfg, params, max_qty, price, rng)
 
+    # You cannot stock 2.5 bearings, and "on hand 2.5 EA" on a screen reads as a
+    # bug in the system rather than as a quirk of invented data. Demand sizes were
+    # already whole numbers; the fractions came from the fat-fingered min/max and
+    # from partial returns. Both are rounded HERE, before the simulation runs, so
+    # every receipt and issue that follows is whole too and `sum(qty) == on_hand`
+    # still holds exactly. Rounding the finished ledger instead breaks that
+    # identity — tried it, and it pushed 95 positions negative.
+    whole = by_position("uom") == "EA"
+    min_qty = np.where(whole, np.round(min_qty), min_qty)
+    max_qty = np.where(whole, np.maximum(np.round(max_qty), min_qty + 1.0), max_qty)
+    opening = np.where(whole, np.round(opening), opening)
+
     movements, _on_hand, _last_receipt = D.run_history(
         cfg, positions, price, lead, min_qty, max_qty, opening, demand_days, demand_qty, rng
     )
-    movements = D.add_returns_and_adjustments(cfg, movements, rng)
+    movements = D.add_returns_and_adjustments(
+        cfg, movements, rng, materials.set_index("material_id")["uom"]
+    )
     work_orders, movements = D.build_work_orders(
         cfg, movements, materials, equipment, shutdowns, rng
     )

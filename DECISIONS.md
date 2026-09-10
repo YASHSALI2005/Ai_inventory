@@ -969,3 +969,99 @@ Reasoning: `engine.levels` now keeps the simulated protection-window draws and
            is a deliberate widening of the 80-99.5% range the brief specified.
 Rejected: extrapolating the curve to their service level (would have produced a
           confident saving with nothing behind it).
+
+
+## 2026-09-10 — Shortage cost is downtime plus expedite, not a multiple of unit price
+Model: Opus 5
+Type: reversal
+Reverses: the CostModel entry that introduced `shortage_multiplier`
+Reasoning: Clicking through the stock board made the flaw obvious: a SAR 2.2M
+           spare transformer and a SAR 4 gasket that stop the same potline came
+           out at the same service level, and the transformer was given a reorder
+           point of six. Downtime is a property of the equipment, not of the part.
+           Shortage cost is now
+           `downtime_cost_per_day[crit] x expedite_days[crit] + expedite_premium x price`.
+           The transformer's reorder point fell to 2; a SAR 60 gasket's rose to 264.
+Rejected: keeping the multiplier and special-casing expensive spares (a rule with
+          a threshold in it, which is the shape of a thing nobody can defend).
+
+## 2026-09-10 — The downtime figures are per unit, per day, and deliberately small
+Model: Opus 5
+Type: decision
+Reasoning: A 30,000 / B 4,000 / C 100 SAR per day read as absurdly low for "the
+           plant stops", and they are — because they are the loss attributable to
+           ONE UNIT of ONE part, not a whole-plant outage. The synthetic plant runs
+           644,232 unit-shortages a year under its own stale levels; charging a
+           real potline outage against each produced a SAR 10bn shortage bill
+           against SAR 1.4bn of inventory. Calibrated so the shortage bill sits in
+           the same order of magnitude as the holding bill, which is where a cost
+           model has to sit for the total to mean anything. This IS calibration to
+           a target and it is written down as such.
+Rejected: charging downtime per position per stockout day (worse — it claims the
+          plant stopped 854,171 separate times in a year).
+
+## 2026-09-10 — One shortage cost, used by the levels and the backtest
+Model: Opus 5
+Type: decision
+Reasoning: For one iteration the fractile used the new downtime-based cost while
+           the backtest kept the old price-scaled one. The policy was optimised
+           against one objective and marked against another: it came out 8% WORSE
+           than the plant's own levels on total cost while cutting days waiting by
+           65%. `shortage_cost_per_unit_day` is now
+           `shortage_cost_per_unit / 30` and nothing else. Two cost models is a way
+           to lose an argument you are winning.
+
+## 2026-09-10 — Capital went up, not down, and the report says so
+Model: Opus 5
+Type: decision
+Reasoning: The change was expected to bring the +50% capital delta down
+           substantially. It went to +71%. The reason is structural rather than a
+           bug: with holding at 25%/year and an expedite premium of 4x price, the
+           expedite term alone puts a floor of about 94% under every part's service
+           level whatever its criticality, so pricing an expedite properly makes
+           holding almost any part worthwhile. That is the correct newsvendor
+           answer to "what does being short cost". The honest framing is in
+           HANDOVER and on the evidence page: this model buys service, it does not
+           release cash, and the two levers that would move capital are the holding
+           rate and the expedite premium — both the plant's assumptions.
+Rejected: quietly lowering the expedite premium until the capital line read well.
+
+## 2026-09-10 — Four pages instead of one, and plain words everywhere but page four
+Model: Opus 5
+Type: decision
+Reasoning: The single overview was a scoreboard: correct, dense, and unreadable by
+           anyone who had not built it. Split into Today (three tiles and nothing
+           else), Stock board (what to do, per row), Storerooms (where it is and
+           where it is in the wrong place) and How well it works (the evidence).
+           Only the fourth is allowed to say recall, MASE or TSB; everywhere else
+           the technical name lives in a tooltip, so an engineer can still find it
+           and a planner never has to learn it. `tests/test_screens.py` asserts the
+           technical words do not appear as headings, columns or chip labels on the
+           first three.
+
+## 2026-09-10 — The board leads with what to do, and drops SAR at risk
+Model: Opus 5
+Type: decision
+Reasoning: "SAR 24.9bn at risk" is arithmetically defensible and reads as a typo,
+           which loses the room. It is replaced on screen by "N parts need action
+           today, SAR X to bring them to level" — a figure a planner can take to a
+           buyer. The ranking still uses shortage cost underneath; it is just not
+           the headline. The action column comes first because a board that says
+           what is wrong is a report and a board that says what to do is a tool.
+
+## 2026-09-10 — Pack sizes, tyre and transformer descriptions, whole units
+Model: Opus 5
+Type: decision
+Reasoning: Three data fixes the screens exposed. Transformers were described in kW
+           like a motor and haul-truck tyres in millimetres; both now carry the
+           token a storeman would actually match on (kVA/MVA, and OTR designations
+           like 40.00R57). And "on hand 2.5 EA" reads as a bug in the system rather
+           than a quirk of invented data, so discrete parts are rounded to whole
+           units — at the source, before the simulation, because rounding the
+           finished ledger broke `sum(qty) == on_hand` and pushed 95 positions
+           negative.
+           Knock-on: the seed change shifted the random stream enough that the
+           shutdown issue-rate multiple fell from 3.9x to 2.6x, below its design
+           target. `shutdown_intensity` was raised 2.2 -> 4.5 to restore it. That is
+           a knob being turned to hit a number; it exists for exactly this property,
+           and it is recorded here rather than left to be discovered.

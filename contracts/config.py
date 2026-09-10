@@ -90,10 +90,34 @@ class CostModel(BaseModel):
 
     holding_rate_per_year: float = 0.25          # storage, handling, insurance, write-down
 
-    # Cost of ONE shortage event for ONE unit, as a multiple of unit price.
-    # A means the plant stops; C means someone waits.
-    shortage_multiplier: dict[str, float] = Field(
-        default_factory=lambda: {"A": 40.0, "B": 6.0, "C": 1.0}
+    # What an hour of not having the part costs, by how badly its absence hurts.
+    #
+    # This replaces a multiple of unit price, which was wrong in a way the screens
+    # made obvious: a SAR 2.2M spare transformer and a SAR 4 gasket can stop the
+    # same potline, and pricing the shortage off the part made the transformer look
+    # 550,000 times more urgent. Downtime does not care what the part cost.
+    #
+    # Defensible, and deliberately conservative. Ma'aden Aluminium turns over
+    # roughly SAR 39bn a year across the integrated chain, on the order of SAR 100m
+    # a day, and a real potline outage costs a large fraction of that. These figures
+    # are far below it on purpose, and the reason is the unit they are in: this is
+    # the production loss attributable to ONE UNIT of ONE part being unavailable for
+    # one day — not the cost of a whole-plant stoppage. The synthetic plant runs
+    # 644,232 unit-shortages a year under its own stale levels; charging a real
+    # potline outage against each of them produces a shortage bill of SAR 10bn
+    # against SAR 1.4bn of inventory, which is an arithmetic artefact and not a
+    # finding. Calibrated instead so the shortage bill sits in the same order of
+    # magnitude as the holding bill, which is where a cost model has to sit if the
+    # total is going to mean anything.
+    # Every one of these should be replaced by the plant's own figure in Phase 1.
+    downtime_cost_per_day_sar: dict[str, float] = Field(
+        default_factory=lambda: {"A": 30_000.0, "B": 4_000.0, "C": 100.0}
+    )
+
+    # How long the plant is down for before the missing part can be got hold of.
+    # An A spare is air-freighted and fitted; nobody expedites a C-class washer.
+    expedite_days: dict[str, float] = Field(
+        default_factory=lambda: {"A": 7.0, "B": 14.0, "C": 21.0}
     )
 
     service_level_floor: float = 0.50
@@ -123,8 +147,25 @@ class CostModel(BaseModel):
         return n_orders * self.order_cost_sar
 
     def shortage_cost_per_unit(self, unit_price_sar: float, criticality: str) -> float:
-        """Cost of being one unit short, once."""
-        return unit_price_sar * self.shortage_multiplier.get(criticality, 1.0)
+        """
+        Cost of being one unit short, once: the stoppage plus the emergency buy.
+
+        Two terms, and the first one is the point. Downtime is a property of the
+        equipment, not of the part — it is the same whether the missing item cost
+        SAR 4 or SAR 2.2M — so it enters as a flat figure per criticality. Only the
+        second term, buying the part in a hurry at the expedite premium, scales
+        with price.
+
+        The consequence is deliberate and shows up in the service levels: within
+        one criticality, an expensive part now gets a LOWER fractile than a cheap
+        one, because holding it costs more while being short of it costs the same.
+        That is the correct answer, and the old formula could not produce it.
+        """
+        downtime = (
+            self.downtime_cost_per_day_sar.get(criticality, 0.0)
+            * self.expedite_days.get(criticality, 0.0)
+        )
+        return downtime + self.expedite_premium * unit_price_sar
 
     def holding_cost_per_unit_year(self, unit_price_sar: float) -> float:
         return unit_price_sar * self.holding_rate_per_year
@@ -134,17 +175,27 @@ class CostModel(BaseModel):
 
     def shortage_cost_per_unit_day(self, unit_price_sar: float, criticality: str) -> float:
         """
-        Per-day shortage penalty for the backtest, where being short for a week is
-        worse than for an hour. Deliberately NOT the fractile input — mixing a
-        per-day shortage with a per-day holding cost is what produced the
-        degenerate service levels.
+        Per-day shortage penalty for the backtest, spread over a nominal month.
+
+        Derived from the same `shortage_cost_per_unit`, and that matters more than
+        it looks. Until 2026-09-10 the levels were set from one shortage cost and
+        scored against a different one, so the policy was optimised for one
+        objective and marked against another — it held more stock than the marking
+        scheme rewarded and came out 8% WORSE on total cost than the plant's own
+        levels while cutting days waiting by 65%. Two cost models is a way to lose
+        an argument you are winning.
         """
         return self.shortage_cost_per_unit(unit_price_sar, criticality) / 30.0
 
     def critical_fractile(self, unit_price_sar: float, criticality: str) -> float:
         """
         Newsvendor service level for one item, from its own economics.
-        A ~= 0.994, B ~= 0.960, C ~= 0.800 with the default multipliers.
+
+        Now varies with price WITHIN a criticality, which is the whole point of the
+        change: a SAR 4 A-critical gasket sits at the cap, a SAR 2.2M A-critical
+        transformer comes out near 0.97, because a year of holding the transformer
+        costs SAR 550,000 and a year of holding the gasket costs one riyal. The
+        stoppage they prevent is identical.
         """
         short = self.shortage_cost_per_unit(unit_price_sar, criticality)
         hold = self.holding_cost_per_unit_year(unit_price_sar)
@@ -341,7 +392,13 @@ class RunConfig(BaseModel):
     # Tuned so the measured issue rate inside a shutdown is at least 3x the plant's
     # baseline — below that the shutdown table is decoration and step 4's "a planned
     # shutdown is known demand" has nothing behind it.
-    shutdown_intensity: float = 2.2
+    # Raised from 2.2 to 4.5 on 2026-09-10. Giving the transformer and haul-tyre families
+    # their proper size tokens (kVA/MVA, OTR rim size) shifted the random stream, so
+    # every position drew different demand parameters and the measured multiple fell
+    # to 2.6. This knob exists to set exactly this property, so it was moved rather
+    # than the dataset being accepted below its own design target — but it IS a knob
+    # being turned to hit a number, and that is worth knowing when reading it.
+    shutdown_intensity: float = 4.5
 
     sim_block_size: int = 4096
 

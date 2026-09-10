@@ -353,21 +353,49 @@ def test_engine_cannot_reach_the_answer_key():
                 )
 
 
-def test_newsvendor_service_levels_are_ordered_and_not_pinned(cfg):
+def test_the_service_level_falls_as_the_part_gets_more_expensive(cfg):
     """
-    A>B>C, and C well below the cap. The first cut mixed per-day shortage with
-    per-day holding cost, which pinned all three to 0.995 and quietly disabled
-    "service level from each item's own economics".
+    The property the whole cost model was rebuilt for.
+
+    Until 2026-09-10 shortage cost was a multiple of unit price, so the fractile
+    was a ratio and price cancelled out entirely: a SAR 2.2M spare transformer and
+    a SAR 4 gasket that stop the same potline came out at the identical service
+    level, and the transformer was given a reorder point of six. Downtime does not
+    care what the part cost. Holding it does.
     """
     c = cfg.costs
-    a = c.critical_fractile(1000.0, "A")
-    b = c.critical_fractile(1000.0, "B")
-    z = c.critical_fractile(1000.0, "C")
-    assert a > b > z
-    assert z < 0.9, f"C pinned high at {z}"
-    assert a <= c.service_level_cap
-    # scale-free: the fractile is a ratio, so price must not change it
-    assert c.critical_fractile(5.0, "A") == pytest.approx(a)
+    cheap = c.critical_fractile(10.0, "A")
+    mid = c.critical_fractile(100_000.0, "A")
+    dear = c.critical_fractile(2_200_000.0, "A")
+    assert cheap >= mid > dear, "an expensive spare must be held to a lower level"
+    assert dear < c.service_level_cap - 0.02, f"the expensive end is still pinned at {dear}"
+    assert cheap <= c.service_level_cap
+
+
+def test_criticality_still_separates_where_it_can(cfg):
+    """
+    At a price where holding actually costs something, the three classes must part
+    company — otherwise "A stops the plant" is not doing any work.
+    """
+    c = cfg.costs
+    price = 250_000.0
+    assert (c.critical_fractile(price, "A") > c.critical_fractile(price, "B")
+            > c.critical_fractile(price, "C"))
+
+
+def test_the_levels_and_the_backtest_price_a_shortage_the_same_way(cfg):
+    """
+    They were two different numbers for one week, and it cost 13 points of measured
+    improvement: the policy was optimised against downtime cost and marked against
+    a multiple of unit price, so it held stock the marking scheme gave it no credit
+    for and came out worse than the plant's own levels on total cost.
+    """
+    c = cfg.costs
+    for price in (10.0, 5_000.0, 900_000.0):
+        for crit in ("A", "B", "C"):
+            assert c.shortage_cost_per_unit_day(price, crit) == pytest.approx(
+                c.shortage_cost_per_unit(price, crit) / 30.0
+            )
 
 
 def test_service_level_sweep_reaches_the_cap(cfg):

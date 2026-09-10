@@ -175,11 +175,39 @@ def test_the_page_is_one_file_with_no_build_step():
     assert 'id="root"' in text
 
 
-def test_both_screens_and_the_drawer_are_reachable_by_url():
+def test_every_screen_and_the_drawer_are_reachable_by_url():
     """The progress document photographs them by URL, so the routes are a contract."""
     text = (STATIC / "index.html").read_text(encoding="utf-8")
-    assert 'parts[0] === "board"' in text
+    for route in ("board", "storerooms", "evidence"):
+        assert f'"{route}"' in text, f"the {route} route disappeared"
     assert "hashchange" in text
+    assert "parseHash" in text
+
+
+def test_the_plain_pages_do_not_use_the_technical_words():
+    """
+    Pages 1-3 are read by somebody who has never seen inventory data. The technical
+    name lives in a tooltip, which is why the words are allowed to appear in the
+    file at all — but not as a heading, a column or a chip label.
+    """
+    text = (STATIC / "index.html").read_text(encoding="utf-8")
+    evidence = text.index("function Evidence(")
+    plain = text[:evidence]
+    for word in ("MASE", "recall", "precision", "positions"):
+        assert f'>{word}' not in plain, f"'{word}' is rendered on a plain page"
+    assert "How to read this page" in text
+
+
+def test_every_action_the_board_can_show_has_a_label():
+    """An unlabelled action renders as an empty cell, which reads as 'nothing to do'."""
+    from engine.positions import _actions  # noqa: PLC0415
+
+    text = (STATIC / "index.html").read_text(encoding="utf-8")
+    source = pathlib.Path(_actions.__code__.co_filename).read_text(encoding="utf-8")
+    for name in ("order_now", "stocked_elsewhere", "below_safe_level",
+                 "review_obsolete", "nothing_needed"):
+        assert f'"{name}"' in source, f"{name} is no longer produced"
+        assert f"{name}:" in text, f"{name} has no label on the screen"
 
 
 def test_the_page_serves_and_mentions_the_board(client):

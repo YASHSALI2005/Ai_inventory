@@ -4,13 +4,13 @@ The previous project (Noah Stock, retail F&B across nine cinemas) solved the sam
 screen problem: hundreds of lines, a planner with ten minutes, and the need to make
 "what should I do today" obvious. Step 7 inherits its layout language.
 
-> **Screenshots**: the six Noah Stock screenshots belong in this folder
-> (`noah-dashboard.png`, `noah-organizations.png`, `noah-sites.png`,
-> `noah-calendar.png`, `noah-board.png`, `noah-drawer.png`). They have not been
-> written to disk — they were shared in the conversation and there is no way to
-> save an attached image from there to a file. **Drop them in manually.** Nothing
-> is blocked in the meantime: this file is the specification and the screens are
-> built from it; the images are the illustration.
+> **Screenshots**: the six Noah Stock reference images are in this folder —
+> [`noah-dashboard.png`](noah-dashboard.png),
+> [`noah-organizations.png`](noah-organizations.png),
+> [`noah-sites.png`](noah-sites.png), [`noah-calendar.png`](noah-calendar.png),
+> [`noah-board.png`](noah-board.png) and [`noah-drawer.png`](noah-drawer.png).
+> They are the illustration; this file is the specification, and the screens were
+> built from the text.
 
 ---
 
@@ -83,6 +83,32 @@ exactly the same purpose — demand that is known in advance rather than forecas
 
 ---
 
+## Round 2 — 2026-09-10, readability for someone who has never seen inventory data
+
+The first build was correct and unreadable. One page carried the money, the work
+queue, the marks and the method at once, and everything on it was written for
+somebody who already knew what a reorder point was. What changed, and why:
+
+| Change | Why |
+|---|---|
+| **One page became four** — Today, Stock board, Storerooms, How well it works | Noah's board had one audience. This has three: somebody who wants the number, somebody who has to act on it, and somebody who has to believe it. Mixing them meant none of them was served. |
+| **Today: three tiles, nothing else** | A first screen that has to be scrolled has already lost. Dead value, parts unused in two years, critical parts below level — each with a sentence saying what it means and what to do. |
+| **"What to do" is the second column** on the board, before every measurement | Carried straight from Noah's drawer sentence, but promoted to the table. A board that says what is wrong is a report; a board that says what to do is a tool. |
+| **"SAR 24.9bn at risk" removed from the screen** | Arithmetically defensible, reads as a typo, loses the room. Replaced by "N parts need action today, SAR X to bring them to level" — a figure a planner can take to a buyer. The ranking still uses shortage cost underneath. |
+| **Demand groups renamed** — used regularly / regular, varying amounts / now and then / rarely, in bursts | Noah said "used daily / weekly / rarely" and that was already the right instinct. `smooth` / `erratic` / `intermittent` / `lumpy` are Syntetos-Boylan terms, and they now live in the tooltip. |
+| **An ⓘ on every tile label and column header** | The thing that stops a plain-word label being *vaguer* than the technical one. "Our level" with "when the shelf falls to this number, order more" behind it is both readable and exact. |
+| **"How to read this page" under every title** | One line. It is the difference between a screen somebody uses and a screen somebody asks about. |
+| **All money in SAR millions, one decimal** | `SAR 1,412,694,541` is skipped; `SAR 1,412.7m` is read. |
+| **Storerooms page carries the transfer panel** | This is Noah's "stock that could be moved", and the data existed all along. |
+| **Page four keeps the jargon and says so** | Recall, MASE, TSB and the honest callouts live in one place, labelled as the evidence page. Hiding them would be worse than showing them. |
+| **Drawer reordered**: what to do, then why, then the chart | The explanation earns the number. The chart is evidence for the explanation, not the other way round. |
+
+One naming collision worth knowing about: the *state* band for "on hand is under
+our reorder point" is labelled **Below our level**, while the *action*
+**Below safe level** means the part is under the plant's own old minimum but at or
+above ours. Two different things, and the first draft called both of them the same
+words.
+
 ## Status — built 2026-09-10
 
 All three screens exist: `api/static/index.html`, served by `python cli.py serve`.
@@ -91,7 +117,7 @@ says otherwise.
 
 | From Noah | In ours | Where |
 |---|---|---|
-| Left nav, KPI tiles, one table, drawer on click | same | all three screens |
+| Left nav, KPI tiles, one table, drawer on click | same | all four screens |
 | "Ranked by what it costs to ignore, not by quantity" — those words on screen | same words | stock board sub-head |
 | Colour band per state, repeated everywhere | six bands, on the row tag and the chips | stock board |
 | Drawer with a plain-English sentence and its arithmetic visible | the "Why this number" panel, ending with the engine's own reason string verbatim | item drawer |
@@ -100,8 +126,8 @@ says otherwise.
 | "Used daily / weekly / rarely" | replaced: the four demand groups from step 3 | chips and drawer |
 | Run-rate per day | replaced: per month, plus "never issued in three years" | item drawer |
 | Organisation picker | dropped — one client, one plant | — |
-| Calendar of known events | **not built yet.** The data exists (planned work orders are already a second series on the drawer chart); a calendar screen is not in the approved scope | — |
-| "Stock that could be moved" panel | **not built yet.** The drawer shows the same material in other storerooms, which is the data behind it; ranking transfers is capability 5 and is gated on step 6a | item drawer, partly |
+| Calendar of known events | **still not built.** The data exists (planned work orders are already a second series on the drawer chart); a calendar screen is not in the approved scope | — |
+| "Stock that could be moved" panel | **built** — the Storerooms page. The sending store only offers what it holds above its own level. Ranking by distance and delivery time is not done | Storerooms |
 
 ## The two screens step 7 builds
 

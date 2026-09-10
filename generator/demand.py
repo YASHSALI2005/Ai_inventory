@@ -318,7 +318,7 @@ def run_history(cfg, positions, price, lead, min_qty, max_qty, opening, demand_d
     return movements, on_hand, last_receipt
 
 
-def add_returns_and_adjustments(cfg, movements, rng):
+def add_returns_and_adjustments(cfg, movements, rng, uom_by_material=None):
     """
     A share of issues come back within a month, and a few positions get counted.
 
@@ -337,7 +337,15 @@ def add_returns_and_adjustments(cfg, movements, rng):
         ret = picked.copy()
         ret["date"] = picked["date"].to_numpy() + pd.to_timedelta(gap, "D")
         ret["movement_type"] = "RETURN"
-        ret["qty"] = -picked["qty"].to_numpy() * rng.uniform(0.3, 1.0, len(picked)).round(2)
+        # Part of an issue comes back. Whole units for discrete parts, because half
+        # a bearing does not go back on the shelf; anything not stocked in EA can
+        # come back in any amount.
+        back = -picked["qty"].to_numpy() * rng.uniform(0.3, 1.0, len(picked))
+        discrete = (
+            picked["material_id"].map(uom_by_material).eq("EA").to_numpy()
+            if uom_by_material is not None else np.zeros(len(picked), dtype=bool)
+        )
+        ret["qty"] = np.where(discrete, np.maximum(np.round(back), 1.0), back.round(2))
         ret = ret[ret["date"] <= pd.Timestamp(cfg.history_end)]
         out.append(ret)
 

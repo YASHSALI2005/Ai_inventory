@@ -93,8 +93,13 @@ def cmd_run(args) -> int:
     print(f"engine, stock levels: {lv.report['positions']:,} positions   "
           f"({time.time() - t3:.1f}s)")
     sl = lv.report["service_level_by_criticality"]
-    print("  service level from each item's own economics: "
-          + ", ".join(f"{k} {v:.1%}" for k, v in sl.items()))
+    print("  service level from each item's own economics — a range now, not one "
+          "figure per class, because an expensive spare costs more to hold than a "
+          "cheap one while the stoppage it prevents costs the same:")
+    for k in sorted(sl):
+        v = sl[k]
+        print(f"    {k}  median {v['median']:.1%}   "
+              f"{v['low']:.1%}-{v['high']:.1%}   ({v['positions']:,} records)")
 
     t4 = time.time()
     pos = positions.run(cfg)

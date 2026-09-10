@@ -42,6 +42,7 @@ LIST_COLUMNS = [
     "criticality", "demand_class", "band", "on_hand", "min_qty", "max_qty",
     "reorder_point", "order_up_to", "value_sar", "value_at_risk_sar",
     "units_below_reorder", "forecast_6m", "last_issue_date", "issues_24m", "rank",
+    "action", "order_now_qty", "cost_to_level_sar",
 ]
 
 
@@ -103,7 +104,7 @@ def create_app(cfg: RunConfig) -> FastAPI:
     @app.get("/api/positions")
     def positions(
         storeroom: str = "", band: str = "", demand_class: str = "",
-        q: str = "", page: int = Query(1, ge=1),
+        action: str = "", q: str = "", page: int = Query(1, ge=1),
     ) -> dict:
         """
         One page of the board, already ranked by what it costs to ignore.
@@ -119,6 +120,8 @@ def create_app(cfg: RunConfig) -> FastAPI:
             df = df[df["band"] == band]
         if demand_class:
             df = df[df["demand_class"] == demand_class]
+        if action:
+            df = df[df["action"] == action]
         if q:
             needle = q.strip().lower()
             hay = (
@@ -139,6 +142,13 @@ def create_app(cfg: RunConfig) -> FastAPI:
             "total_unfiltered": total_all,
             "value_at_risk_sar": float(df["value_at_risk_sar"].sum()),
             "value_sar": float(df["value_sar"].sum()),
+            "needs_action": int(df["action"].isin(
+                ["order_now", "stocked_elsewhere", "below_safe_level"]).sum()),
+            "cost_to_level_sar": float(
+                df.loc[df["action"].isin(["order_now", "stocked_elsewhere"]),
+                       "cost_to_level_sar"].sum()
+            ),
+            "actions": _positions()["action"].value_counts().to_dict(),
             "storerooms": sorted(_positions()["storeroom_id"].unique().tolist()),
             "bands": _positions()["band"].value_counts().to_dict(),
             "classes": _positions()["demand_class"].value_counts().to_dict(),

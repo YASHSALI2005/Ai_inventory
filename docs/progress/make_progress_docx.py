@@ -242,19 +242,29 @@ def num(x):
 
 
 SCREENS = [
-    ("dashboard.png", "", "Overview",
-     "The front page. Three figures measured from the answer key, the held-out "
-     "year replayed under both sets of levels, then the marks: faults found, and "
-     "forecast accuracy per demand group."),
+    ("today.png", "", "Today",
+     "The front page, and deliberately the whole of it. Three numbers, each with a "
+     "sentence saying what it means and what to do. Anyone can read this page "
+     "without being told what an inventory system is."),
     ("board.png", "#/board", "Stock board",
-     "One table, ranked by what it costs to ignore rather than by quantity. The "
-     "coloured tag on each row is its state; the chips above filter by state and "
-     "by demand group. Twenty-five rows a page, on twenty-five thousand records."),
-    ("drawer.png", "#/board/{position}", "Item view",
-     "Clicking a row opens the item over the board: three years of movement with "
-     "the cut-off marked, the year ahead forecast beside it, and a paragraph in "
-     "plain English explaining where the recommended level came from — including "
-     "the sentence the engine itself wrote."),
+     "One row per part in one storeroom, most urgent first. The second column says "
+     "what to do — order this many, move it from another store, or leave it alone — "
+     "and it is the only column that has to be read. Twenty-five rows a page, on "
+     "twenty-five thousand records."),
+    ("drawer.png", "#/board/{position}", "One part, in full",
+     "Clicking a row opens the part over the board. What to do first, then the "
+     "plain-English explanation of where the number came from, and only then the "
+     "chart: three years of movement with the cut-off marked and the year ahead "
+     "beside it."),
+    ("storerooms.png", "#/storerooms", "Storerooms",
+     "Where the stock is, and where it is in the wrong place. The lower table is "
+     "the same part sitting spare in one store while another store is below its "
+     "level — stock the plant already owns and would otherwise buy again."),
+    ("evidence.png", "#/evidence", "How well it works",
+     "The evidence page, for engineers. Faults found against the sealed answer key, "
+     "forecast accuracy on the held-out year, the backtest, and the service-level "
+     "curve. This is the only page that uses technical language; everywhere else it "
+     "lives in the tooltips."),
 ]
 
 
@@ -904,15 +914,27 @@ def _step_five(doc: Document, data: dict) -> None:
     if lv:
         sl = lv.get("service_level_by_criticality", {})
         if sl:
-            para(doc, "How sure we aim to be of having the part differs by how badly "
-                      "its absence hurts — worked out from each part's own cost of "
-                      "being short against its cost of sitting on a shelf, rather "
-                      "than one blanket figure for everything:")
-            table(doc, ["If it is missing", "We aim to have it this often"],
-                  [["A — the plant stops", pct(sl.get("A"), 1)],
-                   ["B — production slows", pct(sl.get("B"), 1)],
-                   ["C — somebody waits", pct(sl.get("C"), 1)]],
-                  widths=[3.0, 2.4])
+            para(doc, "How sure we aim to be of having the part is worked out per "
+                      "part, from what its absence costs against what holding it "
+                      "costs. Two things drive it: how badly the plant needs it, and "
+                      "how expensive it is to keep on a shelf. A cheap part that "
+                      "stops the line is held to the maximum; an expensive one that "
+                      "stops the same line is held to a little less, because the "
+                      "stoppage costs the same either way and the shelf does not.")
+            label = {"A": "A — the plant stops", "B": "B — production slows",
+                     "C": "C — somebody waits"}
+            rows = []
+            for key in ("A", "B", "C"):
+                v = sl.get(key)
+                if isinstance(v, dict):
+                    rows.append([label[key], num(v.get("positions")),
+                                 pct(v.get("median"), 1),
+                                 f"{pct(v.get('low'), 1)} to {pct(v.get('high'), 1)}"])
+                elif v is not None:
+                    rows.append([label[key], "—", pct(v, 1), "—"])
+            if rows:
+                table(doc, ["If it is missing", "Records", "Typical", "Range"],
+                      rows, widths=[2.4, 1.0, 1.1, 1.7])
 
     h(doc, "Replaying the year, both ways", level=3)
     para(doc, f"The final year — {bt.get('evaluated_days')} days that nothing in the "
