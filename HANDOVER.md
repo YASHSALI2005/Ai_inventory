@@ -86,33 +86,39 @@ suite cannot disagree about what "in band" means.
 
 | Property | Toy | Full | Target |
 |---|---|---|---|
-| Lines idle >24 months | 36% | 38% | 30–50% |
-| Stock value dead | 30% | 28% | 20–40% |
-| Shutdown issue-rate multiple | 3.9× | 3.5× | ≥3× baseline |
-| Issues per work order | 2.3 | 2.7 | ≥2 |
+| Lines idle >24 months | 35% | 35% | 30–50% |
+| Stock value dead | 15% | 29% | 20–40% at full; wide sanity range at toy |
+| Shutdown issue-rate multiple | 3.1× | 3.5× | ≥3× baseline |
+| Issues per work order | 1.85 | 1.99 | ≥1.5 |
 | Planned WOs raised in advance | 100%, 37d median | 100%, 38d | 100% |
 | Unexplained ledger mismatches | 0 | 0 | 0 |
 | Unplanted negative balances | 0 | 0 | 0 |
-| Materials in >1 storeroom | 18% | 17% | ≥10% |
+| Materials in >1 storeroom | 20% | 17% | ≥10% |
+| Descriptions repeated outside planted copies | 0 | 0 | 0 |
 
 Idle share, dead money, overstock, obsolescence and stockouts are all **emergent**
 — they come from the stale min/max policy running against drifting demand and from
 equipment being decommissioned mid-history. Only *data* defects are planted.
 
-> The toy preset's dead-value share is noisy: at 300 materials it is dominated by a
-> handful of expensive rows, so it moves several points on any RNG reshuffle. It is
-> in band, but do not treat small movements there as signal — check `--preset full`,
-> where 20k materials average it out.
+> **Dead value is asserted at full scale only.** It is a value-weighted share, so at
+> 300 materials a handful of expensive rows decide it: 15% on toy against 29% on
+> full from the same generator, moving several points on any reshuffle of the random
+> stream. Toy keeps a wide sanity range so a genuinely broken generator still fails
+> there. Do not tune the generator to make toy land in the industry band — that is
+> fitting to noise.
 
-## Next
+## Next — step 3, the classifier
 
-1. Remaining six rule checks in `engine/quality.py`, scoring after each one.
-2. Duplicate matcher — TF-IDF candidates + RapidFuzz scoring. No embeddings
-   (see `DECISIONS.md`); the interface takes a list of scorers so they can be added.
-   Note the matcher must handle split history: half the planted duplicates carry
-   20–60% of the original's issues.
-3. One dashboard screen, to close the vertical slice.
-4. Then deepen step by step: classifier → forecasters → policy → dead money.
+1. **ADI × CV² on the train slice only.** Scored against `PROFILE_TO_SBC_CLASS`,
+   which is a many-to-many tolerance table on purpose: a truth profile constrains
+   which quadrant is reasonable without determining it, because the quadrant also
+   depends on demand-size variability. Scoring an exact 1:1 match would punish the
+   classifier for being right.
+2. Report the class mix — it should come out majority intermittent/lumpy.
+3. Then step 4 (Croston family, **no LightGBM**), step 5 (levels + backtest, the
+   second headline number), step 6a (dead money), the two screens, and the thin chat.
+
+Full order and the exclusions are in [`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-PLAN.md).
 
 ## Things to avoid
 
