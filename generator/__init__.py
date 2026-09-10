@@ -59,7 +59,12 @@ def generate(cfg: RunConfig) -> B.Generated:
     positions = B.build_positions(cfg, materials, hidden, rng)
     shutdowns = D.build_shutdowns(cfg, rng)
 
-    params = D.demand_params(cfg, positions, hidden, rng)
+    def by_position(col: str, dtype=None):
+        s = materials.set_index("material_id")[col].reindex(positions["material_id"])
+        return s.to_numpy(dtype=dtype) if dtype else s.to_numpy()
+
+    price = by_position("unit_price_sar", float)
+    params = D.demand_params(cfg, positions, hidden, rng, price=price)
 
     # demand ceases the day the owning equipment is decommissioned; whatever stock
     # is left behind becomes genuinely obsolete
@@ -72,11 +77,6 @@ def generate(cfg: RunConfig) -> B.Generated:
 
     demand_days, demand_qty = D.sample_demand(cfg, params, shutdowns, rng, stop_day=stop_day)
 
-    def by_position(col: str, dtype=None):
-        s = materials.set_index("material_id")[col].reindex(positions["material_id"])
-        return s.to_numpy(dtype=dtype) if dtype else s.to_numpy()
-
-    price = by_position("unit_price_sar", float)
     lead = by_position("lead_time_days", float)
     crit = by_position("criticality")
 

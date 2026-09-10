@@ -35,7 +35,7 @@ Run it:
 ```
 python cli.py all --preset toy      # build + engine + scoreboard   (~1s)
 python cli.py all --preset full     # 20k materials                 (~33s)
-python -m pytest -q                 # 132 tests
+python -m pytest -q                 # 143 tests
 python cli.py serve --preset full   # the three screens
 python -m ruff check .
 ```
@@ -54,7 +54,7 @@ produced. `--data-dir` redirects everything, which is how the CLI smoke test wor
 | 4 · forecast (Croston family) | **Done.** TSB for sparse, SES for the rest; MASE 0.84–0.87, all four beat naive |
 | 5 · levels + backtest | **Done — headline number two.** Total cost −8% on the held-out year, with the service-level sweep and order quantities |
 | 6a · dead money | Not started — scorer stubbed; engine figure goes beside truth on the dashboard |
-| Screens | **Done — four pages plus the item drawer.** Plain English, tooltips on every label, vendored JS, no CDN |
+| Screens | **Done — Dashboard · Storerooms · Stock board · Recommendations, Evidence in the footer.** Present mode, dark by default with a toggle, vendored JS, no CDN |
 | 8 · chat, thin | Not started — four tools, twenty golden questions |
 | 6b · transfers, slider, work queue | **Only if everything above is green** |
 
@@ -108,126 +108,117 @@ equipment being decommissioned mid-history. Only *data* defects are planted.
 > there. Do not tune the generator to make toy land in the industry band — that is
 > fitting to noise.
 
-## The cost model — rebuilt 2026-09-10, and it moved every number
+## The levels — how they are set now (2026-09-10, third pass)
 
-Shortage cost used to be a multiple of unit price. Clicking through the board made
-the flaw impossible to miss: a SAR 2.2M spare transformer and a SAR 4 gasket that
-stop the same potline came out at the identical service level, and the transformer
-was given a reorder point of six. **Downtime does not care what the part cost.**
+Three rules, in this order, and the order matters:
 
-    shortage cost per unit = downtime_cost_per_day[criticality] x expedite_days[criticality]
-                             + expedite_premium x unit_price
+1. **Service level is a policy, not an output.** `CostModel.target_service_level`
+   is A 99% / B 95% / C 85%. The newsvendor fractile may only argue a level DOWN,
+   for an expensive part where a year on the shelf is a real cost; it never raises
+   it. Before this, every cheap part of every class sat at the 99.5% cap and C-class
+   collapsed into A from the cheap side. Medians now: A 99.0%, B 95.0%, C 85.0%.
+2. **Regularly-used parts (smooth, erratic) get their buffer from history**, not
+   from a simulation: the quantile of what actually moved in every stretch of the
+   same length as lead time + review over the two training years — several hundred
+   real windows. Capped at three windows of expected demand.
+3. **Rarely-used parts (intermittent, lumpy) keep the TSB simulation**, capped
+   between the most the part ever needed in one window and twice that, aiming at
+   three windows of expected demand.
 
-`downtime_cost_per_day_sar` is A 30,000 / B 4,000 / C 100 and `expedite_days` is
-7 / 14 / 21. Those are the loss attributable to **one unit of one part** being
-unavailable for a day, not the cost of a whole-plant stoppage — the distinction is
-load-bearing, because the backtest sums this over 24,989 records and 365 days.
-Charging a real potline outage against each of 644,232 unit-shortages produced a
-shortage bill of SAR 10bn against SAR 1.4bn of inventory, which is arithmetic, not
-a finding. Calibrated so the shortage bill sits in the same order as the holding
-bill.
+Two things feed those rules and are easy to miss:
 
-**One shortage cost now, not two.** The fractile and the backtest were briefly
-using different formulas, and it cost 13 points of measured improvement: the policy
-was optimised against downtime and marked against a multiple of unit price, so it
-held stock the marking scheme gave it no credit for and came out 8% *worse* than
-the plant's own levels on total cost while cutting days waiting by 65%. Two cost
-models is a way to lose an argument you are winning.
-`shortage_cost_per_unit_day` is now `shortage_cost_per_unit / 30`, full stop.
+- **Outage demand is left out of the buffer.** Planned work issued to a plant while
+  that plant is in a scheduled shutdown is the shutdown, and belongs on an order
+  raised against the schedule — not in a permanent safety stock. Decided by the
+  calendar, not the work-order tag: in the month that broke the rolling-mill filter,
+  only 4,320 of 15,474 units were tagged SHUTDOWN. That order is not raised by this
+  system yet, so the backtest charges us for shutdown shortages the schedule would
+  have prevented. It is in the limits.
+- **A pack has to repeat to be believed.** The modal receipt quantity counts as a
+  pack only if it is at least half of a part's receipts and there are at least
+  three of them. Under the plant's old min/max rule a receipt is "order-up-to minus
+  whatever was left", which drifts every time; the first cut took that mode as a
+  4,129-unit pack for a part used a thousand a month.
 
-### What it did to the service levels
+The filter that started this (M-016367, ~1,080/month, 74-day window): reorder point
+20,089 and "Order 32,630" became **12,434** and **Order 9,999** — three windows of
+expected demand, which is your own cap; the 99th percentile of its real windows is
+honestly higher, and the reason string says so.
+Two sanity tests hold on every position: regular movers ≤ 3× expected window
+demand; every class ≤ 2× the historical maximum unless raised by the criticality
+floor.
 
-They now vary with price *within* a criticality, which is the point:
+### One more data fix the screens exposed
 
-| | SAR 100 | SAR 77,000 | SAR 2.2M |
-|---|---|---|---|
-| A — the plant stops | 99.5% | 99.1% | 95.0% |
-| B — production slows | 99.5% | 97.2% | 94.3% |
-| C — somebody waits | 99.5% | 94.3% | 94.1% |
-
-The spare transformer's reorder point went from 6 to **2**; a SAR 60 gasket's went
-to 264. That was the complaint and it is fixed.
-
-**A property worth knowing before quoting these:** the expedite premium alone
-(4 x price against holding at 25%/year) puts a floor of about 94% under every
-part, whatever its criticality. So criticality now separates parts at the prices
-where holding is a real cost, and stops separating them at the cheap end, where
-everything is held to the cap because holding costs nothing. That is the correct
-newsvendor answer, and it is also why the next number went the way it did.
+No storeroom record may consume more than SAR 3m a year
+(`DemandShaping.max_annual_consumption_sar`). The heavy-tailed popularity draw had
+produced a SAR 6,142 drill bit used eighty a day — 57% of the plant's consumption
+value in the top 1% of records, and "SAR 97m to bring one part back to level".
+Applied as a scaling after every random draw, so it moves no other position's
+parameters.
 
 ## Headline number two — the backtest, full preset
 
 | | plant's min/max | ours | change |
 |---|---|---|---|
-| Days waiting for a part | 854,171 | 309,958 | **−64%** |
-| Units short | 644,232 | 276,189 | **−57%** |
-| Capital on the shelf | SAR 1,412.7m | SAR 2,415.4m | **+71%** |
-| Cost of being short | SAR 1,476.9m | SAR 645.4m | −56% |
-| Cost of holding | SAR 353.2m | SAR 603.9m | +71% |
-| Cost of placing orders | SAR 31.7m | SAR 31.2m | −2% |
-| **All three together** | **SAR 1,861.8m** | **SAR 1,280.5m** | **−31%** |
+| Days waiting for a part | 855,161 | 454,486 | **-47%** |
+| Units short | 593,970 | 319,974 | **-46%** |
+| Capital on the shelf | SAR 1,376.5m | SAR 1,759.9m | **+28%** |
+| Cost of being short | SAR 1,377.3m | SAR 661.1m | -52% |
+| Cost of holding | SAR 344.1m | SAR 440.0m | +28% |
+| Cost of placing orders | SAR 31.7m | SAR 41.6m | +31% |
+| **All three together** | **SAR 1,753.2m** | **SAR 1,142.7m** | **-35%** |
+| Orders placed | 35,205 | 46,241 | +31% |
 
-**Capital went UP, not down, and further up than before the cost-model change
-(+50% → +71%).** That was not the expectation and it is worth saying why rather
-than burying it: pricing an expedite properly makes holding almost any part
-worthwhile, so the new model stocks *more*, not less. It is the right answer to
-the question "what does it cost to be short", and it is the wrong lever to pull if
-the goal is releasing cash. The two levers that would move capital down are the
-holding rate (25%/year) and the expedite premium (4x) — both are assumptions, both
-belong to the plant, and neither should be quietly tuned to make a slide work.
+Capital went +71% → **+28%** with the levels fix, days waiting
+still -47%. Orders are up because the fake 4,129-unit packs are
+gone; the order quantity is now one window of expected demand, and ordering is
+priced in the total. The frontier has a real interior optimum near 99% service now;
+the plant still sits off its low end (`plant_below_the_sampled_range`),
+so "less capital at their service level" remains unavailable and the report says so.
 
-**The cash release is dead money (step 6a), not stock levels.** The sweep says the
-same thing from a different direction: the plant waits longer than our lowest
-sampled service level manages while holding less capital than any point on the
-curve, so there is no service level at which our levels need less capital than
-theirs. Their policy is under-serving, not over-invested.
+**The planner's numbers** — full preset: 8,446 parts need action,
+**SAR 628.6m to bring them back to level** (shortfall below the
+reorder point — NOT the whole order, which is SAR 956.5m across
+7,288 orders and lives on the Recommendations page);
+3,024 critical parts below level, SAR 326.4m;
+60 moves saving SAR 6.2m of buying.
 
-### The service-level sweep
+## The screens — round 3 and 4
 
-Ten levels off one simulation, replayed on the same demand and lead-time draws,
-written to `results/frontier.json` for the slider. Total cost falls monotonically
-with service across the sampled range, which is another way of seeing that the
-shortage side dominates.
+`python cli.py serve --preset full`. Four pages in the nav, in presentation order,
+plus **Evidence** as a footer link. **Present** (button in the nav) hides the nav,
+enlarges type, walks the four pages with ← → and shows "n / 4"; Escape exits.
+**Dark by default**, with a light/dark toggle in the nav and in the present-mode
+HUD; the choice is kept in `localStorage` and nowhere else.
 
-### Order quantities
+- **Dashboard** — stock value, dead money, critical parts below level, waiting-days
+  improvement; then four inline-SVG charts: value by store, demand-class mix by
+  store (stacked), plant-wide monthly usage with the forecast laid over the held-out
+  year, and the frontier with both policies. A date line under the title.
+- **Storerooms** — one card per store (value, parts, idle share, none-left count,
+  top five by value, top five to act on); click → that store's parts, one line
+  each; below, "stock that could be moved" with SAR saved vs buying.
+- **Stock board** — as before plus a sparkline per row and, for anything below its
+  level, "Order by" (Now if already late) with "runs out around" underneath.
+- **Recommendations** — three tabs ranked by money with totals: Order (part, qty,
+  order-by, cost, reason), Move (from → to, qty, saved), Write off / review (says
+  "coming with the dead-money step"). "Export to Excel" is a CSV with a byte-order
+  mark from `/api/recommendations/{orders,moves}.csv` — .xlsx would mean a new
+  dependency for the same outcome.
+- **Drawer** — what to do first (accent), stat row, chart with the forecast over the
+  tested year, "why this number" in a quiet panel at the bottom.
 
-An order must cover at least the demand expected while it is in transit, rounds up
-to the pack the plant already receives in (read off its own receipt history), and
-costs SAR 900 to place. Orders placed are **−2%** against the plant's — the first
-cut was +71%.
+**The forecast on screen is the held-out year, not next year.** The date line says
+"forecast Sep 2025 – Aug 2026, laid over what actually happened". A forward forecast
+(Sep 2026 – Aug 2027) would need a refit on all 36 months; not built, and saying it
+is would be a lie the chart could not support.
 
-## The screens
-
-`python cli.py serve --preset full` — four pages plus a drawer, vendored JS, inline
-SVG, no CDN and no build step. Everything is read from `results/positions.parquet`
-and `results/storeroom_report.json`, both written by `run`; the API filters and
-pages and computes nothing.
-
-- **Today** — three tiles and nothing else: money that will never come back, parts
-  nobody has used in two years, critical parts below their safe level. Each carries
-  a sentence saying what it means and what to do.
-- **Stock board** — one row per part in one storeroom, most urgent first. The
-  second column says what to do (`Order 622 EA` / `Stocked elsewhere` / `Below safe
-  level` / `Review — obsolete?` / `Nothing needed`) and is the only column that has
-  to be read. Headline is "N parts need action today, SAR X to bring them to level"
-  — the SAR-at-risk figure is gone from the screen because it read as an absurdity.
-- **Storerooms** — what each store holds, then the transfer panel: the same part
-  spare in one store while another is below its level, with quantity and value.
-  That is SOW capability 5, and the sending store only offers what it holds *above*
-  its own level so nobody is stripped to fix somebody else.
-- **How well it works** — the evidence page. Defect scoreboard, forecast table,
-  backtest, and the frontier chart with the plant's own policy plotted off the end
-  of the curve. **The only page allowed to say recall, MASE or TSB.**
-- **Drawer** — what to do, then the plain-English paragraph, then the chart. In
-  that order: the explanation earns the number, and the chart is evidence for the
-  explanation rather than the other way round.
-
-Every tile label and column header carries an ⓘ with a one-sentence meaning, every
-page opens with a "How to read this page" line, and money is shown in SAR millions
-to one decimal everywhere.
-
-Routes are a contract — `#/board`, `#/storerooms`, `#/evidence` and
-`#/board/{material}/{storeroom}` are what the progress document photographs.
+**If the board shows an error, restart the server.** `cli.py serve` keeps the API
+module in memory while the page is read from disk on every request; a server started
+before an API change serves a page that asks for fields it does not have. The page
+now says so instead of crashing, and an older `positions.parquet` degrades to blank
+columns rather than a 500.
 
 ## Next — step 6a, dead money
 
@@ -263,6 +254,12 @@ Full order and the exclusions are in [`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-P
   value and it is wrong: insurance spares correctly sit still for years.
 - **Fit on `cfg.train_slice()`, score on `cfg.eval_slice()`.** Never touch the
   movements frame directly for either.
+- **Service level is a policy.** `target_service_level` is the band; the
+  arithmetic only lowers. Do not let a cost model raise a C part to 99.5%.
+- **Regular movers are buffered from history, rare movers from simulation, and
+  both are capped.** Uncapped bootstrap quantiles produced eighteen months of
+  supply on a two-month-lead part.
+- **Shutdown demand is not buffer.** It is decided by the calendar, not the tag.
 - **One shortage cost, used everywhere.** `CostModel.shortage_cost_per_unit`
   feeds the service level, the board's ranking and the backtest. Two versions
   of it optimises for one objective and marks against another.

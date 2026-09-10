@@ -214,3 +214,63 @@ def test_the_page_serves_and_mentions_the_board(client):
     r = client.get("/")
     assert r.status_code == 200
     assert "Stock board" in r.text
+
+
+# ── recommendations ──────────────────────────────────────────────────────────
+
+
+def test_recommendations_are_ranked_by_money_and_add_up(client):
+    d = client.get("/api/recommendations?limit=20").json()
+    assert d["today"], "the tab needs the data's own 'today' to say 'Now'"
+    costs = [r["order_cost_sar"] for r in d["orders"]["rows"]]
+    assert costs == sorted(costs, reverse=True)
+    assert d["orders"]["total_sar"] >= sum(costs)
+    assert d["writeoff"]["status"].startswith("coming"), (
+        "the write-off tab must say it is not built yet, not show an empty list"
+    )
+
+
+def test_the_export_opens_in_excel(client):
+    """A CSV with a byte-order mark; anything else and Excel guesses the encoding."""
+    r = client.get("/api/recommendations/orders.csv")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/csv")
+    assert r.text.startswith("﻿")
+    header = r.text.splitlines()[0]
+    for col in ("material_id", "order_now_qty", "order_by_date", "order_cost_sar"):
+        assert col in header
+    assert client.get("/api/recommendations/nothing.csv").status_code == 404
+
+
+def test_the_board_says_now_when_the_order_is_already_late(client):
+    d = client.get("/api/positions?action=order_now").json()
+    assert d["today"]
+    for r in d["rows"]:
+        if r["on_hand"] <= 0:
+            assert r["order_by_date"] <= d["today"], "an empty shelf cannot wait"
+
+
+def test_an_older_position_file_degrades_to_a_blank_column_not_an_error(built, tmp_path):
+    """
+    The first report of a broken board came from a server whose position file
+    predated the newest columns: a KeyError in the API turned the whole page into
+    an error. The API now serves the columns it has.
+    """
+    old = pd.read_parquet(built.results_dir / POSITIONS_FILE).drop(
+        columns=["usage_12m", "order_by_date", "runs_out_date", "order_cost_sar"]
+    )
+    data_dir = tmp_path / "older"
+    (data_dir / "toy" / "results").mkdir(parents=True)
+    import shutil
+
+    for f in built.results_dir.iterdir():
+        if f.name != POSITIONS_FILE:
+            shutil.copy(f, data_dir / "toy" / "results" / f.name)
+    old.to_parquet(data_dir / "toy" / "results" / POSITIONS_FILE, index=False)
+    older = TestClient(create_app(RunConfig(preset="toy", data_dir=data_dir)))
+    r = older.get("/api/positions?page=1")
+    assert r.status_code == 200
+    assert "usage_12m" not in r.json()["rows"][0]
+    assert older.get("/api/recommendations").status_code == 409, (
+        "recommendations need the new columns and should say so, not 500"
+    )

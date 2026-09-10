@@ -18,7 +18,8 @@ from generator.build import PROFILES, STOREROOM_BY_AREA
 from sim.replenish import densify_many, walk
 
 
-def demand_params(cfg: RunConfig, positions: pd.DataFrame, hidden: pd.DataFrame, rng):
+def demand_params(cfg: RunConfig, positions: pd.DataFrame, hidden: pd.DataFrame, rng,
+                  price: np.ndarray | None = None):
     """
     Sample the true demand parameters per position.
 
@@ -62,6 +63,14 @@ def demand_params(cfg: RunConfig, positions: pd.DataFrame, hidden: pd.DataFrame,
     demand_share = np.maximum(positions["demand_share"].to_numpy(), 1e-3)
     interval = interval * breadth * popularity / demand_share
     size_mean = np.maximum(size_mean / np.sqrt(breadth) * 2.0, 1.0)
+
+    # Cap what one record can consume in a year, in money. Applied after every
+    # random draw and without one of its own, so it moves no other position's
+    # parameters — a scaling, not a reshuffle.
+    if price is not None:
+        annual = size_mean * (365.0 / np.maximum(interval, 1.0)) * np.maximum(price, 1e-9)
+        scale = np.minimum(1.0, cfg.demand.max_annual_consumption_sar / np.maximum(annual, 1e-9))
+        size_mean = np.maximum(size_mean * scale, 1.0)
 
     return pd.DataFrame(
         {

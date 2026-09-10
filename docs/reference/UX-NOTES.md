@@ -109,6 +109,21 @@ our reorder point" is labelled **Below our level**, while the *action*
 above ours. Two different things, and the first draft called both of them the same
 words.
 
+## Rounds 3 and 4 — 2026-09-10, presentation quality and the business order
+
+| Change | Why |
+|---|---|
+| **Nav is the presentation sequence**: Dashboard · Storerooms · Stock board · Recommendations | The size of it, where it is, what to do about each part, what to do first. Evidence moved to a footer link — one click for the engineer, out of the way for everyone else. |
+| **Present mode** — nav hidden, type enlarged, ← → through the four pages, "n / 4", Esc | This is what is on the wall. A tool has a nav; a presentation has a sequence. |
+| **Dark by default, toggle in the nav and the HUD** | Asked for. Light stays one click away for a projector. |
+| **One accent, one element per page** | Rust on the number the page exists for and nothing else. Chips, tags and criticality are neutral; the only colour on the board is the "Order N now" instruction. |
+| **Tiles without borders, tables without vertical lines** | Shadow and tint separate things; lines just add lines. 14px in tables, 40px on tile numbers, 12px labels, 32px+ between sections, 1080px content. |
+| **Charts as inline SVG, one style** | Bars, a stacked bar, a line with the forecast laid over the tested year, the frontier with both policies. Thin axes, muted grid, one highlighted series. A 12-month sparkline in every board row — the "how it moves" tag now has evidence beside it. |
+| **Storeroom cards** with top-five lists, click-through to the store's parts | Noah's site table, but a card can carry the two lists a manager actually asks for. |
+| **Recommendations** as three tabs ranked by money with a total and an export | The "what do I do with this" page. Noah never had one; the reference board *was* the to-do list. Here the board is the diagnosis and this page is the prescription. |
+| **"Order by" and "runs out around"** on below-level rows | Noah's "runs out 12 Sat / order by 10 Thu", adapted: the data's own today, not the wall clock. |
+| **Drawer**: what to do first in the accent, one stat row, chart, reason in a quiet panel at the bottom | Round 2 had the reason above the chart; round 3 asked for it below. The chart now overlays the forecast on the tested year instead of drawing it a year to the right — that was a bug, not a choice. |
+
 ## Status — built 2026-09-10
 
 All three screens exist: `api/static/index.html`, served by `python cli.py serve`.

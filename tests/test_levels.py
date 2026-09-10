@@ -195,10 +195,14 @@ def test_service_levels_differ_by_criticality_and_by_price():
     cfg = RunConfig(preset="toy")
     price = 250_000.0
     assert cfg.costs.critical_fractile(price, "A") > cfg.costs.critical_fractile(price, "C")
-    assert (cfg.costs.critical_fractile(20.0, "C")
-            > cfg.costs.critical_fractile(2_000_000.0, "C")), (
+    # Within a class the arithmetic can only argue the level DOWN from the policy.
+    # For C the policy is 85% and the fractile never gets under it, so C is flat by
+    # design; A is where the price effect is visible.
+    assert (cfg.costs.critical_fractile(20.0, "A")
+            > cfg.costs.critical_fractile(2_000_000.0, "A")), (
         "within one class, the expensive part is the one to hold less of"
     )
+    assert cfg.costs.critical_fractile(20.0, "C") == cfg.costs.critical_fractile(2_000_000.0, "C")
 
 
 # ── order quantity: a policy that orders every week is not free ──────────────
@@ -298,3 +302,116 @@ def test_the_sweep_never_dips_below_the_criticality_floor():
     assert (lowest >= floors - 1e-9).all(), (
         "a business rule that the slider can turn off is not a business rule"
     )
+
+
+# ── service level is a policy, and the buffer is bounded ─────────────────────
+
+
+def test_the_service_level_is_a_policy_the_arithmetic_can_only_lower():
+    """
+    Before this the newsvendor fractile WAS the service level, and because holding
+    a SAR 4 washer costs a riyal a year it said 99.5% for C-class washers — the
+    difference between "the plant stops" and "somebody waits" vanished from the
+    cheap end of the catalogue, which is most of it.
+    """
+    c = RunConfig(preset="toy").costs
+    for crit, target in c.target_service_level.items():
+        for price in (1.0, 500.0, 50_000.0, 2_500_000.0):
+            assert c.critical_fractile(price, crit) <= target + 1e-12
+    # cheap parts sit exactly on the policy; an expensive A part is argued down
+    assert c.critical_fractile(10.0, "A") == pytest.approx(c.target_service_level["A"])
+    assert c.critical_fractile(2_500_000.0, "A") < c.target_service_level["A"]
+
+
+def test_median_service_levels_separate_the_classes():
+    cfg = RunConfig(preset="toy")
+    levels = pd.read_parquet(cfg.results_dir / "levels.parquet")
+    med = levels.groupby("criticality")["service_level"].median()
+    assert med["A"] > 0.97, f"A median {med['A']}"
+    assert med["C"] < 0.90, f"C median {med['C']} — criticality has collapsed again"
+
+
+def test_regular_movers_are_never_buffered_past_three_windows():
+    """
+    One rolling-mill filter draws 900 a month and, twice in two years, six thousand
+    in a fortnight. The 99th percentile of its real 74-day windows is honestly
+    20,000 — eighteen months of supply for a two-month-lead part — and holding
+    that is a policy the plant would not take.
+    """
+    cfg = RunConfig(preset="toy")
+    levels = pd.read_parquet(cfg.results_dir / "levels.parquet")
+    regular = levels[~levels["buffer_simulated"] & ~levels["buffer_floored"]]
+    if regular.empty:
+        pytest.skip("no regular movers in this preset")
+    assert (regular["reorder_point"]
+            <= 3.0 * regular["expected_window_demand"] + 1.0).all()
+
+
+def test_no_buffer_exceeds_twice_what_the_part_ever_needed():
+    cfg = RunConfig(preset="toy")
+    levels = pd.read_parquet(cfg.results_dir / "levels.parquet")
+    moved = levels[~levels["buffer_floored"] & (levels["max_window_demand"] > 0)]
+    assert (moved["reorder_point"] <= 2.0 * moved["max_window_demand"] + 1.0).all()
+
+
+def test_the_cap_keeps_both_promises():
+    """Three times expected, but never below the historical max and never above twice it."""
+    assert L._cap(10.0, 100.0) == 100.0, "below what actually happened is not a cap"
+    assert L._cap(100.0, 100.0) == 200.0, "twice the maximum is the ceiling"
+    assert L._cap(40.0, 100.0) == 120.0
+    assert L._cap(5.0, 0.0) == 15.0, "a part that never moved has only expectation"
+
+
+def test_outage_demand_is_the_calendar_not_the_tag():
+    """
+    In the shutdown month that broke the filter, only 4,320 of 15,474 units were
+    on a SHUTDOWN work order; 11,154 sat on PLANNED orders raised for the same
+    outage. Planned work issued to a plant while it is in a scheduled shutdown IS
+    the shutdown. A breakdown in the same window is still a breakdown.
+    """
+    materials = pd.DataFrame({"material_id": ["M-1", "M-2"], "area": ["ROLLING", "MINE"]})
+    work_orders = pd.DataFrame(
+        {"work_order_id": ["W-P", "W-B", "W-S"],
+         "wo_type": ["PLANNED", "BREAKDOWN", "SHUTDOWN"]}
+    )
+    shutdowns = pd.DataFrame(
+        {"plant": ["ROLLING"], "start_date": [pd.Timestamp("2024-04-01")],
+         "end_date": [pd.Timestamp("2024-04-17")]}
+    )
+    train = pd.DataFrame(
+        {
+            "material_id": ["M-1", "M-1", "M-1", "M-2", "M-1"],
+            "date": pd.to_datetime(["2024-04-09", "2024-04-09", "2024-04-25",
+                                    "2024-04-09", "2024-04-10"]),
+            "work_order_id": ["W-P", "W-B", "W-P", "W-P", "W-S"],
+            "movement_type": ["ISSUE"] * 5,
+            "qty": [-5.0] * 5,
+        }
+    )
+    mask = L._is_outage_demand(train, materials, work_orders, shutdowns)
+    assert mask.tolist() == [True, False, False, False, True], (
+        "planned-in-window out, breakdown kept, outside window kept, other plant kept"
+    )
+
+
+def test_a_pack_has_to_repeat_to_be_believed():
+    """
+    Under the plant's own min/max rule a receipt is "order-up-to minus whatever was
+    left", which drifts every time. Its mode is one value among many, and the first
+    cut inherited a 4,129-unit "pack" for a part used a thousand a month — the old
+    policy's order size wearing a disguise.
+    """
+    drifting = pd.DataFrame(
+        {"material_id": ["M-1"] * 6, "movement_type": ["RECEIPT"] * 6,
+         "qty": [4129.0, 3980.0, 4129.0, 4402.0, 3871.0, 4210.0]}
+    )
+    assert L.pack_sizes(drifting)["M-1"] == 1.0
+    real = pd.DataFrame(
+        {"material_id": ["M-2"] * 5, "movement_type": ["RECEIPT"] * 5,
+         "qty": [24.0, 24.0, 48.0, 24.0, 24.0]}
+    )
+    assert L.pack_sizes(real)["M-2"] == 24.0
+    lonely = pd.DataFrame(
+        {"material_id": ["M-3"], "movement_type": ["RECEIPT"], "qty": [617.0]}
+    )
+    assert L.pack_sizes(lonely)["M-3"] == 1.0, "one receipt is always its own mode"

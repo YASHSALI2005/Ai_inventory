@@ -123,6 +123,17 @@ class CostModel(BaseModel):
     service_level_floor: float = 0.50
     service_level_cap: float = 0.995
 
+    # The service level is a POLICY, set here per criticality, not an output of
+    # the cost arithmetic. The newsvendor fractile below may only LOWER it, for
+    # expensive parts where a year on the shelf is a real cost; it may never raise
+    # it. Without this band every cheap part of every class sat at the cap —
+    # holding a SAR 4 washer costs a riyal a year, so the arithmetic said 99.5% for
+    # C-class washers and the difference between "the plant stops" and "somebody
+    # waits" vanished from the cheap end of the catalogue, which is most of it.
+    target_service_level: dict[str, float] = Field(
+        default_factory=lambda: {"A": 0.99, "B": 0.95, "C": 0.85}
+    )
+
     expedite_premium: float = 4.0                # 3-5x band, midpoint used for valuation
 
     # What it costs to place one purchase order at all — raising it, chasing it,
@@ -197,12 +208,14 @@ class CostModel(BaseModel):
         costs SAR 550,000 and a year of holding the gasket costs one riyal. The
         stoppage they prevent is identical.
         """
+        target = self.target_service_level.get(criticality, self.service_level_cap)
         short = self.shortage_cost_per_unit(unit_price_sar, criticality)
         hold = self.holding_cost_per_unit_year(unit_price_sar)
         if short + hold <= 0:
             return self.service_level_floor
         raw = short / (short + hold)
-        return min(max(raw, self.service_level_floor), self.service_level_cap)
+        # the economics can argue a level DOWN from the policy, never up
+        return min(max(raw, self.service_level_floor), target, self.service_level_cap)
 
 
 class DeadMoneyRule(BaseModel):
@@ -251,6 +264,14 @@ class DemandShaping(BaseModel):
     breadth_exponent: float = 0.85
     popularity_sigma: float = 1.30
     target_idle_24m_share: tuple[float, float] = (0.30, 0.50)
+
+    # No single storeroom record burns more than this a year. Without it the
+    # heavy-tailed popularity draw occasionally lands on an expensive consumable and
+    # produces a SAR 6,142 drill bit consumed eighty a day — SAR 36m a year on one
+    # line, 57% of the plant's consumption value in the top 1% of records, and a
+    # "SAR 97m to bring one part back to level" that no planner would believe. A
+    # real plant's consumption is concentrated; it is not that concentrated.
+    max_annual_consumption_sar: float = 3_000_000.0
 
     # An item's REALISED interval decides its truth profile, not the seed family's
     # label — otherwise 43% of "consumables" turn out to have two issues in three

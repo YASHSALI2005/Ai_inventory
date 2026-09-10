@@ -242,29 +242,30 @@ def num(x):
 
 
 SCREENS = [
-    ("today.png", "", "Today",
-     "The front page, and deliberately the whole of it. Three numbers, each with a "
-     "sentence saying what it means and what to do. Anyone can read this page "
-     "without being told what an inventory system is."),
-    ("board.png", "#/board", "Stock board",
-     "One row per part in one storeroom, most urgent first. The second column says "
-     "what to do — order this many, move it from another store, or leave it alone — "
-     "and it is the only column that has to be read. Twenty-five rows a page, on "
-     "twenty-five thousand records."),
-    ("drawer.png", "#/board/{position}", "One part, in full",
-     "Clicking a row opens the part over the board. What to do first, then the "
-     "plain-English explanation of where the number came from, and only then the "
-     "chart: three years of movement with the cut-off marked and the year ahead "
-     "beside it."),
-    ("storerooms.png", "#/storerooms", "Storerooms",
-     "Where the stock is, and where it is in the wrong place. The lower table is "
-     "the same part sitting spare in one store while another store is below its "
-     "level — stock the plant already owns and would otherwise buy again."),
-    ("evidence.png", "#/evidence", "How well it works",
-     "The evidence page, for engineers. Faults found against the sealed answer key, "
-     "forecast accuracy on the held-out year, the backtest, and the service-level "
-     "curve. This is the only page that uses technical language; everywhere else it "
-     "lives in the tooltips."),
+    ("dashboard.png", "#/present/", "Dashboard",
+     "The four headline figures and four charts: value by store, how the parts "
+     "move, the plant's monthly usage with the forecast year laid over what "
+     "actually happened, and the service-level curve with both policies on it."),
+    ("storerooms.png", "#/present/storerooms", "Storerooms",
+     "One card per store — value, parts, idle share, stock-outs, the five most "
+     "valuable lines and the five to act on — and below them the stock that could "
+     "be moved instead of bought."),
+    ("board.png", "#/present/board", "Stock board",
+     "One row per part in one storeroom, most urgent first. What to do, the last "
+     "twelve months as a sparkline, and for anything below its level the date it "
+     "runs out and the date the order has to go in."),
+    ("drawer.png", "#/present/board/{position}", "One part, in full",
+     "Clicking a row opens the part: what to do, three years of movement with the "
+     "forecast laid over the year it was tested on, and the plain-English "
+     "explanation of where the level came from."),
+    ("recommendations.png", "#/present/recommendations", "Recommendations",
+     "Three lists a planner can act on today, each ranked by money and exportable "
+     "to a spreadsheet: what to order and by when, what to move between stores, and "
+     "— once the dead-money step lands — what to write off or review."),
+    ("evidence.png", "#/evidence", "Evidence",
+     "Reached from the footer. Faults found against the sealed answer key, forecast "
+     "accuracy on the held-out year, the backtest, and the service-level curve. The "
+     "only page that uses technical language."),
 ]
 
 
@@ -1032,10 +1033,9 @@ def _step_five(doc: Document, data: dict) -> None:
         table(doc, ["Aim to have the part", "Days waiting", "Value held",
                     "Orders placed", "Both costs"],
               rows, widths=[1.5, 1.1, 1.5, 1.0, 1.5], highlight_last=True)
-        caption(doc, "Reading down the table: every step up in service buys fewer "
-                     "days waiting and costs more capital. Our recommended levels do "
-                     "not sit on this curve, because they do not use one figure for "
-                     "everything — each part gets its own from what its absence costs.")
+        caption(doc, "Every step up in service buys fewer days waiting and costs more "
+                     "capital. Our levels are off the curve because each part gets "
+                     "its own service level, not one figure for everything.")
 
         matched = fr.get("at_the_plants_own_service_level") or {}
         if matched.get("plain"):
@@ -1043,25 +1043,22 @@ def _step_five(doc: Document, data: dict) -> None:
                     matched["plain"], colour=WARN)
 
     if lv and lv.get("order_cost_sar"):
-        h(doc, "Ordering less often, on purpose", level=3)
-        para(doc, "The first version of these levels placed 71% more purchase orders "
-                  "than the plant does today for the same flow of material — a "
-                  "trickle every week. That looked free only because placing an order "
-                  "was free in the model. Two changes fixed it: an order now has to "
-                  "cover at least the demand expected while it is in transit, and it "
-                  "is rounded up to the pack the plant is already receiving in, read "
-                  f"off its own receipt history ({lv.get('positions_with_a_pack_above_one', 0):,} "
-                  "records have a pack larger than one). Raising, chasing and "
-                  f"receiving an order is charged at SAR {lv.get('order_cost_sar', 0):,.0f} "
-                  "a time, so the cost of ordering often now appears in the total "
-                  f"rather than beside it. Orders placed are now {c.get('orders_placed', 0) * 100:+.0f}% "
+        h(doc, "Placing an order is not free", level=3)
+        para(doc, "An order has to cover at least the demand expected while it is in "
+                  "transit, is rounded up to the pack the plant already receives in, "
+                  f"and is charged SAR {lv.get('order_cost_sar', 0):,.0f} to raise, chase "
+                  "and receive — so ordering often shows up in the total rather than "
+                  f"beside it. Orders placed: {c.get('orders_placed', 0) * 100:+.0f}% "
                   "against the plant's.")
 
-    limits = list(bt.get("limits", []))
+    # The three reports carry fifteen limits between them and half repeat what the
+    # prose above already said. The first few of each are the ones that are not
+    # said anywhere else; the document has a page budget and this is where it goes.
+    limits = list(bt.get("limits", []))[:3]
     if lv:
-        limits += lv.get("limits", [])
+        limits += lv.get("limits", [])[:3]
     if fr:
-        limits += fr.get("limits", [])
+        limits += fr.get("limits", [])[:1]
     _limits(doc, limits)
 
 

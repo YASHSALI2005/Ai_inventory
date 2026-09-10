@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from contracts import schemas as S
@@ -42,7 +42,8 @@ LIST_COLUMNS = [
     "criticality", "demand_class", "band", "on_hand", "min_qty", "max_qty",
     "reorder_point", "order_up_to", "value_sar", "value_at_risk_sar",
     "units_below_reorder", "forecast_6m", "last_issue_date", "issues_24m", "rank",
-    "action", "order_now_qty", "cost_to_level_sar",
+    "action", "order_now_qty", "cost_to_level_sar", "usage_12m", "order_cost_sar",
+    "runs_out_date", "order_by_date",
 ]
 
 
@@ -133,8 +134,13 @@ def create_app(cfg: RunConfig) -> FastAPI:
         total = len(df)
         pages = max(1, -(-total // PAGE_SIZE))
         start = (page - 1) * PAGE_SIZE
-        window = df.iloc[start:start + PAGE_SIZE][LIST_COLUMNS]
+        # Only the columns this position file actually has. A file written by an
+        # older engine is missing the newest ones, and a KeyError here turned the
+        # whole board into an error page instead of a board with a blank column.
+        have = [c for c in LIST_COLUMNS if c in df.columns]
+        window = df.iloc[start:start + PAGE_SIZE][have]
         return {
+            "today": cfg.history_end.isoformat(),
             "page": page,
             "pages": pages,
             "page_size": PAGE_SIZE,
@@ -171,6 +177,7 @@ def create_app(cfg: RunConfig) -> FastAPI:
             )
             raise HTTPException(status_code=404, detail=hint)
         row = _records(hit)[0]
+        row["today"] = cfg.history_end.isoformat()
         elsewhere = df[(df["material_id"] == material_id)
                        & (df["storeroom_id"] != storeroom_id)]
         row["elsewhere"] = _records(
@@ -178,6 +185,71 @@ def create_app(cfg: RunConfig) -> FastAPI:
                        "value_sar", "issues_24m"]]
         )
         return row
+
+    ORDER_COLUMNS = ["material_id", "storeroom_id", "description", "criticality",
+                     "order_now_qty", "uom", "order_by_date", "order_cost_sar",
+                     "cost_to_level_sar", "on_hand", "reorder_point", "reason"]
+
+    def _orders() -> pd.DataFrame:
+        df = _positions()
+        if "order_cost_sar" not in df.columns:
+            raise HTTPException(
+                status_code=409,
+                detail=f"{POSITIONS_FILE} predates the recommendations — run "
+                       f"`python cli.py run --preset {cfg.preset}`",
+            )
+        orders = df[df["action"] == "order_now"].sort_values("order_cost_sar",
+                                                             ascending=False)
+        return orders[[c for c in ORDER_COLUMNS if c in orders.columns]]
+
+    @app.get("/api/recommendations")
+    def recommendations(limit: int = Query(60, ge=1, le=500)) -> dict:
+        """
+        The three lists a planner acts on, each ranked by money. Orders come from
+        the position file, moves from the storeroom report; write-offs arrive with
+        the dead-money step and say so until then.
+        """
+        orders = _orders()
+        stores = _read(cfg, STOREROOM_FILE, f"python cli.py run --preset {cfg.preset}")
+        moves = stores.get("transfers", [])
+        return {
+            "today": cfg.history_end.isoformat(),
+            "orders": {
+                "count": int(len(orders)),
+                "total_sar": float(orders["order_cost_sar"].sum()),
+                "rows": _records(orders.head(limit)),
+            },
+            "moves": {
+                "count": int(len(moves)),
+                "total_sar": float(sum(r["value_sar"] for r in moves)),
+                "rows": moves[:limit],
+            },
+            "writeoff": {
+                "status": "coming with dead-money step",
+                "count": 0,
+                "total_sar": 0.0,
+                "rows": [],
+            },
+        }
+
+    @app.get("/api/recommendations/{which}.csv")
+    def recommendations_csv(which: str) -> PlainTextResponse:
+        """
+        The list as a spreadsheet. CSV with a byte-order mark opens straight in
+        Excel; writing .xlsx would mean a new dependency for the same outcome.
+        """
+        if which == "orders":
+            frame = _orders()
+        elif which == "moves":
+            stores = _read(cfg, STOREROOM_FILE, f"python cli.py run --preset {cfg.preset}")
+            frame = pd.DataFrame(stores.get("transfers", []))
+        else:
+            raise HTTPException(status_code=404, detail="orders.csv or moves.csv")
+        text = "\ufeff" + frame.to_csv(index=False, lineterminator="\r\n")
+        return PlainTextResponse(
+            text, media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{which}.csv"'},
+        )
 
     @app.get("/api/storerooms")
     def storerooms() -> dict:

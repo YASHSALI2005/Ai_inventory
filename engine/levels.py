@@ -9,8 +9,12 @@ twice a decade — and the second group is where being wrong is most expensive. 
 also needs a mean and a standard deviation, and for a part with four events in two
 years neither of those means very much.
 
-Instead the demand over the protection window is built up from what the part
-actually does, using the two things TSB already separates:
+Instead the demand over the protection window comes from what the part actually
+does. For a part that moves most months, that is literal: every stretch of the
+same length as the delivery time in two years of history, and the quantile of
+what moved in them. For a part that moves rarely there are not enough real
+stretches to read a high quantile off, so the window is simulated using the two
+things TSB already separates:
 
 * **p** — how often a period contains any demand at all
 * **the sizes** — how much, when it does move
@@ -65,6 +69,23 @@ N_SIMULATIONS = 600
 # TSB's smoothing constant for the demand probability. The same value the
 # forecaster uses, because this has to describe the same part.
 ALPHA_P = 0.2
+
+# A receipt quantity has to account for at least this share of a part's receipts
+# before it is believed to be a pack rather than a coincidence of the old policy.
+PACK_DOMINANCE = 0.5
+PACK_MIN_RECEIPTS = 3   # one receipt is always its own mode
+
+# For parts that move rarely the buffer is simulated, and a simulation with a fat
+# tail can wander. It is capped at this multiple of the demand expected over the
+# window, or at the most the part has ever needed in a window of that length —
+# whichever is larger — because "more than it has ever needed, times three" is
+# not a level, it is a warehouse.
+SIM_CAP_MULTIPLE = 3.0
+
+# The classes whose buffer comes straight from what actually happened. They move
+# most months, so two years of history holds hundreds of real windows to read a
+# quantile off, and simulating them would only add noise to a known answer.
+HISTORY_CLASSES = ("smooth", "erratic")
 
 
 @dataclass(frozen=True)
@@ -147,10 +168,21 @@ def pack_sizes(movements: pd.DataFrame) -> pd.Series:
     frame = pd.DataFrame(
         {"material_id": received["material_id"], "qty": received["qty"].round()}
     )
-    modal = frame.groupby("material_id")["qty"].agg(
-        lambda s: float(s.mode().iloc[0]) if len(s.mode()) else 1.0
-    )
-    return modal.clip(lower=1.0)
+
+    def _pack(qty: pd.Series) -> float:
+        # A real pack shows up as the SAME quantity again and again. Under the
+        # plant's own min/max rule the receipt is "order-up-to minus whatever was
+        # left", which drifts every time — its mode is one value among many. The
+        # first cut took that mode as the pack and inherited a 4,129-unit "pack"
+        # for a part used a thousand a month, which is the old policy's order size
+        # wearing a disguise. A pack has to dominate the receipts to count.
+        mode = qty.mode()
+        if not len(mode) or len(qty) < PACK_MIN_RECEIPTS:
+            return 1.0
+        share = float((qty == mode.iloc[0]).mean())
+        return float(mode.iloc[0]) if share >= PACK_DOMINANCE else 1.0
+
+    return frame.groupby("material_id")["qty"].agg(_pack).clip(lower=1.0)
 
 
 def usable_lead_times(materials: pd.DataFrame, findings: pd.DataFrame) -> pd.Series:
@@ -180,9 +212,90 @@ def usable_lead_times(materials: pd.DataFrame, findings: pd.DataFrame) -> pd.Ser
     return lead
 
 
+def _is_outage_demand(train: pd.DataFrame, materials: pd.DataFrame,
+                      work_orders: pd.DataFrame, shutdowns: pd.DataFrame) -> np.ndarray:
+    """
+    Which movements are the outage, rather than the plant's ordinary appetite.
+
+    Tagging by the work order alone was not enough: in the shutdown month that put
+    one rolling-mill part at eighteen months of supply, only 4,320 of the 15,474
+    units issued were on a SHUTDOWN order — the other 11,154 sat on PLANNED orders
+    raised for the same outage. So the calendar decides: planned work issued to a
+    plant while that plant is in a scheduled shutdown is the shutdown. Breakdowns
+    in the same window are still breakdowns and still count.
+    """
+    if train.empty or shutdowns.empty:
+        return np.zeros(len(train), dtype=bool)
+    area = train["material_id"].map(materials.set_index("material_id")["area"])
+    wo_type = train["work_order_id"].map(work_orders.set_index("work_order_id")["wo_type"])
+    planned = wo_type.isin(["PLANNED", "SHUTDOWN"]).to_numpy()
+    dates = train["date"].to_numpy()
+    in_window = np.zeros(len(train), dtype=bool)
+    for sd in shutdowns.itertuples():
+        hit = (area == sd.plant).to_numpy() & (dates >= sd.start_date) & (dates <= sd.end_date)
+        in_window |= hit
+    return in_window & planned
+
+
+def _daily_matrix(train: pd.DataFrame, positions: pd.DataFrame,
+                  start: pd.Timestamp, n_days: int) -> np.ndarray:
+    """Units issued per position per day over the training window."""
+    used = train[train["movement_type"].isin(["ISSUE", "RETURN"])]
+    index = {
+        (m, s): i for i, (m, s) in enumerate(
+            zip(positions["material_id"], positions["storeroom_id"], strict=True)
+        )
+    }
+    out = np.zeros((len(positions), n_days), dtype=np.float32)
+    if used.empty:
+        return out
+    day = (used["date"] - start).dt.days.to_numpy()
+    rows = np.array([index.get(k, -1) for k in
+                     zip(used["material_id"], used["storeroom_id"], strict=True)])
+    keep = (rows >= 0) & (day >= 0) & (day < n_days)
+    np.add.at(out, (rows[keep], day[keep]), (-used["qty"].to_numpy())[keep])
+    return np.maximum(out, 0.0)
+
+
+def _cap(expected_window: float, max_window: float) -> float:
+    """
+    The most a SIMULATED buffer is allowed to be: three windows of expected demand,
+    held between the most the part has ever needed in one window and twice that.
+
+    "Three times expected" and "never more than twice the historical maximum" pull
+    apart when the window is long relative to the history — a part with a 500-day
+    lead time has one window's worth of history, so its maximum IS its expectation
+    and three times it would be three times more than it has ever needed. The
+    clamp keeps both promises: never below what actually happened, never more than
+    double it.
+    """
+    if max_window <= 0:
+        return SIM_CAP_MULTIPLE * expected_window
+    return float(np.clip(SIM_CAP_MULTIPLE * expected_window, max_window, 2.0 * max_window))
+
+
+def _window_sums(daily: np.ndarray, window_days: int) -> np.ndarray:
+    """
+    Every stretch of `window_days` in the history, and how much moved in each.
+
+    This IS the distribution of demand over the protection window for a part that
+    moves most months — several hundred real, overlapping windows. A shutdown
+    month appears in it exactly as often as it happened, which is the point: the
+    bootstrap was drawing that month three times into one window and calling the
+    result the 99.5th percentile.
+    """
+    w = int(max(1, min(window_days, len(daily))))
+    cs = np.concatenate([[0.0], np.cumsum(daily, dtype=np.float64)])
+    return cs[w:] - cs[:-w]
+
+
 def _reason(level: float, service: float, window_days: float, criticality: str,
             lead_days: int, never_moved: bool, floored: bool, uom: str,
-            lead_substituted: bool = False) -> str:
+            lead_substituted: bool = False, simulated: bool = False,
+            capped: bool = False) -> str:
+    # `capped` means different things for the two kinds of part, and the sentence
+    # has to say which: a rarely-used part is held at the most it has ever needed;
+    # a regularly-used one at three windows of what it is expected to need.
     """One sentence a planner can argue with."""
     lead_text = (
         f"{lead_days / 30:.0f}-month lead time" if lead_days >= 60
@@ -193,9 +306,23 @@ def _reason(level: float, service: float, window_days: float, criticality: str,
             f"Never issued in two years, so there is no usage to size against. "
             f"Holding {level:,.0f} {uom} because it is {criticality}-critical"
         )
-    else:
+    elif capped and simulated:
         base = (
-            f"Holding {level:,.0f} {uom} covers {service:.0%} of past "
+            f"Holding {level:,.0f} {uom} — the most this part has needed in any "
+            f"{window_days:,.0f}-day stretch, which is where the buffer for a "
+            f"rarely-used part is capped; {criticality}-critical"
+        )
+    elif capped:
+        base = (
+            f"Holding {level:,.0f} {uom} — three times what this part is expected "
+            f"to need in a {window_days:,.0f}-day stretch, which is the most a "
+            f"regularly-used part is buffered even though its history has seen "
+            f"bigger; {criticality}-critical"
+        )
+    else:
+        kind = "likely" if simulated else "past"
+        base = (
+            f"Holding {level:,.0f} {uom} covers {service:.0%} of {kind} "
             f"{window_days:,.0f}-day stretches; {criticality}-critical"
         )
     out = f"{base}, {lead_text}."
@@ -226,7 +353,18 @@ def compute(cfg: RunConfig) -> Levels:
 
     train = cfg.train_slice(movements)
     pack_of = pack_sizes(train)
-    consumed = train[train["movement_type"].isin(["ISSUE", "RETURN"])].copy()
+
+    # Issues against a SHUTDOWN work order are not variability, they are the plan.
+    # A planned outage is known months ahead and its parts should be ordered against
+    # the schedule; sizing a permanent buffer to absorb it treats the most
+    # predictable demand in the plant as its most random. On one rolling-mill part
+    # the shutdown month alone (15,474 against a normal ~900) put the reorder point
+    # at eighteen months of supply. Ordering against the schedule is step 4's
+    # known-demand overlay; the buffer here covers everything else.
+    work_orders = S.read(S.WORK_ORDERS, cfg.source_dir)
+    shutdowns = S.read(S.SHUTDOWNS, cfg.source_dir)
+    unplanned = train[~_is_outage_demand(train, materials, work_orders, shutdowns)]
+    consumed = unplanned[unplanned["movement_type"].isin(["ISSUE", "RETURN"])].copy()
     consumed["demand"] = -consumed["qty"]
     consumed["period"] = consumed["date"].dt.to_period(PERIOD)
     periods = (
@@ -242,11 +380,16 @@ def compute(cfg: RunConfig) -> Levels:
         series = grp.droplevel([0, 1]).reindex(all_periods, fill_value=0.0)
         by_position[(mat, store)] = series.to_numpy(dtype=float)
 
+    train_start = pd.Timestamp(cfg.history_start)
+    train_days = int((pd.Timestamp(cfg.cutoff_date) - train_start).days) + 1
+    daily = _daily_matrix(unplanned, classes, train_start, train_days)
+
     mat_idx = materials.set_index("material_id")
     rng = np.random.default_rng(cfg.seed + 5)
+    grid = list(cfg.costs.service_sweep)
 
     rows = []
-    for pos in classes.itertuples():
+    for i, pos in enumerate(classes.itertuples()):
         key = (pos.material_id, pos.storeroom_id)
         series = by_position.get(key, np.zeros(n_periods))
         sizes = series[series > 0]
@@ -260,36 +403,56 @@ def compute(cfg: RunConfig) -> Levels:
 
         service = cfg.costs.critical_fractile(price, criticality)
         window_days = lead_days + REVIEW_PERIOD_DAYS
-        window_periods = window_days / DAYS_PER_PERIOD
 
-        p = _demand_probability((series > 0).astype(float))
-        window = _window_draws(p, sizes, window_periods, rng)
-        reorder = float(np.quantile(window, service)) if window.any() else 0.0
+        # what history says about a window this long
+        sums = _window_sums(daily[i], window_days)
+        max_window = float(sums.max()) if sums.size else 0.0
+        expected_window = float(daily[i].mean()) * window_days
+
+        simulated = pos.demand_class not in HISTORY_CLASSES
+        capped = False
+        if simulated:
+            # rarely-used: TSB's occurrence probability and the part's own sizes,
+            # compounded over the window — then capped, because a fat-tailed
+            # bootstrap can wander far past anything the part has ever needed
+            p = _demand_probability((series > 0).astype(float))
+            draws = _window_draws(p, sizes, window_days / DAYS_PER_PERIOD, rng)
+            cap = _cap(expected_window, max_window)
+            raw = float(np.quantile(draws, service)) if draws.any() else 0.0
+            capped = raw > cap
+            reorder = min(raw, cap)
+            sweep = [min(float(np.quantile(draws, q)), cap) for q in grid]
+        else:
+            # regularly-used: the quantile of what actually happened, read off
+            # several hundred real windows. No simulation, nothing to cap.
+            p = _demand_probability((series > 0).astype(float))
+            # even a real quantile is bounded: a reorder point above three windows
+            # of expected demand for a part that moves every month is not a buffer.
+            # One rolling-mill filter draws 900 a month and, twice in two years, six
+            # thousand in a fortnight; the 99th percentile of its real 74-day
+            # windows is honestly 20,000, and holding that is a policy decision the
+            # plant would not take. The cap says so.
+            cap = SIM_CAP_MULTIPLE * expected_window
+            raw = float(np.quantile(sums, service)) if sums.size else 0.0
+            capped = raw > cap
+            reorder = min(raw, cap)
+            sweep = ([min(float(np.quantile(sums, q)), cap) for q in grid]
+                     if sums.size else [0.0] * len(grid))
 
         floor = cfg.dead_money.criticality_floor.get(criticality, 0.0)
         floored = reorder < floor
         reorder = max(reorder, floor)
+        sweep = [max(v, floor) for v in sweep]
 
-        # How much to bring it back up to. Three things set a floor under the order
-        # quantity, and the largest wins:
-        #   1. one review cycle of demand, so the next review is not immediate;
-        #   2. the expected demand over the whole protection window - ordering less
-        #      than that guarantees another order before this one has landed;
-        #   3. the pack the supplier actually ships in.
-        # Without 2 and 3 the policy orders a trickle every week, which looks cheap
-        # only because placing an order is free on paper.
-        cycle = _protection_quantile(
-            p, sizes, REVIEW_PERIOD_DAYS / DAYS_PER_PERIOD, service, rng
-        )
-        expected_window = float(window.mean())
+        # How much to order when the level is reached: the demand expected while
+        # the order is in transit, rounded up to the pack. The reorder point
+        # already carries the safety buffer; the order quantity's job is to make
+        # the cycle sensible, not to add a second buffer on top of the first —
+        # which is what the previous "quantile of a review cycle" term was doing.
         pack = float(pack_of.get(pos.material_id, 1.0))
-        quantity = max(cycle, expected_window, 1.0 if reorder > 0 else 0.0)
+        quantity = max(expected_window, 1.0 if reorder > 0 else 0.0)
         quantity = float(np.ceil(quantity / pack) * pack) if pack > 0 else quantity
         order_up_to = reorder + quantity
-
-        # the same simulation read at every service level the sweep asks for
-        sweep = [max(float(np.quantile(window, q)), floor)
-                 for q in cfg.costs.service_sweep]
 
         rows.append(
             {
@@ -307,10 +470,15 @@ def compute(cfg: RunConfig) -> Levels:
                 "lead_time_substituted": bool(lead_fixed),
                 "pack_size": pack,
                 "order_quantity": float(np.ceil(quantity)),
+                "expected_window_demand": expected_window,
+                "max_window_demand": max_window,
+                "buffer_simulated": bool(simulated),
+                "buffer_capped": bool(capped),
+                "buffer_floored": bool(floored),
                 "sweep_reorder_points": np.ceil(np.array(sweep, dtype=float)),
                 "reason": _reason(np.ceil(reorder), service, window_days, criticality,
                                   lead_days, bool(pos.never_moved), floored, uom,
-                                  lead_fixed),
+                                  lead_fixed, simulated, capped),
             }
         )
 
@@ -344,10 +512,29 @@ def compute(cfg: RunConfig) -> Levels:
         ),
         "positions_with_lead_time_substituted": int(levels["lead_time_substituted"].sum()),
         "service_sweep": list(cfg.costs.service_sweep),
+        "target_service_level": dict(cfg.costs.target_service_level),
+        "positions_buffer_from_history": int((~levels["buffer_simulated"]).sum()),
+        "positions_buffer_simulated": int(levels["buffer_simulated"].sum()),
+        "positions_buffer_capped": int(levels["buffer_capped"].sum()),
         "order_cost_sar": cfg.costs.order_cost_sar,
         "median_pack_size": float(levels["pack_size"].median()),
         "positions_with_a_pack_above_one": int((levels["pack_size"] > 1).sum()),
         "limits": [
+            "The service level is a policy — 99% for parts that stop the plant, 95% "
+            "where production slows, 85% where somebody waits — and the arithmetic "
+            "may only lower it for an expensive part. Those three figures are ours; "
+            "the plant should set them.",
+            "For parts that move most months the buffer is read off what actually "
+            "happened in every stretch of the same length as the delivery time. For "
+            "parts that move rarely it is simulated from how often and how much they "
+            "move, and capped at the most the part has ever needed in such a stretch "
+            "or three times what it is expected to need, whichever is larger.",
+            "Issues against shutdown work orders are left out of the buffer: a "
+            "planned outage is known months ahead and its parts belong on an order "
+            "raised against the schedule, not in a permanent safety stock. That "
+            "order is not raised by this system yet, so in the replayed year our "
+            "levels are charged for shutdown shortages the schedule would have "
+            "prevented.",
             "Levels are set from the first two years only, so a part whose use "
             "changed in the last year is sized on how it used to behave. That is the "
             "same handicap the system would have on the day it goes live.",

@@ -1065,3 +1065,106 @@ Reasoning: Three data fixes the screens exposed. Transformers were described in 
            target. `shutdown_intensity` was raised 2.2 -> 4.5 to restore it. That is
            a knob being turned to hit a number; it exists for exactly this property,
            and it is recorded here rather than left to be discovered.
+
+
+## 2026-09-10 — Service level is a policy the arithmetic may only lower
+Model: Fable 5.1
+Type: reversal
+Reverses: "Shortage cost is downtime plus expedite" (same day) — not the cost
+          model, but the idea that the fractile IS the service level
+Reasoning: With the downtime-based shortage cost, every cheap part of every class
+           sat at the 99.5% cap, and by class × criticality the medians read
+           0.995 / 0.995 / 0.98. Criticality had collapsed from the cheap side.
+           `target_service_level` (A 0.99 / B 0.95 / C 0.85) is now the level; the
+           newsvendor fractile can only argue it down for an expensive part. Tests
+           assert median C < 0.90 and median A > 0.97.
+Rejected: tuning the downtime figures until the medians separated (they cannot —
+          the cap binds any flat cost for a cheap part).
+
+## 2026-09-10 — Regular movers are buffered from history; rare movers from a capped simulation
+Model: Fable 5.1
+Type: decision
+Reasoning: M-016367 (~1,080/month, 74-day window) had a reorder point of 20,089:
+           one shutdown month of 15,474 in the bootstrap, and the 99.5th percentile
+           of three draws landed on it three times. For smooth/erratic the buffer is
+           now the quantile of the actual rolling window sums over the training
+           years, capped at 3x expected window demand. For intermittent/lumpy the
+           TSB simulation stays, capped between the historical max window and twice
+           it. `_cap` clamps rather than picking a larger-of, because "3x expected"
+           and "≤ 2x max" pull apart when the window is long relative to the
+           history — a 500-day lead time has one window's worth of it.
+Rejected: a longer history (the data does not have it), a lower quantile (the
+          policy is the policy).
+
+## 2026-09-10 — Outage demand is decided by the calendar, not the work-order tag
+Model: Fable 5.1
+Type: decision
+Reasoning: Excluding SHUTDOWN-tagged issues left 11,154 of the 15,474 spike units in
+           the buffer history, because the generator books most outage work under
+           PLANNED orders raised for the same outage. Planned work issued to a plant
+           while that plant is in a scheduled shutdown is the shutdown. Breakdowns in
+           the window still count. A planned outage is the most predictable demand in
+           the plant; sizing a permanent buffer to absorb it treats it as the most
+           random. The order that should be raised against the schedule is not built
+           yet, so the backtest charges us for it — stated in the limits.
+
+## 2026-09-10 — A pack has to repeat to be believed
+Model: Fable 5.1
+Type: reversal
+Reverses: "Pack size is inferred from receipts" (same day) — narrowed, not undone
+Reasoning: The modal receipt under the plant's (s,S) rule is "order-up-to minus
+           whatever was left", one value among many. It produced a 4,129-unit pack
+           for a part used a thousand a month, which inflated the order quantity and
+           hid the true order frequency (orders read -2% when they were +31%). A
+           pack now needs ≥ 50% of receipts and ≥ 3 receipts.
+
+## 2026-09-10 — No storeroom record consumes more than SAR 3m a year
+Model: Fable 5.1
+Type: decision
+Reasoning: The heavy-tailed popularity draw occasionally landed on an expensive
+           consumable: a SAR 6,142 drill bit used eighty a day, SAR 36m a year on
+           one line, 57% of consumption value in the top 1% of records, and "SAR 97m
+           to bring one part to level". Real consumption is concentrated, not that
+           concentrated. `DemandShaping.max_annual_consumption_sar` scales
+           `size_mean` after every random draw and consumes no randomness, so it is a
+           scaling of the affected records and not a reshuffle of everything.
+
+## 2026-09-10 — "To bring them to level" is the shortfall below the reorder point
+Model: Fable 5.1
+Type: decision
+Reasoning: The headline used the whole replenishment order (to order-up-to) and
+           read "SAR 994m to put right" against SAR 1.5bn of stock. The shortfall to
+           the reorder point is what the words say, is SAR 629m with a SAR 10k
+           median a part, and is the figure a planner puts to a manager. The whole
+           order (SAR 957m across 7,288 orders) is the buyer's figure and lives on
+           the Recommendations page as "cost". Two numbers, two names, never
+           swapped.
+
+## 2026-09-10 — Four pages in presentation order, Evidence in the footer, dark by default
+Model: Fable 5.1
+Type: decision
+Reasoning: Dashboard · Storerooms · Stock board · Recommendations is the order a
+           manager should see them: the size of it, where it is, what to do about
+           each part, what to do first. The evidence page is one click from every
+           footer for the engineer who asks. Present mode walks the four with ← →.
+           Dark was asked for after "light only for the meeting"; the later
+           instruction wins, and a toggle keeps the meeting's option open. The theme
+           is the only thing the page writes to the browser.
+Rejected: the six-page walkthrough built the same morning (The problem, Today,
+          ..., What's next) — superseded within the hour; nothing of it is lost,
+          the tiles and charts moved into the Dashboard.
+
+## 2026-09-10 — The chart shows the held-out year, not next year
+Model: Fable 5.1
+Type: decision
+Reasoning: The brief asked for "forecast Sep 2026 – Aug 2027". The engine forecasts
+           the held-out year (Sep 2025 – Aug 2026) so it can be graded; a forward
+           forecast needs a refit on all 36 months and is not built. The dashboard's
+           date line says exactly what the orange line is. Drawing it a year to the
+           right would look like the brief and be wrong.
+
+## 2026-09-10 — Excel export is CSV with a byte-order mark
+Model: Fable 5.1
+Type: decision
+Reasoning: .xlsx needs openpyxl or a vendored JS library — a new dependency for a
+           file Excel opens either way. The BOM makes Excel read UTF-8 correctly.

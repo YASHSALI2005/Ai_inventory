@@ -105,6 +105,8 @@ def build(cfg: RunConfig) -> pd.DataFrame:
     recent = usage[:, -IDLE_MONTHS:]
     df["issues_24m"] = (recent > 0).sum(axis=1)
     df["qty_24m"] = recent.sum(axis=1)
+    # the board's sparkline: last twelve months, small enough to ship with the list
+    df["usage_12m"] = list(usage[:, -12:])
 
     # forecast and known work-order demand, in month order, per position
     fc = forecast.sort_values("ds")
@@ -154,16 +156,34 @@ def build(cfg: RunConfig) -> pd.DataFrame:
     df["units_below_reorder"] = short_units
     df["value_at_risk_sar"] = short_units * weight
 
-    # what to bring it back up to, in money — the figure a planner can take to a
-    # buyer. Not the same as what being short of it costs, which is much larger and
-    # much less useful as an instruction.
+    # Two different money figures, and the screens must not swap them. "To bring
+    # it back to level" is the SHORTFALL below the reorder point — what it would
+    # take to get the part back to safe, the figure a planner puts to a manager.
+    # "Order cost" is the whole replenishment order, which carries the part past
+    # the level to its fill-up target; that is the figure that goes to a buyer.
+    # The first cut used the second for the first and produced "SAR 994m to put
+    # right" against SAR 1.5bn of stock, which nobody believed. The shortfall is
+    # SAR 629m with a median of SAR 10k a part; that is a list somebody can work.
+    on_hand = df["on_hand"].clip(lower=0.0)
     df["cost_to_level_sar"] = (
-        (df["order_up_to"] - df["on_hand"].clip(lower=0.0)).clip(lower=0.0)
-        * df["unit_price_sar"]
+        (df["reorder_point"] - on_hand).clip(lower=0.0) * df["unit_price_sar"]
     )
-    df["order_now_qty"] = (
-        (df["order_up_to"] - df["on_hand"].clip(lower=0.0)).clip(lower=0.0).round()
-    )
+    df["order_now_qty"] = (df["order_up_to"] - on_hand).clip(lower=0.0).round()
+    df["order_cost_sar"] = df["order_now_qty"] * df["unit_price_sar"]
+
+    # When it runs out, and when the order has to go in to arrive before that.
+    # "Today" is the last day of the data, not the wall clock — the invented plant
+    # lives in its own calendar. A rate of zero means "not on current usage".
+    today = pd.Timestamp(cfg.history_end)
+    daily_rate = df["forecast_6m"].clip(lower=0.0) / 182.0
+    days_left = np.where(daily_rate > 0, on_hand / daily_rate.replace(0, np.nan), np.nan)
+    days_left = np.clip(np.nan_to_num(days_left, nan=-1.0), -1.0, 3650.0)
+    runs_out = [today + pd.Timedelta(days=int(d)) if d >= 0 else pd.NaT for d in days_left]
+    df["daily_rate"] = daily_rate
+    df["runs_out_date"] = pd.to_datetime(runs_out)
+    order_by = df["runs_out_date"] - pd.to_timedelta(df["lead_time_days"], unit="D")
+    # an order-by date in the past is an order that should already have gone in
+    df["order_by_date"] = order_by.where(order_by > today, today)
 
     df = df.sort_values(["value_at_risk_sar", "value_sar"], ascending=False)
     df["rank"] = np.arange(1, len(df) + 1)
@@ -268,9 +288,49 @@ def by_storeroom(df: pd.DataFrame) -> list[dict]:
                 ),
                 "class_mix": {k: int(v) for k, v in
                               grp["demand_class"].value_counts().items()},
+                "top_by_value": _brief(grp.nlargest(5, "value_sar")),
+                "top_to_act": _brief(
+                    grp[grp["action"].isin(["order_now", "stocked_elsewhere"])]
+                    .nlargest(5, "cost_to_level_sar")
+                ),
             }
         )
     return sorted(out, key=lambda r: -r["value_sar"])
+
+
+def _brief(rows: pd.DataFrame) -> list[dict]:
+    """The few fields a card line needs; the drawer has the rest."""
+    return [
+        {
+            "material_id": str(r.material_id),
+            "storeroom_id": str(r.storeroom_id),
+            "description": str(r.description),
+            "value_sar": float(r.value_sar),
+            "cost_to_level_sar": float(r.cost_to_level_sar),
+            "action": str(r.action),
+            "on_hand": float(r.on_hand),
+            "uom": str(r.uom),
+        }
+        for r in rows.itertuples()
+    ]
+
+
+def plant_wide(df: pd.DataFrame) -> dict:
+    """
+    Every position's monthly usage added up, and every forecast likewise — the
+    dashboard's one line chart. Summed here, once, rather than by the browser over
+    25,000 arrays on every page load.
+    """
+    usage = np.vstack(df["usage_months"].to_numpy()).sum(axis=0)
+    forecast = np.vstack(df["forecast_months"].to_numpy()).sum(axis=0)
+    known = np.vstack(df["planned_wo_months"].to_numpy()).sum(axis=0)
+    return {
+        "usage_months": [float(v) for v in usage],
+        "forecast_months": [float(v) for v in forecast],
+        "known_months": [float(v) for v in known],
+        "months_start": str(df["months_start"].iloc[0]),
+        "train_months": int(df["train_months"].iloc[0]),
+    }
 
 
 def run(cfg: RunConfig) -> pd.DataFrame:
@@ -282,6 +342,9 @@ def run(cfg: RunConfig) -> pd.DataFrame:
                   & (df["on_hand"].clip(lower=0.0) < df["reorder_point"])]
     payload = {
         "by_storeroom": by_storeroom(df),
+        "plant": plant_wide(df),
+        "order_total_sar": float(df.loc[df["action"] == "order_now", "order_cost_sar"].sum()),
+        "order_count": int((df["action"] == "order_now").sum()),
         "transfers": moves,
         "transfer_total_sar": float(sum(r["value_sar"] for r in moves)),
         "transfer_count": len(moves),
