@@ -66,6 +66,7 @@ def load(cfg: RunConfig) -> dict:
         ("classifier", "classifier_report.json"),
         ("classifier_score", "classifier_score.json"),
         ("forecast", "forecast_report.json"),
+        ("levels", "levels_report.json"),
         ("backtest", "backtest_report.json"),
         ("dead_money", "dead_money_report.json"),
     ):
@@ -533,6 +534,7 @@ def section_progress(doc: Document, data: dict) -> None:
     _step_two(doc, data)
     _step_three(doc, data)
     _step_four(doc, data)
+    _step_five(doc, data)
 
 
 def _step_date(data: dict) -> str:
@@ -831,6 +833,112 @@ def _step_four(doc: Document, data: dict) -> None:
     _limits(doc, rep.get("limits", []))
 
 
+def _step_five(doc: Document, data: dict) -> None:
+    bt = data.get("backtest")
+    lv = data.get("levels")
+    if not bt:
+        return
+    h(doc, f"Stage 5 — Setting the stock levels, and proving they are better    "
+           f"({bt.get('generated_at','')[:10]})", level=2)
+
+    para(doc, "This is the second of the three claims, and the one with a number "
+              "attached. For every part in every storeroom we work out two figures: "
+              "the level at which to reorder, and how much to bring it back up to.")
+
+    para(doc, "The usual textbook formula assumes demand follows a bell curve. That "
+              "is fair for a gasket used every week and wrong for a spare used twice "
+              "a decade — and the second group is where being wrong is expensive. So "
+              "instead of assuming a shape, we replay each part's own history: how "
+              "often it moves, and how much when it does. The level is set so that it "
+              "covers the required share of past stretches of the same length as the "
+              "delivery time.")
+
+    if lv:
+        sl = lv.get("service_level_by_criticality", {})
+        if sl:
+            para(doc, "How sure we aim to be of having the part differs by how badly "
+                      "its absence hurts — worked out from each part's own cost of "
+                      "being short against its cost of sitting on a shelf, rather "
+                      "than one blanket figure for everything:")
+            table(doc, ["If it is missing", "We aim to have it this often"],
+                  [["A — the plant stops", pct(sl.get("A"), 1)],
+                   ["B — production slows", pct(sl.get("B"), 1)],
+                   ["C — somebody waits", pct(sl.get("C"), 1)]],
+                  widths=[3.0, 2.4])
+
+    h(doc, "Replaying the year, both ways", level=3)
+    para(doc, f"The final year — {bt.get('evaluated_days')} days that nothing in the "
+              "system had ever seen — was replayed twice over "
+              f"{bt.get('positions', 0):,} storeroom records. Once with the levels the "
+              "plant uses today, once with ours. Same demand, same delivery delays, "
+              "same starting stock: the only difference is the levels.")
+
+    b, po, c = bt.get("baseline", {}), bt.get("policy", {}), bt.get("change", {})
+
+    def row(label, key, money=False):
+        fmt = (lambda v: sar(v)) if money else (lambda v: num(round(v)))
+        delta = c.get(key)
+        return [label, fmt(b.get(key)), fmt(po.get(key)),
+                "—" if delta is None else f"{delta * 100:+.0f}%"]
+
+    table(
+        doc,
+        ["", "Levels in use today", "Our levels", "Change"],
+        [
+            row("Days spent waiting for a part", "stockout_days"),
+            row("Units short over the year", "units_short"),
+            row("Value sitting on the shelves", "avg_capital_sar", money=True),
+            row("Cost of being short", "shortage_cost_sar", money=True),
+            row("Cost of holding stock", "holding_cost_sar", money=True),
+            row("Both costs together", "total_cost_sar", money=True),
+        ],
+        widths=[2.4, 1.6, 1.4, 0.9],
+        highlight_last=True,
+    )
+
+    callout(
+        doc, "Read this honestly: we spend more to waste less",
+        "Our levels hold MORE stock, not less — about "
+        f"{pct(c.get('avg_capital_sar'), 0)} more. In exchange the plant spends "
+        f"{pct(abs(c.get('stockout_days') or 0), 0)} fewer days waiting for a part. "
+        "Adding the two costs together, the plant is "
+        f"{pct(abs(c.get('total_cost_sar') or 0), 0)} better off overall.\n\n"
+        "That is worth stating plainly because it runs the opposite way to the usual "
+        "pitch. Better stocking does not release cash here — it moves cash to where "
+        "it stops production losses. The cash release is a separate exercise: finding "
+        "the stock that is dead, which is the next stage.",
+        colour=WARN,
+    )
+
+    moved_out = bt.get("capital_moved_out_sar")
+    moved_in = bt.get("capital_moved_in_sar")
+    if moved_out is not None:
+        para(doc, f"Underneath the total, capital moves in both directions: "
+                  f"{sar(moved_out)} comes off shelves where it was doing nothing "
+                  f"({bt.get('positions_lowered', 0):,} records), and {sar(moved_in)} "
+                  f"goes onto shelves where it prevents a stoppage "
+                  f"({bt.get('positions_raised', 0):,} records).")
+
+    by_crit = bt.get("by_criticality") or []
+    if by_crit:
+        h(doc, "Where the improvement lands", level=3)
+        rows = [[r["criticality"], num(r["positions"]),
+                 num(r["baseline_stockout_days"]), num(r["policy_stockout_days"]),
+                 sar(r["baseline_capital_sar"]), sar(r["policy_capital_sar"])]
+                for r in sorted(by_crit, key=lambda r: r["criticality"])]
+        table(doc, ["If missing", "Records", "Days waiting now",
+                    "Days waiting with ours", "Value now", "Value with ours"],
+              rows, widths=[0.9, 0.8, 1.2, 1.3, 1.2, 1.2])
+        caption(doc, "Split this way on purpose. A headline improvement means "
+                     "something quite different if it all landed on the cheapest "
+                     "parts and the critical ones got worse.")
+
+    limits = list(bt.get("limits", []))
+    if lv:
+        limits += lv.get("limits", [])
+    _limits(doc, limits)
+
+
 def _limits(doc: Document, limits: list[str]) -> None:
     if not limits:
         return
@@ -866,6 +974,10 @@ def section_numbers(doc: Document, data: dict) -> None:
              sar(bt.get("baseline_capital_sar"))],
             ["Value tied up on the shelves — our levels",
              sar(bt.get("policy_capital_sar"))],
+            ["Both costs together — levels in use today",
+             sar((bt.get("baseline") or {}).get("total_cost_sar"))],
+            ["Both costs together — our levels",
+             sar((bt.get("policy") or {}).get("total_cost_sar"))],
         ]
     dm = data.get("dead_money", {})
     if dm:

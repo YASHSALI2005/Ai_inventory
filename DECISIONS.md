@@ -800,3 +800,91 @@ Reasoning: Same reasoning as the dead-value band, and the same evidence: with th
            noise, which is the mistake the dead-value entry already records.
 Rejected: one target for both presets
 Reverses: -
+
+---
+
+## 2026-09-10 - Duplicate score movement across runs is RNG drift, not regression
+Model: Opus 5
+Type: decision
+Reasoning: The duplicate figures move a little between runs - 96%/88% before the
+           description change, 94-96%/88% after, and the per-mangle rows shift by
+           several points. None of that is the matcher changing behaviour.
+           Every generator change reshuffles the random stream, so a different 140
+           pairs get planted, mangled in different ways, against a different set of
+           near-neighbours. `token_dropped` in particular swings widely because it
+           is the hardest style and there are only about twenty of them: two
+           different draws easily differ by 10 points of recall.
+           What to compare across commits is the matcher's code and its threshold,
+           not the scoreboard digits. A real regression would show as a change in
+           the SHAPE of the per-mangle table - the easy styles falling off - rather
+           than the totals wobbling. Recorded so nobody spends an afternoon chasing
+           a two-point move that is pure sampling noise.
+Rejected: pinning a separate seed for defect planting (would hide genuine
+          sensitivity to the data, which is worth seeing)
+Reverses: -
+
+---
+
+## 2026-09-10 - PROFILE_TO_SBC_CLASS widened: occasional may be lumpy
+Model: Opus 5
+Type: approval
+Reasoning: Reviewer agreed the table was one entry short. A part used only
+           occasionally but in wildly varying amounts is lumpy by the
+           Syntetos-Boylan definition, and 100% of the 1,401 parts previously
+           scored wrong genuinely had size variability above the CV-squared cutoff.
+           Raised as a finding rather than changed unilaterally, and changed only on
+           agreement, because widening a table one is marked against is otherwise
+           indistinguishable from marking one's own homework.
+Rejected: leaving it and continuing to report an artificially low figure
+Reverses: the original tolerance table in contracts/schemas.py
+
+## 2026-09-10 — Levels from TSB's two components, not from its point forecast
+Model: Opus 5
+Type: decision
+Reasoning: A point forecast is one number; a reorder point needs a distribution.
+           TSB already separates the two things that make the distribution —
+           how often a period contains demand (p) and how much when it does —
+           so the protection-window demand is compounded from those directly:
+           Bernoulli(p) per period × a bootstrap of the part's own issue sizes,
+           quantile at the item's newsvendor fractile. Nothing assumes a shape,
+           so a part issued in lumps of forty is sized for forty rather than for
+           its four-a-month average.
+Rejected: z·σ·√LT (assumes a bell curve; wrong exactly on the insurance spares,
+          where being wrong is most expensive), and TSB's point forecast × lead
+          time (throws away the variability that safety stock exists to cover).
+
+## 2026-09-10 — The backtest pre-draws one lead-time matrix for both policies
+Model: Opus 5
+Type: decision
+Reasoning: `walk()` drew lead times from its own RNG. As soon as the two policies
+           order on different days they consume the stream differently, so one of
+           them gets easier deliveries and part of the reported improvement is
+           luck — with nothing in the output to reveal it. `lead_time_draws` now
+           fixes the k-th order's wait per position, shared by both runs.
+           `tests/test_levels.py` guards it.
+Rejected: seeding the same RNG for both runs (identical only while the policies
+          behave identically, which defeats the purpose).
+
+## 2026-09-10 — Step 2's findings feed step 5's levels
+Model: Opus 5
+Type: decision
+Reasoning: A lead time flagged IMPOSSIBLE_LEAD_TIME was still being used to size
+           stock. One B-critical record saying 3,650 days got a ten-year
+           protection window and a reorder point of 35,826 against the plant's
+           318. `usable_lead_times()` substitutes the material group's median
+           (73 positions at full) and the reason string states plainly that it
+           did. The substitute is a guess; it beats a ten-year window and it is
+           worse than somebody reading the contract.
+Rejected: dropping flagged materials from the levels run (a critical spare with a
+          bad lead-time record still needs a level).
+
+## 2026-09-10 — The backtest result contradicts the pitch, and is reported that way
+Model: Opus 5
+Type: decision
+Reasoning: Our levels hold 36% MORE capital, buying a 42% cut in days waiting for
+           a part, netting 13% lower total cost. The proposal's phrasing was "less
+           cash frozen at the same service level". Rather than quietly reporting
+           only the service half, the progress document carries a callout saying
+           we spend more to waste less, and states that the cash release is step
+           6a (dead money) — a different exercise. A number that survives being
+           read honestly is the only kind worth showing a manager.

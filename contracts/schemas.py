@@ -40,7 +40,11 @@ DEMAND_CLASS = ("smooth", "erratic", "intermittent", "lumpy")
 # classifier for being right.
 PROFILE_TO_SBC_CLASS: dict[str, tuple[str, ...]] = {
     "consumable": ("smooth", "erratic"),
-    "occasional": ("intermittent", "erratic"),
+    # `lumpy` added 2026-09-10 on measured evidence: a part used only occasionally
+    # but in wildly varying amounts IS lumpy by the Syntetos-Boylan definition, and
+    # every one of the 1,401 parts previously marked wrong genuinely had size
+    # variability above the CV-squared cutoff. The table was one entry short.
+    "occasional": ("intermittent", "erratic", "lumpy"),
     "lumpy": ("lumpy", "intermittent"),
     "insurance": ("intermittent", "lumpy"),
 }

@@ -53,7 +53,7 @@ def cmd_build(args) -> int:
 
 def cmd_run(args) -> int:
     """The engine. Reads source tables only — never the answer key."""
-    from engine import classify, forecast, quality
+    from engine import classify, forecast, levels, quality
 
     cfg = _cfg(args)
     if not (cfg.source_dir / "stock.parquet").exists():
@@ -87,11 +87,19 @@ def cmd_run(args) -> int:
               f"{row['mase']:>8.2f}{row['naive']:>8.2f}{row['zero']:>8.2f}")
     beat = fc.report["classes_beating_both_baselines"]
     print(f"  beats both baselines: {', '.join(beat) if beat else 'none'}")
+
+    t3 = time.time()
+    lv = levels.run(cfg)
+    print(f"engine, stock levels: {lv.report['positions']:,} positions   "
+          f"({time.time() - t3:.1f}s)")
+    sl = lv.report["service_level_by_criticality"]
+    print("  service level from each item's own economics: "
+          + ", ".join(f"{k} {v:.1%}" for k, v in sl.items()))
     return 0
 
 
 def cmd_score(args) -> int:
-    from scoring import classifier, defects
+    from scoring import backtest, classifier, defects
 
     cfg = _cfg(args)
     manifest_path = cfg.results_dir / S.RUN_MANIFEST_FILE
@@ -126,6 +134,12 @@ def cmd_score(args) -> int:
         print()
         print("demand classes, graded against how the plant really behaves:")
         print(classifier.render(classifier_result))
+
+    if (cfg.results_dir / "levels.parquet").exists():
+        bt = backtest.run(cfg)
+        print()
+        print("stock levels replayed against the plant's own, same year same demand:")
+        print(backtest.render(bt))
 
     print()
     print("emergent problems (scored against truth, not a planted list):")

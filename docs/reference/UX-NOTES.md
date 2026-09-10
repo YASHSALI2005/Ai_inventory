@@ -1,0 +1,103 @@
+# UX reference for step 7 — what to carry over from Noah Stock
+
+The previous project (Noah Stock, retail F&B across nine cinemas) solved the same
+screen problem: hundreds of lines, a planner with ten minutes, and the need to make
+"what should I do today" obvious. Step 7 inherits its layout language.
+
+> **Screenshots**: the reference images live in this folder. If they are missing,
+> everything needed to rebuild the layout is described below — this file is the
+> specification, the images are the illustration.
+
+---
+
+## The layout language, unchanged
+
+```
+┌──────────┬────────────────────────────────────────────────────────┐
+│ left nav │  Title + one line of context                           │
+│          │  ┌────────┬────────┬────────┬────────┐                 │
+│  org     │  │  KPI   │  KPI   │  KPI   │  KPI   │  cards          │
+│  picker  │  └────────┴────────┴────────┴────────┘                 │
+│          │  ┌──────────────────────────────────────┐              │
+│ Dashboard│  │  ONE table — the work queue          │              │
+│ Sites    │  │  click a row → drawer                │              │
+│ Calendar │  └──────────────────────────────────────┘              │
+│ Inventory│  ┌──────────────────────────────────────┐              │
+│          │  │  secondary panel (stock to move)     │              │
+└──────────┴────────────────────────────────────────────────────────┘
+```
+
+Four things made it work, and all four transfer:
+
+**1. Ranked by what it costs to ignore, not by quantity.** Stated on the screen, in
+those words. It is the single line that changes how the board is read: the top row
+is not the biggest number, it is the most expensive mistake.
+
+**2. KPI cards that are counts with a consequence**, not totals. Noah used *Needs an
+order · Value at risk · Money standing still · Needs counting*, each with a
+sub-line ("out of 383 lines this cinema actually uses"). The sub-line is what stops
+a number being meaningless.
+
+**3. A colour band per state, repeated everywhere.** Sold out (red) · order today
+(red) · order this week (amber) · well stocked (green) · too much stock (blue) ·
+never used here (grey). The same colours on the cards, the breakdown chips and the
+row stripe, so the eye learns them once.
+
+**4. The drawer, not a page.** Clicking a row opens a panel over the board: the
+item, where it is, what to do, and — the part that earns trust — a sentence in
+plain English explaining the recommendation with its own arithmetic visible.
+
+Noah's drawer sentence is the model to copy:
+
+> *"Order about 676,365 Grm, today. You are exposed for 25 days — 16 between orders
+> plus 9 for delivery. Holding 796,179 Grm covers 90.0% of past 25-day stretches;
+> there are 119,814."*
+
+Our step-5 reason strings are already written in that shape.
+
+---
+
+## What has to change for MRO, and why
+
+Noah's plant sold popcorn. Ours holds a spare transformer that may never be issued.
+Four adaptations follow from that, and getting them wrong would make the board
+useless on exactly the items that matter.
+
+| Noah (fast movers) | Ours (mostly slow movers) | Why |
+|---|---|---|
+| **"Lasts 2.4 days"** | **"About a 1 in 12 chance of being needed before the next delivery"** | Days-of-cover is meaningless when the run rate is 0.02 a month. It reads as "lasts 40 years", which is true and useless. Stockout probability over the lead time is the same idea expressed in a way that survives sparse demand. |
+| **Ranked by lost margin** | **Ranked by criticality × SAR at risk** | Nothing here is sold, so there is no margin. What replaces it is what the absence costs: an A-critical part stops the plant, a C-critical part inconveniences somebody. |
+| **"Used daily / weekly / rarely"** | **The four demand groups from step 3** | Steady / jumpy / occasional / rare-and-large. Same idea, and it is already computed. |
+| **Run-rate per day** | **Run-rate per month, plus "never issued in 2 years"** | A per-day rate on an item used twice a decade is a row of zeros. |
+
+**Keep:** the "stock that could be moved" panel (one storeroom short while another
+is long — it is capability 5 and the layout already exists), and the calendar of
+known events (Noah used Ramadan and Eid; ours uses planned shutdowns, and it serves
+exactly the same purpose — demand that is known in advance rather than forecast).
+
+**Drop:** the organisation picker. One client, one plant.
+
+---
+
+## The two screens step 7 builds
+
+**Dashboard.** KPI cards, then one table: the work queue, ranked by criticality ×
+SAR at risk, with the state colour band. Plus the backtest result and the
+engine-versus-truth dead-money comparison, since those are the two headline numbers.
+
+**Item view.** Usage history, the forecast, our recommended level against the
+current min/max, and the reason string. Reached by clicking a row — a drawer if it
+is cheap to build, otherwise a page, but the drawer is what made Noah's board quick
+to work through.
+
+Both read-only from `results/`, vendored JavaScript, no CDN.
+
+---
+
+## One caution
+
+Noah's board was fast because its numbers were fast: run rate, days of cover, value
+at risk. Ours are the output of a simulation over 25,000 positions. Everything the
+screen shows must already be computed and written to `results/` — the API reads
+files and nothing else. A screen that recalculates will disagree with the scoreboard
+beside it, and will stall while somebody is watching it.

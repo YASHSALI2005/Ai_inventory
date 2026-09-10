@@ -123,15 +123,29 @@ def render(result: dict) -> str:
         )
     pattern = result.get("largest_disagreement")
     if pattern:
+        share = pattern.get("share_genuinely_above_cv2_cutoff", 0.0)
         lines += [
             "",
-            f"  most of the disagreement is one pattern: {pattern['materials']:,} parts that "
-            f"behave as {pattern['true_profile']}",
+            f"  largest single disagreement: {pattern['materials']:,} parts that behave as "
+            f"{pattern['true_profile']}",
             f"  were sorted {pattern['assigned']} "
-            f"({pattern['share_of_all_disagreements']:.0%} of all disagreements), and "
-            f"{pattern['share_genuinely_above_cv2_cutoff']:.0%} of those",
-            "  genuinely have size variability above the cutoff — so this looks like a gap "
-            "in the reference",
-            "  table rather than a sorting error. Not changed without agreement.",
+            f"({pattern['share_of_all_disagreements']:.0%} of all disagreements).",
         ]
+        # Only claim the reference table is at fault where the evidence supports it.
+        # Printing the same sentence regardless would be an argument dressed up as a
+        # finding.
+        if share > 0.9:
+            lines += [
+                f"  {share:.0%} of those genuinely have size variability above the "
+                "cutoff, so this reads",
+                "  as a gap in the reference table rather than a sorting error.",
+            ]
+        else:
+            lines += [
+                "  These sit on the boundary between two groups rather than being "
+                "clearly misplaced:",
+                f"  only {share:.0%} have size variability above the cutoff, so the "
+                "disagreement is about",
+                "  where the line falls, not which side of it these parts belong on.",
+            ]
     return "\n".join(lines)

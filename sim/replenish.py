@@ -83,6 +83,7 @@ def walk(
     lead_time_cv: float = 0.0,
     lead_time_bounds: tuple[int, int] = (1, 720),
     rng: np.random.Generator | None = None,
+    lead_time_draws: np.ndarray | None = None,
     return_series: bool = False,
     return_served: bool = False,
 ) -> PolicyResult:
@@ -98,6 +99,13 @@ def walk(
     position (on hand + on order - backorders) is at or below `s`, order up to `S`.
     Passing `order_qty` switches to (R, s, Q) — a fixed quantity — so an (s, Q)
     policy from step 5 can be backtested on the same mechanics.
+
+    `lead_time_draws` is an (n_items, max_orders) array of pre-drawn lead times. It
+    exists so two policies can be compared in the SAME world: the k-th order for a
+    given item waits exactly as long under both, whatever day it happened to be
+    placed. Drawing from a shared generator instead would give the two runs
+    different lead times as soon as their order timings diverged, and any difference
+    in the result would be partly luck rather than policy.
     """
     demand = np.atleast_2d(np.asarray(demand, dtype=np.float64))
     n, n_days = demand.shape
@@ -175,7 +183,11 @@ def walk(
                 place = qty > 0
                 idx, qty = idx[place], qty[place]
                 if idx.size:
-                    lead = _draw_lead_times(lead_mean[idx], lead_time_cv, rng, lo, hi)
+                    if lead_time_draws is not None:
+                        slot = np.minimum(n_orders[idx], lead_time_draws.shape[1] - 1)
+                        lead = lead_time_draws[idx, slot].astype(np.int64)
+                    else:
+                        lead = _draw_lead_times(lead_mean[idx], lead_time_cv, rng, lo, hi)
                     arrival = day + lead
                     on_order[idx] += qty
                     n_orders[idx] += 1

@@ -35,7 +35,7 @@ Run it:
 ```
 python cli.py all --preset toy      # build + engine + scoreboard   (~1s)
 python cli.py all --preset full     # 20k materials                 (~33s)
-python -m pytest -q                 # 72 tests
+python -m pytest -q                 # 106 tests
 python -m ruff check .
 ```
 
@@ -49,9 +49,9 @@ produced. `--data-dir` redirects everything, which is how the CLI smoke test wor
 | `sim/` replenishment | Done. Vectorised across items, stochastic lead time, shared by generator and scoring |
 | 1 · generator + answer key | **Done, both presets.** Typed equipment, positions, shutdown overlay, real work orders |
 | 2 · data quality (cap 4) | **Done — all 7 checks + matcher.** 99% recall, 99% precision at full |
-| 3 · classifier (ADI × CV²) | Not started — train slice only, scored against `PROFILE_TO_SBC_CLASS` |
-| 4 · forecast (Croston family) | Not started — **no LightGBM**; MASE per class vs naive and zero |
-| 5 · levels + backtest | Not started — **headline number two** |
+| 3 · classifier (ADI × CV²) | **Done.** Monthly periods, 97.6% agreement with `PROFILE_TO_SBC_CLASS` |
+| 4 · forecast (Croston family) | **Done.** TSB for sparse, SES for the rest; MASE 0.84–0.87, all four beat naive |
+| 5 · levels + backtest | **Done — headline number two.** Total cost −13% on the held-out year |
 | 6a · dead money | Not started — scorer stubbed; engine figure goes beside truth on the dashboard |
 | Screens | Dashboard done (one screen). Item view not started. Vendor the JS before any demo |
 | 8 · chat, thin | Not started — four tools, twenty golden questions |
@@ -107,16 +107,53 @@ equipment being decommissioned mid-history. Only *data* defects are planted.
 > there. Do not tune the generator to make toy land in the industry band — that is
 > fitting to noise.
 
-## Next — step 3, the classifier
+## Headline number two — the backtest, full preset
 
-1. **ADI × CV² on the train slice only.** Scored against `PROFILE_TO_SBC_CLASS`,
-   which is a many-to-many tolerance table on purpose: a truth profile constrains
-   which quadrant is reasonable without determining it, because the quadrant also
-   depends on demand-size variability. Scoring an exact 1:1 match would punish the
-   classifier for being right.
-2. Report the class mix — it should come out majority intermittent/lumpy.
-3. Then step 4 (Croston family, **no LightGBM**), step 5 (levels + backtest, the
-   second headline number), step 6a (dead money), the two screens, and the thin chat.
+The final year (365 days nothing had seen) replayed twice over 24,887 positions on
+**identical demand and identical lead-time draws** — the two policies differ in
+nothing but their levels.
+
+| | plant's min/max | ours | change |
+|---|---|---|---|
+| Days waiting for a part | 842,897 | 492,976 | **−42%** |
+| Units short | 600,292 | 316,017 | **−47%** |
+| Capital on the shelf | SAR 1.367bn | SAR 1.863bn | **+36%** |
+| Cost of being short | SAR 473m | SAR 242m | −49% |
+| Cost of holding | SAR 342m | SAR 466m | +36% |
+| **Both costs together** | **SAR 815m** | **SAR 708m** | **−13%** |
+| Orders placed | 34,808 | 59,425 | +71% |
+
+**Say this out loud, it is the honest framing:** our levels hold *more* stock, not
+less. We spend 36% more capital to buy a 42% cut in days waiting, and the two
+together net out 13% cheaper. That runs the opposite way to the "release cash at the
+same service level" line in the pitch — the cash release belongs to step 6a (dead
+money), not here. Underneath the net, capital moves both ways: SAR 22.5m comes off
+2,577 positions, SAR 519m goes onto 13,997.
+
+By criticality, the improvement lands where it should: A-critical 285,998 → 129,281
+stockout days, B 287,793 → 123,938, C 269,106 → 239,757 (C gets the least, correctly
+— its 80% service level is what its own economics justify).
+
+How the level is set: TSB's demand probability × a bootstrap of the part's own issue
+sizes over lead time + review, quantile taken at that item's newsvendor fractile
+(A 99.4%, B 96.0%, C 80.0%), then floored by criticality. Every position carries a
+sentence — *"Holding 796,179 Grm covers 90% of past 25-day stretches; A-critical,
+9-day lead time."*
+
+**Lead times flagged by step 2 are not used to size stock.** A record saying 3,650
+days produced a reorder point of 35,826 against a plant figure of 318; the material
+group's median is substituted (73 positions) and the reason string says so. That is
+what makes step 2 a check rather than a report.
+
+## Next — step 6a, dead money
+
+1. Engine computes its own dead-money list from step 5's justified quantity plus
+   obsolescence inferred from equipment status and demand cessation. Ranked in SAR
+   at SAP moving average.
+2. Scored against `truth`: SAR found / true / wrongly flagged; obsolete
+   found / missed / falsely flagged. Engine figure sits beside the truth figure.
+3. Then the two screens (per [`docs/reference/UX-NOTES.md`](docs/reference/UX-NOTES.md)),
+   then the thin chat. Transfers, slider and work queue only if all of it is green.
 
 Full order and the exclusions are in [`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-PLAN.md).
 
@@ -141,6 +178,9 @@ Full order and the exclusions are in [`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-P
   value and it is wrong: insurance spares correctly sit still for years.
 - **Fit on `cfg.train_slice()`, score on `cfg.eval_slice()`.** Never touch the
   movements frame directly for either.
+- **Never let the two backtest policies draw their own lead times.** They share one
+  pre-drawn matrix (`sim.replenish.walk(lead_time_draws=…)`). Separate draws make
+  part of any improvement luck, and nothing in the output would show it.
 - **Do not apply `z · σ · √LT` across the board** — wrong for the insurance-spare
   population, which is where the expensive errors are.
 - **Do not let the LLM compute anything.** It calls the engine and narrates.

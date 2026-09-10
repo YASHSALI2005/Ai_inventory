@@ -23,3 +23,6 @@ docs/*.pptx
 # (kept in git on purpose: it is the deliverable)
 docs/progress/POC-PROGRESS-*.docx
 docs/progress/*.tmp.docx
+
+# Office lock files, created whenever a document is open
+~$*
