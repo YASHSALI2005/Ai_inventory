@@ -142,9 +142,14 @@ def score(cfg: RunConfig) -> tuple[list[TypeScore], dict]:
         ),
     }
 
+    payload = {
+        "by_type": [asdict(s) for s in scores],
+        "summary": summary,
+        # written here so the progress document can read results/ and nothing else
+        "duplicate_by_mangle": duplicate_miss_report(cfg, findings=findings),
+    }
     (cfg.results_dir / "defect_score.json").write_text(
-        json.dumps({"by_type": [asdict(s) for s in scores], "summary": summary}, indent=2),
-        encoding="utf-8",
+        json.dumps(payload, indent=2), encoding="utf-8"
     )
     return scores, summary
 
@@ -247,7 +252,7 @@ def score_critical_below_rop(cfg: RunConfig) -> dict:
     }
 
 
-def duplicate_miss_report(cfg: RunConfig) -> dict:
+def duplicate_miss_report(cfg: RunConfig, findings=None) -> dict:
     """
     Which mangle styles the matcher loses to.
 
@@ -261,7 +266,8 @@ def duplicate_miss_report(cfg: RunConfig) -> dict:
     planted = json.loads(
         (cfg.answer_key_dir / S.PLANTED_DEFECTS_FILE).read_text(encoding="utf-8")
     )
-    findings = S.read(S.FINDINGS, cfg.results_dir)
+    if findings is None:
+        findings = S.read(S.FINDINGS, cfg.results_dir)
     found = {
         frozenset({r.material_id, r.related_material_id})
         for r in findings.itertuples()

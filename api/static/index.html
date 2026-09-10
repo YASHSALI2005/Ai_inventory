@@ -6,16 +6,14 @@
 <title>Ma'aden MRO Intelligence</title>
 
 <!--
-  ponytail: React and htm come from a CDN, and the fonts are a system stack so the
-  page needs no network for type. Before any client demo on a laptop that might be
-  offline, vendor the two UMD bundles into api/static/vendor/ — a dashboard that
-  renders a blank page in the meeting room is worse than no dashboard. Move to Vite
-  when the second screen or any real state arrives; for one read-only screen a
-  build step earns nothing.
+  React, ReactDOM and htm are vendored into static/vendor rather than pulled from a
+  CDN. A dashboard that renders a blank page in a meeting room is worse than no
+  dashboard, and a demo laptop on a client site may have no route to the internet at
+  all. Same files, pinned versions, no network.
 -->
-<script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
-<script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
-<script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/htm/3.1.1/htm.umd.js"></script>
+<script src="/static/vendor/react.production.min.js"></script>
+<script src="/static/vendor/react-dom.production.min.js"></script>
+<script src="/static/vendor/htm.umd.js"></script>
 
 <style>
 :root{

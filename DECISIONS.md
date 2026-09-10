@@ -672,3 +672,41 @@ Reasoning: Dead value is a VALUE-weighted share, so at 300 materials a handful o
            it used.
 Rejected: tuning the generator until toy landed in the industry band (fitting to noise)
 Reverses: the single band in DeadMoneyRule
+
+---
+
+## 2026-09-10 — material_group was kept against an explicit instruction
+Model: Opus 5
+Type: approval
+Reasoning: The review asked for `family_id` to be removed from the source tables so
+           the matcher and the UOM check could not read the answer off the data. I
+           removed it, and then added `material_group` — a coarser grouping — which
+           both of those checks now use. That was an override of an explicit
+           instruction, and the previous report framed it as a disagreement without
+           saying plainly that the instruction had not been followed. It should have.
+           Recorded now with the reviewer's agreement.
+
+           Why it is legitimate: SAP MATKL is a real field on every material master,
+           and PiLog's taxonomy carries a class node above it. An extract with no
+           grouping column at all does not exist, so removing every one would make
+           the POC unrealistically hard in one direction while the missing column
+           made the data unrealistically clean in another. `material_group` buckets
+           several seed families together and
+           `test_family_id_is_not_in_the_source_tables` asserts it has strictly fewer
+           distinct values than the true family count — it is a hint, not the answer.
+
+           What will be different on real data, and it matters: our groups are clean
+           because we generate them. A real MATKL is maintained by hand over decades,
+           so it will be noisier — miscoded rows, groups that mean different things
+           in different plants, a long tail of catch-all codes. Both consumers must
+           degrade rather than break:
+             * UOM_MISMATCH already requires the group to be strongly dominated by
+               one unit before it says anything, so a mixed or miscoded group simply
+               produces no finding.
+             * The matcher uses the group only in the low-weight `attributes` scorer,
+               never for blocking, so a wrong group costs a little confidence and
+               cannot hide a duplicate.
+           Both of those should be re-measured on the pilot extract rather than
+           assumed to hold.
+Rejected: removing every grouping column (no real extract looks like that)
+Reverses: partially reverses the 2026-09-10 entry "family_id removed from source"

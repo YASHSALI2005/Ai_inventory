@@ -23,7 +23,7 @@ import pandas as pd
 
 from contracts import schemas as S
 from contracts.config import RunConfig
-from scoring.dataset_report import dead_money
+from scoring.dataset_report import dead_money, measure
 
 SUMMARY_FILE = "summary.json"
 
@@ -56,8 +56,29 @@ def build(cfg: RunConfig) -> dict:
         (cfg.results_dir / S.RUN_MANIFEST_FILE).read_text(encoding="utf-8")
     )
 
+    # The progress document reads results/ and nothing else, so anything it needs to
+    # show has to be written here — including the realism checks and a sample of the
+    # master, which otherwise live only in the source tables.
+    checks = [
+        {"name": c.name, "value": c.value, "target": c.target, "ok": c.ok, "detail": c.detail}
+        for c in measure(cfg)
+    ]
+
+    sample_cols = ["material_id", "material_group", "description", "manufacturer",
+                   "uom", "unit_price_sar", "lead_time_days", "criticality"]
+    sample = (
+        mats.merge(
+            S.read(S.EQUIPMENT, cfg.source_dir)[["equipment_id", "name"]],
+            on="equipment_id", how="left",
+        )
+        .sample(n=min(8, len(mats)), random_state=cfg.seed)[sample_cols + ["name"]]
+        .rename(columns={"name": "fitted_to"})
+    )
+
     summary = {
         "run": manifest,
+        "dataset_checks": checks,
+        "sample_materials": sample.to_dict("records"),
         "counts": {
             "materials": int(len(mats)),
             "positions": int(len(stock)),

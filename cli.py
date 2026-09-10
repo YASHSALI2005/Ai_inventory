@@ -117,13 +117,32 @@ def cmd_score(args) -> int:
     return 0
 
 
+def cmd_report(args) -> int:
+    """Rebuild the progress document from results/. Never hand-edited."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from docs.progress.make_progress_docx import build_document
+
+    cfg = _cfg(args)
+    try:
+        out = build_document(cfg)
+    except FileNotFoundError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    print(f"progress document: {out}  ({out.stat().st_size / 1024:.0f} KB)")
+    return 0
+
+
 def cmd_all(args) -> int:
     for fn in (cmd_build, cmd_run):
         rc = fn(args)
         if rc:
             return rc
         print()
-    return cmd_score(args)
+    rc = cmd_score(args)
+    if rc:
+        return rc
+    print()
+    return cmd_report(args)
 
 
 def cmd_serve(args) -> int:
@@ -175,7 +194,8 @@ def main(argv: list[str] | None = None) -> int:
         ("build", cmd_build, "generate the dataset and the answer key"),
         ("run", cmd_run, "execute the engine over the dataset"),
         ("score", cmd_score, "grade the engine against the answer key"),
-        ("all", cmd_all, "build, run, score"),
+        ("report", cmd_report, "rebuild the progress document from results"),
+        ("all", cmd_all, "build, run, score, report"),
         ("serve", cmd_serve, "run the API"),
     ):
         parser = sub.add_parser(name, parents=[common], help=helptext)
