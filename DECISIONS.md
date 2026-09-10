@@ -1168,3 +1168,20 @@ Model: Fable 5.1
 Type: decision
 Reasoning: .xlsx needs openpyxl or a vendored JS library — a new dependency for a
            file Excel opens either way. The BOM makes Excel read UTF-8 correctly.
+
+
+## 2026-09-10 — Tables are laid out to the card; charts answer the pointer
+Model: Fable 5.1
+Type: decision
+Reasoning: The board had a horizontal scrollbar at laptop width and the column
+           that mattered least had pushed the ones that mattered most off the
+           edge; the user's screenshot showed the part names clipped. Tables are
+           now `table-layout: fixed` with explicit widths and wrapping text, and
+           the card clips rather than scrolls — a test fails on any `min-width`.
+           "Make the graphs dynamic" was read as interactive rather than live:
+           tooltips with exact figures on every chart, click-through from a store
+           bar or segment, a store selector on the dashboard that re-scopes tiles
+           and the monthly line (per-store series precomputed, not summed in the
+           browser), and an entry animation that respects reduced-motion.
+Rejected: a chart library (a new vendored dependency for hover text); summing
+          25,000 arrays in the browser on every store change.

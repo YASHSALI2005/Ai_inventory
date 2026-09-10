@@ -288,6 +288,17 @@ def by_storeroom(df: pd.DataFrame) -> list[dict]:
                 ),
                 "class_mix": {k: int(v) for k, v in
                               grp["demand_class"].value_counts().items()},
+                # the dashboard can be filtered to one store, so each store carries
+                # the same series the plant-wide line uses — cheap, 60 floats a store
+                "series": plant_wide(grp),
+                "critical_below_level_count": int(
+                    ((grp["criticality"] == "A")
+                     & (grp["on_hand"].clip(lower=0.0) < grp["reorder_point"])).sum()
+                ),
+                "critical_below_level_sar": float(grp.loc[
+                    (grp["criticality"] == "A")
+                    & (grp["on_hand"].clip(lower=0.0) < grp["reorder_point"]),
+                    "cost_to_level_sar"].sum()),
                 "top_by_value": _brief(grp.nlargest(5, "value_sar")),
                 "top_to_act": _brief(
                     grp[grp["action"].isin(["order_now", "stocked_elsewhere"])]

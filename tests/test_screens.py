@@ -274,3 +274,41 @@ def test_an_older_position_file_degrades_to_a_blank_column_not_an_error(built, t
     assert older.get("/api/recommendations").status_code == 409, (
         "recommendations need the new columns and should say so, not 500"
     )
+
+
+# ── round 5: tables fit, charts answer the pointer ───────────────────────────
+
+
+def test_tables_never_scroll_sideways():
+    """
+    The first complaint about the board was a horizontal scrollbar: the column that
+    mattered — what to do — was fine, the one on the right had gone off the edge.
+    Tables are laid out to the card and text wraps; nothing sets a minimum width.
+    """
+    text = (STATIC / "index.html").read_text(encoding="utf-8")
+    css = text.split("</style>")[0]
+    assert "table-layout:fixed" in css
+    assert "min-width:640px" not in css, "a minimum width is a scrollbar waiting to happen"
+    assert "overflow-x:auto" not in css.split("table{")[0].split(".card{")[-1], (
+        "the card must clip, not scroll"
+    )
+
+
+def test_every_chart_answers_the_pointer():
+    text = (STATIC / "index.html").read_text(encoding="utf-8")
+    js = text.split("<script>")[-1]
+    for chart in ("function Bars(", "function Stacked(", "function PlantLine(",
+                  "function Frontier(", "function UsageChart("):
+        body = js.split(chart, 1)[1].split("\nfunction ", 1)[0]
+        assert "useTip()" in body, f"{chart} has no tooltip"
+    assert 'prefers-reduced-motion' in text, "motion must be optional"
+
+
+def test_the_dashboard_can_be_scoped_to_one_store(client):
+    stores = client.get("/api/storerooms").json()["by_storeroom"]
+    for r in stores:
+        assert "series" in r and len(r["series"]["usage_months"]) == 36
+        assert len(r["series"]["forecast_months"]) == 12
+        assert "critical_below_level_count" in r
+    text = (STATIC / "index.html").read_text(encoding="utf-8")
+    assert 'startsWith("@")' in text, "the chosen store lives in the hash so a link keeps it"

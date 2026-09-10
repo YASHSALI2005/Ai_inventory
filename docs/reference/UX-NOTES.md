@@ -122,6 +122,8 @@ words.
 | **Storeroom cards** with top-five lists, click-through to the store's parts | Noah's site table, but a card can carry the two lists a manager actually asks for. |
 | **Recommendations** as three tabs ranked by money with a total and an export | The "what do I do with this" page. Noah never had one; the reference board *was* the to-do list. Here the board is the diagnosis and this page is the prescription. |
 | **"Order by" and "runs out around"** on below-level rows | Noah's "runs out 12 Sat / order by 10 Thu", adapted: the data's own today, not the wall clock. |
+| **Tables fit the card** — fixed layout, wrapping text, no sideways scroll | The user's screenshot: part names clipped on the left after scrolling right to find the value column. A scrollbar on a table means the layout gave up. |
+| **Charts answer the pointer** — tooltips with exact figures, click a store to open it, a store selector that re-scopes the dashboard, entry motion | Noah's charts were static. A number you can hover is a number you can check in the meeting without leaving the page. Motion is off under reduced-motion. |
 | **Drawer**: what to do first in the accent, one stat row, chart, reason in a quiet panel at the bottom | Round 2 had the reason above the chart; round 3 asked for it below. The chart now overlays the forecast on the tested year instead of drawing it a year to the right — that was a bug, not a choice. |
 
 ## Status — built 2026-09-10

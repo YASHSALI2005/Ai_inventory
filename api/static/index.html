@@ -121,15 +121,21 @@ h2{font-size:12px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;
 
 /* ── tables ───────────────────────────────────────────────────────────────── */
 .card{background:var(--surface);border-radius:8px;box-shadow:var(--shadow);
-  overflow-x:auto}
-table{border-collapse:collapse;width:100%;font-size:14px;min-width:640px}
+  overflow:hidden}
+/* Tables are laid out to the card, never wider. Text wraps; numbers do not. A
+   horizontal scrollbar on a table is a planner reaching for the mouse to find the
+   column that mattered — the one on the right. */
+table{border-collapse:collapse;width:100%;font-size:14px;table-layout:fixed}
 th{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
   color:var(--muted);text-align:left;padding:14px 16px 12px;
   border-bottom:1px solid var(--line-2);white-space:nowrap;vertical-align:bottom}
 th.n,td.n{text-align:right}
 th .info{margin-left:2px}
-td{padding:13px 16px;border-bottom:1px solid var(--line);white-space:nowrap;
-  vertical-align:middle;line-height:1.4}
+td{padding:12px 14px;border-bottom:1px solid var(--line);white-space:normal;
+  vertical-align:middle;line-height:1.4;overflow-wrap:anywhere}
+td.n,td.nw{white-space:nowrap}
+th{white-space:normal;line-height:1.3}
+th .info{vertical-align:baseline}
 tbody tr:last-child td{border-bottom:none}
 tr.total td{font-weight:600;border-top:1px solid var(--line-2);background:var(--tint)}
 tr.click{cursor:pointer}
@@ -138,7 +144,7 @@ tr.click:hover td{background:var(--tint)}
 .strong{font-weight:600;color:var(--ink)}
 .acc{color:var(--accent);font-weight:600}
 td .sub{font-size:12px;color:var(--muted);margin-top:3px;white-space:normal}
-td.item{white-space:normal;max-width:240px;min-width:180px}
+td.item{white-space:normal}
 td.item .d{font-weight:500;line-height:1.35}
 td.n .u{font-size:11px;color:var(--muted)}
 .spark{display:block}
@@ -210,7 +216,25 @@ input[type=search]{min-width:290px}
 
 /* ── charts ───────────────────────────────────────────────────────────────── */
 .chartbox{background:var(--surface);border-radius:8px;box-shadow:var(--shadow);
-  padding:18px 18px 12px;overflow-x:auto}
+  padding:18px 18px 12px;overflow:hidden;position:relative}
+.chartbox svg{min-width:0 !important}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--ground);
+  font-size:12.5px;line-height:1.45;padding:8px 11px;border-radius:5px;z-index:5;
+  box-shadow:0 6px 18px -6px rgba(0,0,0,.5);max-width:260px;transform:translate(-50%,calc(-100% - 12px))}
+.tip b{color:var(--ground);font-weight:600}
+.tip .mono{font-family:Consolas,monospace;opacity:.9}
+.hit{cursor:pointer}
+@keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes rise{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes draw{to{stroke-dashoffset:0}}
+.anim .bar{transform-origin:left center;animation:grow .6s cubic-bezier(.2,.7,.2,1) both}
+.anim .col{transform-box:fill-box;transform-origin:bottom;animation:rise .5s cubic-bezier(.2,.7,.2,1) both}
+.anim .line{stroke-dasharray:2400;stroke-dashoffset:2400;animation:draw 1.1s ease-out forwards}
+.anim .pt{animation:fade .4s ease both}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.anim .bar,.anim .col,.anim .line,.anim .pt{animation:none;stroke-dashoffset:0}}
+.storepick{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 16px}
+.storepick .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .legend{display:flex;flex-wrap:wrap;gap:18px;font-size:12.5px;color:var(--muted);
   margin-top:10px}
 .legend i{display:inline-block;width:10px;height:10px;margin-right:6px;border-radius:2px;
@@ -281,9 +305,9 @@ footer.run{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);
 .shell.present .problem .words p{font-size:28px}
 .shell.present .problem .big .v{font-size:72px}
 .shell.present .problem .big .k{font-size:17px}
-.shell.present table{font-size:16px}
+.shell.present table{font-size:15px}
 .shell.present th{font-size:12px}
-.shell.present td{padding:15px 18px}
+.shell.present td{padding:14px 12px}
 .shell.present .headline{font-size:20px}
 .shell.present .headline b{font-size:23px}
 .shell.present .lede-p{font-size:20px}
@@ -559,9 +583,13 @@ function Spark({ values }) {
          role="img" aria-label="last twelve months of use">
       <line x1="0" x2=${W} y1=${H - 0.5} y2=${H - 0.5} stroke="var(--line-2)" />
       ${values.map((v, i) => html`
-        <rect key=${i} x=${i * (W / n) + 0.8} width=${bw}
-              y=${H - 1 - (v / peak) * (H - 3)} height=${Math.max(0.6, (v / peak) * (H - 3))}
-              fill=${i === n - 1 ? "var(--ink)" : "var(--faint)"} />`)}
+        <g key=${i}>
+          <title>${num1(v)} — ${i === n - 1 ? "last month" : (n - 1 - i) + " months ago"}</title>
+          <rect x=${i * (W / n)} width=${W / n} y="0" height=${H} fill="transparent" />
+          <rect x=${i * (W / n) + 0.8} width=${bw}
+                y=${H - 1 - (v / peak) * (H - 3)} height=${Math.max(0.6, (v / peak) * (H - 3))}
+                fill=${i === n - 1 ? "var(--ink)" : "var(--faint)"} />
+        </g>`)}
     </svg>`;
 }
 function Loading() {
@@ -578,9 +606,21 @@ function Failed({ what, detail }) {
 }
 
 /* ── 1 · dashboard ────────────────────────────────────────────────────────── */
-function Dashboard({ summary, stores, bt, fr }) {
+function Dashboard({ summary, stores, bt, fr, store, setStore }) {
   const inv = summary.inventory, run = summary.run;
   const ch = (bt && bt.change) || {};
+  const rows = (stores && stores.by_storeroom) || [];
+  const picked = rows.find(r => r.storeroom_id === store) || null;
+  // one store's figures come from its own row; the plant's from the report
+  const scope = picked ? {
+    value: picked.value_sar, parts: picked.positions, stores_n: 1,
+    critical_n: picked.critical_below_level_count, critical_sar: picked.critical_below_level_sar,
+    idle: picked.idle_count, series: picked.series,
+  } : stores ? {
+    value: inv.total_stock_value_sar, parts: summary.counts.positions, stores_n: summary.counts.storerooms,
+    critical_n: stores.critical_below_level_count, critical_sar: stores.critical_below_level_sar,
+    idle: inv.idle_24m_count, series: stores.plant,
+  } : null;
   const start = monthLabel(run.history_start.slice(0, 7), 0, true);
   const end = monthLabel(run.history_end.slice(0, 7), 0, true);
   const learned = monthLabel(run.cutoff_date.slice(0, 7), 0, true);
@@ -593,15 +633,25 @@ function Dashboard({ summary, stores, bt, fr }) {
              lede=${"four numbers, then four pictures. The numbers are the size of the "
                     + "problem and the size of the improvement; the pictures are where "
                     + "the stock is, how it moves, and what a service level costs."}>
+      ${rows.length > 0 && html`
+        <div className="storepick">
+          <span className="chiplab" style=${{ width: "auto" }}>Show</span>
+          <button className=${"chip" + (!store ? " on" : "")} onClick=${() => setStore("")}>Whole plant</button>
+          ${rows.map(r => html`
+            <button key=${r.storeroom_id} className=${"chip" + (store === r.storeroom_id ? " on" : "")}
+                    onClick=${() => setStore(store === r.storeroom_id ? "" : r.storeroom_id)}>${r.storeroom_id}</button>`)}
+        </div>`}
       <div className="tiles">
-        <${Tile} value=${M(inv.total_stock_value_sar)} label="Stock on the shelves"
+        <${Tile} value=${scope ? M(scope.value) : M(inv.total_stock_value_sar)}
+                 label=${picked ? "Stock on the shelves in " + store : "Stock on the shelves"}
                  tip=${TIP.stock_value}
-                 sub=${num(summary.counts.positions) + " parts across " + summary.counts.storerooms + " storerooms"} />
+                 sub=${scope ? num(scope.parts) + " parts" + (picked ? "" : " across " + scope.stores_n + " storerooms") : ""} />
         <${Tile} key_ value=${M(inv.dead_value_sar)} label="Money that will never come back"
-                 tip=${TIP.dead} sub=${pct(inv.dead_value_share) + " of everything on the shelves"} />
-        <${Tile} value=${stores ? num(stores.critical_below_level_count) : "—"}
-                 label="Critical parts below their safe level" tip=${TIP.critical_low}
-                 sub=${stores ? M(stores.critical_below_level_sar) + " to bring them back to level" : ""} />
+                 tip=${TIP.dead} sub=${pct(inv.dead_value_share) + " of everything on the shelves" + (picked ? " — plant-wide; the store split arrives with the dead-money step" : "")} />
+        <${Tile} value=${scope ? num(scope.critical_n) : "—"}
+                 label=${picked ? "Critical parts below level in " + store : "Critical parts below their safe level"}
+                 tip=${TIP.critical_low}
+                 sub=${scope ? M(scope.critical_sar) + " to bring them back to level" : ""} />
         ${bt && html`<${Tile} value=${signPct(ch.stockout_days)}
                  label="Days jobs waited for a part, with our levels" tip=${TIP.backtest}
                  sub=${"holding " + signPct(ch.avg_capital_sar) + " more stock; all costs " + signPct(ch.total_cost_sar)} />`}
@@ -611,18 +661,19 @@ function Dashboard({ summary, stores, bt, fr }) {
         <div className="charts">
           <div className="chartbox">
             <div className="chart-title">Value on the shelf, by store <${Info} text=${TIP.value_on_shelf} /></div>
-            <${Bars} rows=${stores.by_storeroom.map(r => ({ label: r.storeroom_id, value: r.value_sar }))}
-                     fmt=${Mshort} />
+            <${Bars} rows=${rows.map(r => ({ label: r.storeroom_id, value: r.value_sar, parts: r.positions }))}
+                     fmt=${Mshort} picked=${store} onPick=${setStore} />
           </div>
           <div className="chartbox">
             <div className="chart-title">How the parts move, by store <${Info} text=${TIP.mix} /></div>
-            <${Stacked} rows=${stores.by_storeroom} />
+            <${Stacked} rows=${rows} picked=${store} onPick=${setStore} />
             <div className="chart-legend">${CLASS_ORDER.map(k => html`
               <span key=${k}><i style=${{ background: CLASS_SHADE[k] }}></i>${CLASS_LABEL[k]}</span>`)}</div>
           </div>
           <div className="chartbox wide">
-            <div className="chart-title">The whole plant, month by month <${Info} text=${TIP.plantline} /></div>
-            <${PlantLine} plant=${stores.plant} />
+            <div className="chart-title">${picked ? store + ", month by month" : "The whole plant, month by month"}
+              <${Info} text=${TIP.plantline} /></div>
+            <${PlantLine} plant=${scope && scope.series ? scope.series : stores.plant} key=${store || "plant"} />
           </div>
           ${fr && fr.curve && html`
             <div className="chartbox wide">
@@ -723,6 +774,8 @@ function Storerooms({ stores, setOpen, store, setStore }) {
       </div>
       <div className="card">
         <table>
+          <colgroup><col style=${{ width: "42%" }} /><col style=${{ width: "13%" }} /><col style=${{ width: "20%" }} />
+            <col style=${{ width: "10%" }} /><col style=${{ width: "15%" }} /></colgroup>
           <thead><tr><th>Part</th><th className="n">How many</th><th>From → to</th>
             <th>If missing <${Info} text=${TIP.crit} /></th>
             <th className="n">Saved vs buying <${Info} text=${TIP.saved} /></th></tr></thead>
@@ -731,7 +784,7 @@ function Storerooms({ stores, setOpen, store, setStore }) {
               <td className="item"><div className="d">${r.description}</div>
                 <div className="sub">${r.to_storeroom} has ${num1(r.to_on_hand)} and needs ${num1(r.to_reorder_point)}</div></td>
               <td className="n">${num1(r.qty)} <span className="u">${r.uom}</span></td>
-              <td className="strong">${r.from_storeroom} → ${r.to_storeroom}</td>
+              <td className="strong nw">${r.from_storeroom} → ${r.to_storeroom}</td>
               <td><span className=${"crit " + r.criticality}>${r.criticality}</span></td>
               <td className="n acc">${M(r.value_sar)}</td>
             </tr>`)}
@@ -819,14 +872,19 @@ function Board({ setOpen }) {
 
       <div className="card">
         <table>
+          <colgroup>
+            <col style=${{ width: "24%" }} /><col style=${{ width: "13%" }} /><col style=${{ width: "14%" }} />
+            <col style=${{ width: "10%" }} /><col style=${{ width: "7%" }} /><col style=${{ width: "10%" }} />
+            <col style=${{ width: "11%" }} /><col style=${{ width: "11%" }} />
+          </colgroup>
           <thead><tr>
             <th>Part</th>
             <th>What to do <${Info} text=${TIP.what_to_do} /></th>
             <th>Order by <${Info} text=${TIP.order_by + " " + TIP.runs_out} /></th>
-            <th>Last 12 months <${Info} text=${TIP.trend} /></th>
-            <th>If missing <${Info} text=${TIP.crit} /></th>
+            <th>12 months <${Info} text=${TIP.trend} /></th>
+            <th>Crit <${Info} text=${TIP.crit} /></th>
             <th className="n">On shelf <${Info} text=${TIP.on_hand} /></th>
-            <th className="n">Our level <${Info} text=${TIP.reorder} /></th>
+            <th className="n">Level <${Info} text=${TIP.reorder} /></th>
             <th className="n">Value <${Info} text=${TIP.value_on_shelf} /></th>
           </tr></thead>
           <tbody>
@@ -838,7 +896,7 @@ function Board({ setOpen }) {
                   <div className="sub">${r.material_id} · ${r.storeroom_id} ·
                     ${" "}<${Tag} kind="c" value=${r.demand_class} tip=${CLASS_TIP[r.demand_class]} /></div>
                 </td>
-                <td><${Action} value=${r.action} qty=${r.order_now_qty} uom=${r.uom} /></td>
+                <td className="nw"><${Action} value=${r.action} qty=${r.order_now_qty} uom=${r.uom} /></td>
                 <td>${below(r)
                   ? html`<div className="strong">${orderBy(r)}</div><div className="when">${runsOut(r)}</div>`
                   : html`<span className="dim">—</span>`}</td>
@@ -904,6 +962,8 @@ function Recommendations({ setOpen }) {
           <a className="export" href="/api/recommendations/orders.csv" download="orders.csv">Export to Excel (CSV)</a>
         </div>
         <div className="card"><table>
+          <colgroup><col style=${{ width: "30%" }} /><col style=${{ width: "11%" }} /><col style=${{ width: "13%" }} />
+            <col style=${{ width: "12%" }} /><col style=${{ width: "34%" }} /></colgroup>
           <thead><tr><th>Part</th><th className="n">Quantity</th><th>Order by <${Info} text=${TIP.order_by} /></th>
             <th className="n">Cost <${Info} text=${TIP.order_cost} /></th><th>Why this level</th></tr></thead>
           <tbody>${o.rows.map(r => html`
@@ -912,9 +972,9 @@ function Recommendations({ setOpen }) {
                 <div className="sub">${r.material_id} · ${r.storeroom_id} · <span className=${"crit " + r.criticality}>${r.criticality}</span>
                   ${" · " + num1(r.on_hand) + " on shelf, level " + num1(r.reorder_point)}</div></td>
               <td className="n strong">${num1(r.order_now_qty)} <span className="u">${r.uom}</span></td>
-              <td className="strong">${orderBy(r)}</td>
+              <td className="strong nw">${orderBy(r)}</td>
               <td className="n acc">${M(r.order_cost_sar)}</td>
-              <td className="dim" style=${{ whiteSpace: "normal", maxWidth: "340px", fontSize: "13px" }}>${r.reason}</td>
+              <td className="dim" style=${{ fontSize: "13px" }}>${r.reason}</td>
             </tr>`)}</tbody>
         </table></div>`}
 
@@ -949,54 +1009,88 @@ function Recommendations({ setOpen }) {
     <//>`;
 }
 /* ── charts ────────────────────────────────────────────────────────────────────
-   All inline SVG, one style: thin axes, muted gridlines, one series highlighted.  */
-function Bars({ rows, fmt }) {
+   All inline SVG, one style: thin axes, muted gridlines, one series highlighted.
+   Every chart answers the pointer: a tooltip with the exact figures, and a click
+   where there is somewhere to go.                                                */
+function useTip() {
+  const [tip, setTip] = useState(null);
+  const show = (e, content) => {
+    const box = e.currentTarget.closest(".chartbox") || e.currentTarget.parentElement;
+    const r = box.getBoundingClientRect();
+    setTip({ x: e.clientX - r.left, y: e.clientY - r.top, content });
+  };
+  const hide = () => setTip(null);
+  const node = tip ? html`<div className="tip" style=${{ left: tip.x + "px", top: tip.y + "px" }}>${tip.content}</div>` : null;
+  return [show, hide, node];
+}
+
+function Bars({ rows, fmt, picked, onPick }) {
   const W = 480, H = 40 * rows.length + 10, L = 96, R = 90;
   const iw = W - L - R;
   const peak = Math.max(1, ...rows.map(r => r.value));
+  const [show, hide, tipNode] = useTip();
   return html`
-    <svg viewBox=${"0 0 " + W + " " + H} width="100%" style=${{ display: "block" }} role="img"
-         aria-label="value by store">
-      ${rows.map((r, i) => html`
-        <g key=${r.label}>
-          <text x=${L - 12} y=${i * 40 + 25} textAnchor="end" fill="var(--ink-2)" fontSize="13" fontWeight="600">${r.label}</text>
-          <rect x=${L} y=${i * 40 + 10} width=${Math.max(2, (r.value / peak) * iw)} height="22" rx="2"
-                fill=${i === 0 ? "var(--ink)" : "var(--faint)"} />
-          <text x=${L + (r.value / peak) * iw + 10} y=${i * 40 + 25} fill="var(--ink-2)" fontSize="12.5"
-                fontFamily="Consolas,monospace">${fmt(r.value)}</text>
-        </g>`)}
-    </svg>`;
+    <div className="anim">
+      <svg viewBox=${"0 0 " + W + " " + H} width="100%" style=${{ display: "block" }} role="img"
+           aria-label="value by store">
+        ${rows.map((r, i) => {
+          const on = picked ? picked === r.label : i === 0;
+          return html`
+          <g key=${r.label} className="hit"
+             onMouseMove=${e => show(e, html`<b>${r.label}</b><br/><span className="mono">${M(r.value)}</span> on the shelf<br/>${num(r.parts)} parts · click to open`)}
+             onMouseLeave=${hide} onClick=${() => onPick && onPick(picked === r.label ? "" : r.label)}>
+            <rect x="0" y=${i * 40} width=${W} height="40" fill="transparent" />
+            <text x=${L - 12} y=${i * 40 + 25} textAnchor="end" fill="var(--ink-2)" fontSize="13" fontWeight="600">${r.label}</text>
+            <rect className="bar" x=${L} y=${i * 40 + 10} width=${Math.max(2, (r.value / peak) * iw)} height="22" rx="2"
+                  fill=${on ? (picked ? "var(--accent)" : "var(--ink)") : "var(--faint)"}
+                  style=${{ animationDelay: (i * 60) + "ms" }} />
+            <text x=${L + (r.value / peak) * iw + 10} y=${i * 40 + 25} fill="var(--ink-2)" fontSize="12.5"
+                  fontFamily="Consolas,monospace">${fmt(r.value)}</text>
+          </g>`;
+        })}
+      </svg>
+      ${tipNode}
+    </div>`;
 }
 
-function Stacked({ rows }) {
+function Stacked({ rows, picked, onPick }) {
   const W = 480, H = 40 * rows.length + 10, L = 96, R = 16;
   const iw = W - L - R;
+  const [show, hide, tipNode] = useTip();
   return html`
-    <div>
+    <div className="anim">
       <svg viewBox=${"0 0 " + W + " " + H} width="100%" style=${{ display: "block" }} role="img"
            aria-label="how the parts move, by store">
         ${rows.map((r, i) => {
           const total = Object.values(r.class_mix).reduce((a, b) => a + b, 0) || 1;
           let x = L;
+          const dim = picked && picked !== r.storeroom_id;
           return html`
-            <g key=${r.storeroom_id}>
+            <g key=${r.storeroom_id} className="hit" opacity=${dim ? 0.45 : 1}
+               onClick=${() => onPick && onPick(picked === r.storeroom_id ? "" : r.storeroom_id)}>
               <text x=${L - 12} y=${i * 40 + 25} textAnchor="end" fill="var(--ink-2)" fontSize="13" fontWeight="600">${r.storeroom_id}</text>
               ${CLASS_ORDER.map(k => {
-                const w = ((r.class_mix[k] || 0) / total) * iw;
-                const el = html`<rect key=${k} x=${x} y=${i * 40 + 10} width=${Math.max(0, w - 1)} height="22"
-                                      fill=${CLASS_SHADE[k]} />`;
+                const n = r.class_mix[k] || 0, w = (n / total) * iw, x0 = x;
                 x += w;
-                return el;
+                return html`<rect key=${k} className="bar" x=${x0} y=${i * 40 + 10} width=${Math.max(0, w - 1)} height="22"
+                                  fill=${CLASS_SHADE[k]} style=${{ animationDelay: (i * 60) + "ms" }}
+                                  onMouseMove=${e => show(e, html`<b>${r.storeroom_id}</b> · ${CLASS_LABEL[k]}<br/>
+                                    <span className="mono">${num(n)}</span> parts, ${pct(n / total)} of the store<br/>
+                                    <span style=${{ opacity: .75 }}>${CLASS_TIP[k]}</span>`)}
+                                  onMouseLeave=${hide} />`;
               })}
             </g>`;
         })}
       </svg>
+      ${tipNode}
     </div>`;
 }
 
 /* Plant-wide monthly usage as a line, with the forecast laid over the last twelve
    months — the year the system was never shown — so the two can be compared.    */
 function PlantLine({ plant }) {
+  const [hover, setHover] = useState(null);
+  const [show, hide, tipNode] = useTip();
   if (!plant) return null;
   const W = 1000, H = 250, L = 64, R = 20, T = 18, B = 40;
   const iw = W - L - R, ih = H - T - B;
@@ -1009,10 +1103,23 @@ function PlantLine({ plant }) {
   const fcPath = line(f.map((v, i) => ({ i: tm + i, v: v + (plant.known_months[i] || 0) })));
   const ticks = [];
   for (let i = 0; i < n; i += 6) ticks.push(i);
+  const onMove = e => {
+    const svg = e.currentTarget;
+    const box = svg.getBoundingClientRect();
+    const px = ((e.clientX - box.left) / box.width) * W;
+    const i = Math.max(0, Math.min(n - 1, Math.round(((px - L) / iw) * (n - 1))));
+    setHover(i);
+    const fi = i - tm;
+    const exp = fi >= 0 && fi < f.length ? f[fi] + (plant.known_months[fi] || 0) : null;
+    show(e, html`<b>${monthLabel(plant.months_start, i, true)}</b><br/>
+      <span className="mono">${num(u[i])}</span> given out
+      ${exp !== null ? html`<br/><span className="mono">${num(exp)}</span> expected` : ""}`);
+  };
   return html`
-    <div>
-      <svg viewBox=${"0 0 " + W + " " + H} width="100%" style=${{ display: "block", minWidth: "640px" }}
-           role="img" aria-label="plant-wide monthly usage and forecast">
+    <div className="anim">
+      <svg viewBox=${"0 0 " + W + " " + H} width="100%" style=${{ display: "block" }}
+           role="img" aria-label="plant-wide monthly usage and forecast"
+           onMouseMove=${onMove} onMouseLeave=${() => { setHover(null); hide(); }}>
         ${[0, 0.5, 1].map(fr => html`
           <g key=${fr}>
             <line x1=${L} x2=${W - R} y1=${Y(peak * fr)} y2=${Y(peak * fr)} stroke="var(--line)" />
@@ -1022,21 +1129,30 @@ function PlantLine({ plant }) {
         <rect x=${X(tm)} y=${T} width=${X(n - 1) - X(tm)} height=${ih} fill="var(--tint)" opacity="0.7" />
         <line x1=${X(tm)} x2=${X(tm)} y1=${T} y2=${T + ih} stroke="var(--ink)" strokeDasharray="4 3" />
         <text x=${X(tm) + 6} y=${T + 12} fill="var(--muted)" fontSize="11" fontFamily="Consolas,monospace">learned up to here</text>
-        <path d=${usagePath} fill="none" stroke="var(--ink-2)" strokeWidth="1.8" />
-        <path d=${fcPath} fill="none" stroke="var(--accent)" strokeWidth="2.2" />
+        <path className="line" d=${usagePath} fill="none" stroke="var(--ink-2)" strokeWidth="1.8" />
+        <path className="line" d=${fcPath} fill="none" stroke="var(--accent)" strokeWidth="2.2" />
         <line x1=${L} x2=${W - R} y1=${T + ih} y2=${T + ih} stroke="var(--line-2)" />
         ${ticks.map(i => html`
           <text key=${i} x=${X(i)} y=${H - 14} textAnchor="middle" fill="var(--muted)" fontSize="11"
                 fontFamily="Consolas,monospace">${monthLabel(plant.months_start, i)}</text>`)}
+        ${hover !== null && html`
+          <g>
+            <line x1=${X(hover)} x2=${X(hover)} y1=${T} y2=${T + ih} stroke="var(--muted)" strokeDasharray="2 3" />
+            <circle cx=${X(hover)} cy=${Y(u[hover])} r="4" fill="var(--ink)" />
+            ${hover >= tm && (hover - tm) < f.length && html`
+              <circle cx=${X(hover)} cy=${Y(f[hover - tm] + (plant.known_months[hover - tm] || 0))} r="4" fill="var(--accent)" />`}
+          </g>`}
       </svg>
+      ${tipNode}
       <div className="legend">
-        <span><i style=${{ background: "var(--ink-2)" }}></i>units given out, whole plant</span>
+        <span><i style=${{ background: "var(--ink-2)" }}></i>units given out</span>
         <span><i style=${{ background: "var(--accent)" }}></i>what the system expected for the last year, including scheduled work</span>
       </div>
     </div>`;
 }
 
 function Frontier({ fr, compact }) {
+  const [show, hide, tipNode] = useTip();
   if (!fr || !fr.curve) return null;
   const W = 1000, H = compact ? 300 : 340, L = 86, R = 170, T = 20, B = 56;
   const iw = W - L - R, ih = H - T - B;
@@ -1051,9 +1167,13 @@ function Frontier({ fr, compact }) {
   const path = pts.map((p, i) => (i ? "L" : "M") + X(p.x).toFixed(1) + " " + Y(p.y).toFixed(1)).join(" ");
   const ticksY = [0, 0.25, 0.5, 0.75, 1].map(f => y0 + (y1 - y0) * f);
   const ticksX = [0, 0.25, 0.5, 0.75, 1].map(f => x0 + (x1 - x0) * f);
+  const tipFor = (label, r) => html`<b>${label}</b><br/>
+    <span className="mono">${num(r.stockout_days)}</span> days waiting<br/>
+    <span className="mono">${M(r.avg_capital_sar)}</span> on the shelves<br/>
+    <span className="mono">${M(r.total_cost_sar)}</span> all costs together`;
   return html`
-    <div>
-      <svg viewBox=${"0 0 " + W + " " + H} width="100%" style=${{ minWidth: "640px", display: "block" }}
+    <div className="anim">
+      <svg viewBox=${"0 0 " + W + " " + H} width="100%" style=${{ display: "block" }}
            role="img" aria-label="value on the shelves against days waiting">
         ${ticksY.map((v, i) => html`
           <g key=${"y" + i}>
@@ -1066,23 +1186,32 @@ function Frontier({ fr, compact }) {
                 fontFamily="Consolas,monospace">${num(v)}</text>`)}
         <line x1=${L} x2=${W - R} y1=${T + ih} y2=${T + ih} stroke="var(--line-2)" />
         <line x1=${L} x2=${L} y1=${T} y2=${T + ih} stroke="var(--line-2)" />
-        <path d=${path} fill="none" stroke="var(--ink-2)" strokeWidth="1.6" />
+        <path className="line" d=${path} fill="none" stroke="var(--ink-2)" strokeWidth="1.6" />
         ${pts.map((p, i) => html`
-          <g key=${"p" + i}>
-            <circle cx=${X(p.x)} cy=${Y(p.y)} r="3.2" fill="var(--surface)" stroke="var(--ink-2)" strokeWidth="1.4" />
+          <g key=${"p" + i} className="hit"
+             onMouseMove=${e => show(e, tipFor(pct(p.s) + " service for every part", fr.curve[i]))} onMouseLeave=${hide}>
+            <circle cx=${X(p.x)} cy=${Y(p.y)} r="9" fill="transparent" />
+            <circle className="pt" cx=${X(p.x)} cy=${Y(p.y)} r="3.2" fill="var(--surface)" stroke="var(--ink-2)" strokeWidth="1.4" />
             ${(i === 0 || i === pts.length - 1) && html`
               <text x=${X(p.x) + (i === 0 ? 9 : -9)} y=${Y(p.y) + 4} textAnchor=${i === 0 ? "start" : "end"}
                     fill="var(--muted)" fontSize="11" fontFamily="Consolas,monospace">${pct(p.s)} service</text>`}
           </g>`)}
-        <circle cx=${X(plant.x)} cy=${Y(plant.y)} r="6" fill="var(--surface)" stroke="var(--ink)" strokeWidth="2" />
-        <text x=${X(plant.x) + 11} y=${Y(plant.y) + 4} fill="var(--ink)" fontSize="12.5" fontWeight="600">the plant today</text>
-        <circle cx=${X(ours.x)} cy=${Y(ours.y)} r="7" fill="var(--accent)" />
-        <text x=${X(ours.x) + 12} y=${Y(ours.y) + 4} fill="var(--accent)" fontSize="12.5" fontWeight="600">our levels</text>
+        <g className="hit" onMouseMove=${e => show(e, tipFor("The plant's levels today", fr.baseline))} onMouseLeave=${hide}>
+          <circle cx=${X(plant.x)} cy=${Y(plant.y)} r="12" fill="transparent" />
+          <circle className="pt" cx=${X(plant.x)} cy=${Y(plant.y)} r="6" fill="var(--surface)" stroke="var(--ink)" strokeWidth="2" />
+          <text x=${X(plant.x) + 11} y=${Y(plant.y) + 4} fill="var(--ink)" fontSize="12.5" fontWeight="600">the plant today</text>
+        </g>
+        <g className="hit" onMouseMove=${e => show(e, tipFor("Our levels — each part at its own", fr.recommended))} onMouseLeave=${hide}>
+          <circle cx=${X(ours.x)} cy=${Y(ours.y)} r="13" fill="transparent" />
+          <circle className="pt" cx=${X(ours.x)} cy=${Y(ours.y)} r="7" fill="var(--accent)" />
+          <text x=${X(ours.x) + 12} y=${Y(ours.y) + 4} fill="var(--accent)" fontSize="12.5" fontWeight="600">our levels</text>
+        </g>
         <text x=${L + iw / 2} y=${H - 8} textAnchor="middle" fill="var(--muted)" fontSize="12">
           days a part was wanted and not there, over the whole year and every record</text>
         <text x=${20} y=${T + ih / 2} fill="var(--muted)" fontSize="12"
               transform=${"rotate(-90 20 " + (T + ih / 2) + ")"} textAnchor="middle">average value on the shelves</text>
       </svg>
+      ${tipNode}
       <div className="legend">
         <span><i style=${{ background: "var(--ink-2)" }}></i>one blanket service level for every part, 50% to 99.5%</span>
         <span><i style=${{ background: "var(--ink)", borderRadius: "50%" }}></i>the plant's levels today</span>
@@ -1095,6 +1224,7 @@ function Frontier({ fr, compact }) {
    those twelve are the year the system was tested on, and the point of the
    picture is that the two series can be compared.                              */
 function UsageChart({ usage, forecast, planned, trainMonths, startMonth, uom }) {
+  const [show, hide, tipNode] = useTip();
   const W = 660, H = 210, L = 50, R = 14, T = 14, B = 34;
   const n = usage.length, iw = W - L - R, ih = H - T - B;
   const step = iw / Math.max(n, 1);
@@ -1106,10 +1236,19 @@ function UsageChart({ usage, forecast, planned, trainMonths, startMonth, uom }) 
                                         + " " + y(v + (planned[i] || 0)).toFixed(1)).join(" ");
   const ticks = [];
   for (let i = 0; i < n; i += 6) ticks.push(i);
+  const onMove = e => {
+    const box = e.currentTarget.getBoundingClientRect();
+    const px = ((e.clientX - box.left) / box.width) * W;
+    const i = Math.max(0, Math.min(n - 1, Math.floor((px - L) / step)));
+    const fi = i - trainMonths;
+    const exp = fi >= 0 && fi < forecast.length ? forecast[fi] + (planned[fi] || 0) : null;
+    show(e, html`<b>${monthLabel(startMonth, i, true)}</b><br/><span className="mono">${num1(usage[i])}</span> ${uom} given out
+      ${exp !== null ? html`<br/><span className="mono">${num1(exp)}</span> expected` : ""}`);
+  };
   return html`
-    <div className="chartbox">
-      <svg viewBox=${"0 0 " + W + " " + H} width="100%" style=${{ minWidth: "560px", display: "block" }}
-           role="img" aria-label="monthly usage and forecast">
+    <div className="chartbox anim">
+      <svg viewBox=${"0 0 " + W + " " + H} width="100%" style=${{ display: "block" }}
+           role="img" aria-label="monthly usage and forecast" onMouseMove=${onMove} onMouseLeave=${hide}>
         ${[0, 0.5, 1].map(f => html`
           <g key=${f}>
             <line x1=${L} x2=${W - R} y1=${y(peak * f)} y2=${y(peak * f)} stroke="var(--line)" />
@@ -1118,9 +1257,9 @@ function UsageChart({ usage, forecast, planned, trainMonths, startMonth, uom }) 
           </g>`)}
         <rect x=${cutX} y=${T} width=${L + n * step - cutX} height=${ih} fill="var(--tint)" opacity="0.7" />
         ${usage.map((v, i) => v > 0 && html`
-          <rect key=${"u" + i} x=${L + i * step + (step - bw) / 2} y=${y(v)} width=${bw}
-                height=${Math.max(1, T + ih - y(v))} fill="var(--ink-2)" />`)}
-        ${forecast.length > 0 && html`<path d=${fcPath} fill="none" stroke="var(--accent)" strokeWidth="2.2" />`}
+          <rect key=${"u" + i} className="col" x=${L + i * step + (step - bw) / 2} y=${y(v)} width=${bw}
+                height=${Math.max(1, T + ih - y(v))} fill="var(--ink-2)" style=${{ animationDelay: (i * 12) + "ms" }} />`)}
+        ${forecast.length > 0 && html`<path className="line" d=${fcPath} fill="none" stroke="var(--accent)" strokeWidth="2.2" />`}
         ${forecast.map((v, i) => html`
           <circle key=${"c" + i} cx=${L + (trainMonths + i) * step + step / 2} cy=${y(v + (planned[i] || 0))}
                   r="2.6" fill="var(--accent)" />`)}
@@ -1132,6 +1271,7 @@ function UsageChart({ usage, forecast, planned, trainMonths, startMonth, uom }) 
                 fontSize="11" fontFamily="Consolas,monospace">${monthLabel(startMonth, i)}</text>`)}
         <text x=${L} y=${H - 3} fill="var(--muted)" fontSize="11" fontFamily="Consolas,monospace">${uom} per month</text>
       </svg>
+      ${tipNode}
       <div className="legend">
         <span><i style=${{ background: "var(--ink-2)" }}></i>given out</span>
         <span><i style=${{ background: "var(--accent)" }}></i>what the system expected for the last year, including scheduled work</span>
@@ -1365,16 +1505,19 @@ function parseHash() {
   let parts = (location.hash || "#/").slice(1).split("/").filter(Boolean);
   const present = parts[0] === "present";
   if (present) parts = parts.slice(1);
+  let focus = "";
+  if (parts[0] && parts[0].startsWith("@")) { focus = parts[0].slice(1); parts = parts.slice(1); }
   const known = SCREENS.some(s => s.key === parts[0]) || parts[0] === "evidence";
   const screen = known ? parts[0] : "";
   let open = null, store = "";
   if (parts.length >= 3) open = [parts[1], parts[2]];
   else if (screen === "storerooms" && parts.length === 2) store = parts[1];
-  return { present, screen: open && !screen ? "board" : screen, open, store };
+  return { present, screen: open && !screen ? "board" : screen, open, store, focus };
 }
-function toHash({ present, screen, open, store }) {
+function toHash({ present, screen, open, store, focus }) {
   const bits = [];
   if (present) bits.push("present");
+  if (focus && !screen) bits.push("@" + focus);
   if (screen) bits.push(screen);
   if (open) { if (!screen) bits.push("board"); bits.push(open[0], open[1]); }
   else if (store) bits.push(store);
@@ -1434,6 +1577,10 @@ function App() {
     const r = parseHash();
     location.hash = toHash({ present: r.present, screen: "storerooms", store });
   }, []);
+  const setFocus = useCallback(focus => {
+    const r = parseHash();
+    location.hash = toHash({ present: r.present, screen: "", focus });
+  }, []);
   const go = screen => { location.hash = toHash({ present: route.present, screen }); };
 
   if (state.status === "loading") return html`<${Loading} />`;
@@ -1446,7 +1593,8 @@ function App() {
     : route.screen === "board" ? html`<${Board} setOpen=${setOpen} />`
     : route.screen === "recommendations" ? html`<${Recommendations} setOpen=${setOpen} />`
     : route.screen === "evidence" ? html`<${Evidence} summary=${state.summary} score=${state.score} bt=${state.bt} fc=${state.fc} fr=${state.fr} />`
-    : html`<${Dashboard} summary=${state.summary} stores=${state.stores} bt=${state.bt} fr=${state.fr} />`;
+    : html`<${Dashboard} summary=${state.summary} stores=${state.stores} bt=${state.bt} fr=${state.fr}
+                          store=${route.focus} setStore=${setFocus} />`;
 
   return html`
     <div className=${"shell" + (route.present ? " present" : "")}>

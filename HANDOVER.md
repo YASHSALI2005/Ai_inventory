@@ -35,7 +35,7 @@ Run it:
 ```
 python cli.py all --preset toy      # build + engine + scoreboard   (~1s)
 python cli.py all --preset full     # 20k materials                 (~33s)
-python -m pytest -q                 # 143 tests
+python -m pytest -q                 # 146 tests
 python cli.py serve --preset full   # the three screens
 python -m ruff check .
 ```
@@ -208,6 +208,16 @@ HUD; the choice is kept in `localStorage` and nowhere else.
   dependency for the same outcome.
 - **Drawer** — what to do first (accent), stat row, chart with the forecast over the
   tested year, "why this number" in a quiet panel at the bottom.
+
+**Round 5 (same day): tables fit, charts answer the pointer.** Every table is
+`table-layout: fixed` with wrapping text and explicit column widths — no table
+scrolls sideways at 1366px, in either mode. Every chart has a tooltip with the exact
+figures (hover a bar, a segment, a month, a point on the frontier), a store bar or
+segment is a click into that store, and the dashboard has a store selector
+(`#/@ROLLING` keeps it in the link) that re-scopes the value and critical tiles and
+swaps the monthly line to that store's own series — precomputed per store in
+`storeroom_report.json`, 60 floats a store. Bars grow and lines draw on entry;
+`prefers-reduced-motion` turns that off.
 
 **The forecast on screen is the held-out year, not next year.** The date line says
 "forecast Sep 2025 – Aug 2026, laid over what actually happened". A forward forecast
