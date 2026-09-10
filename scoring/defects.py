@@ -29,6 +29,8 @@ import numpy as np
 from contracts import schemas as S
 from contracts.config import RunConfig
 
+NEWLINE = chr(10)
+
 
 @dataclass
 class TypeScore:
@@ -243,6 +245,58 @@ def score_critical_below_rop(cfg: RunConfig) -> dict:
         "missed": len(truth - flagged),
         "false_alarms": len(flagged - truth),
     }
+
+
+def duplicate_miss_report(cfg: RunConfig) -> dict:
+    """
+    Which mangle styles the matcher loses to.
+
+    A miss caused by a dropped size token is a different problem from one caused by
+    a one-character typo, and a single recall number hides which. The generator
+    records the styles it applied to each copy, so the loss can be attributed
+    rather than guessed at.
+    """
+    import re
+
+    planted = json.loads(
+        (cfg.answer_key_dir / S.PLANTED_DEFECTS_FILE).read_text(encoding="utf-8")
+    )
+    findings = S.read(S.FINDINGS, cfg.results_dir)
+    found = {
+        frozenset({r.material_id, r.related_material_id})
+        for r in findings.itertuples()
+        if r.defect_type == "DUPLICATE_MATERIAL"
+    }
+
+    by_style: dict[str, dict[str, int]] = {}
+    for d in planted:
+        if d["defect_type"] != "DUPLICATE_MATERIAL":
+            continue
+        hit = frozenset({d["key"]["material_id"], d["key"]["duplicate_of"]}) in found
+        m = re.search(r"mangles=([\w+]+)", d.get("detail", ""))
+        styles = (m.group(1).split("+") if m else ["none"]) or ["none"]
+        for style in styles:
+            cell = by_style.setdefault(style, {"planted": 0, "found": 0})
+            cell["planted"] += 1
+            cell["found"] += int(hit)
+
+    for cell in by_style.values():
+        cell["missed"] = cell["planted"] - cell["found"]
+        cell["recall"] = round(cell["found"] / cell["planted"], 3) if cell["planted"] else None
+    return dict(sorted(by_style.items()))
+
+
+def render_duplicate_misses(report: dict) -> str:
+    if not report:
+        return ""
+    lines = ["duplicate recall by mangle style (a copy can carry several):",
+             f"  {'style':<16} {'planted':>8} {'found':>6} {'missed':>7} {'recall':>7}"]
+    for style, c in report.items():
+        lines.append(
+            f"  {style:<16} {c['planted']:>8} {c['found']:>6} {c['missed']:>7} "
+            f"{(c['recall'] or 0):>6.0%}"
+        )
+    return NEWLINE.join(lines)
 
 
 def render(scores: list[TypeScore], summary: dict) -> str:

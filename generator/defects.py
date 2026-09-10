@@ -270,8 +270,17 @@ def inject(cfg, materials, stock, movements, truth_materials, rng):
         record("BLANK_UOM", "materials", {"material_id": row["material_id"]}, "uom blanked")
 
     # ── materials: UOM contradicting the price (EA priced as a BOX) ──────────
+    #
+    # Only rows that still HAVE a unit of measure are eligible. Picking a row whose
+    # UOM was just blanked overwrites that defect and leaves the answer key
+    # claiming a blank that is not there — the engine then reports a miss for being
+    # correct, which is the worst kind of scoring bug because it looks like an
+    # engine failure.
     swap = {"EA": "BOX", "M": "EA", "KG": "EA", "L": "DR", "M2": "EA", "T": "KG", "PR": "EA"}
-    for i in _pick(len(materials), RATES["UOM_MISMATCH"], floor, rng):
+    has_uom = np.flatnonzero(
+        (materials["uom"].fillna("").str.strip() != "").to_numpy()
+    )
+    for i in has_uom[_pick(has_uom.size, RATES["UOM_MISMATCH"], floor, rng)]:
         row = materials.iloc[i]
         was = str(row["uom"])
         materials.iat[i, materials.columns.get_loc("uom")] = swap.get(was, "BOX")

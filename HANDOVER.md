@@ -6,8 +6,19 @@ in git and `DECISIONS.md`.
 ## What this project is
 
 Response to Ma'aden SOW `MD-404-1000-OE-DG-SOW-0000_` Rev 0.0, **Use Case 01 — AI-Powered
-Inventory Intelligence & MRO Optimization**. Build a proof of concept, on synthetic data,
-demonstrating all seven SOW capabilities; three built deep.
+Inventory Intelligence & MRO Optimization**. A proof of concept on synthetic data.
+
+**Scope was fixed on 2026-09-10 to three claims and nothing else** — see
+[`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-PLAN.md), which is now the authority on what
+gets built:
+
+1. We can find data problems, measured against a sealed answer key.
+2. We can set better stock levels than the plant's min/max, measured by backtest.
+3. A planner can ask a question in English and get a checkable answer.
+
+If a piece of work does not serve one of those three, it is out of scope. Explicitly
+**not being built**: LightGBM, embedding-based matching, Arabic, login, SAP connection,
+purchase orders, or any screen beyond the dashboard and the item view.
 
 Build plan in plain words (algorithms named): **[`docs/build-plan.html`](docs/build-plan.html)**
 → https://claude.ai/code/artifact/2d0d30b3-41c0-4460-8160-b5537a378b35 (source text: `docs/BUILD-PLAN.md`).
@@ -23,8 +34,8 @@ Run it:
 
 ```
 python cli.py all --preset toy      # build + engine + scoreboard   (~1s)
-python cli.py all --preset full     # 20k materials                 (~14s)
-python -m pytest -q                 # 51 tests
+python cli.py all --preset full     # 20k materials                 (~33s)
+python -m pytest -q                 # 72 tests
 python -m ruff check .
 ```
 
@@ -37,17 +48,36 @@ produced. `--data-dir` redirects everything, which is how the CLI smoke test wor
 | `contracts/` schemas + config | Done. Cutoff date, cost model and dead-money rule live here |
 | `sim/` replenishment | Done. Vectorised across items, stochastic lead time, shared by generator and scoring |
 | 1 · generator + answer key | **Done, both presets.** Typed equipment, positions, shutdown overlay, real work orders |
-| 2 · data quality (cap 4) | **2 of 8 checks.** Negative stock + ledger reconciliation |
-| 3 · demand classifier | Not started |
-| 4 · forecasters (cap 1) | Not started |
-| 5 · stocking policy (cap 3) | Not started |
-| 6 · dead money + transfers (caps 2, 5) | Scorers stubbed; detection not started |
-| 7 · API + screens | Not started |
-| 8 · chat (cap 7) | Not started |
+| 2 · data quality (cap 4) | **Done — all 7 checks + matcher.** 99% recall, 99% precision at full |
+| 3 · classifier (ADI × CV²) | Not started — train slice only, scored against `PROFILE_TO_SBC_CLASS` |
+| 4 · forecast (Croston family) | Not started — **no LightGBM**; MASE per class vs naive and zero |
+| 5 · levels + backtest | Not started — **headline number two** |
+| 6a · dead money | Not started — scorer stubbed; engine figure goes beside truth on the dashboard |
+| Screens | Dashboard done (one screen). Item view not started. Vendor the JS before any demo |
+| 8 · chat, thin | Not started — four tools, twenty golden questions |
+| 6b · transfers, slider, work queue | **Only if everything above is green** |
 
-**Current score, full preset:** NEGATIVE_STOCK 100/100 found, 0 false alarms.
-LEDGER_MISMATCH raises 100 informational findings (excluded from precision — see
-`DECISIONS.md`).
+**Current score, full preset** — every planted defect type now has a check:
+
+| Check | Planted | Found | Missed | False | Recall | Precision |
+|---|---|---|---|---|---|---|
+| BLANK_MPN | 262 | 262 | 0 | 0 | 100% | 100% |
+| BLANK_UOM | 60 | 60 | 0 | 0 | 100% | 100% |
+| DUPLICATE_MATERIAL | 140 | 134 | 6 | 19 | **96%** | **88%** |
+| IMPOSSIBLE_LEAD_TIME | 60 | 60 | 0 | 0 | 100% | 100% |
+| ISSUE_WITHOUT_WORK_ORDER | 594 | 594 | 0 | 0 | 100% | 100% |
+| NEGATIVE_STOCK | 100 | 100 | 0 | 0 | 100% | 100% |
+| UOM_MISMATCH | 80 | 69 | 11 | 0 | 86% | 100% |
+| **Total** | **1,296** | **1,279** | **17** | **19** | **99%** | **99%** |
+
+LEDGER_MISMATCH raises 100 informational findings, excluded from precision.
+
+Two known limits, both measured rather than assumed:
+- **UOM_MISMATCH** catches an item swapped into a *rare* unit, never one swapped
+  into its group's dominant unit — all 11 misses are that shape.
+- **Duplicates** lose most to `token_dropped` (72%): when the size is simply left
+  off the re-keyed record there is little left to match on. `token_front` and
+  `abbrev` are at 98-100%.
 
 ### Dataset properties — all asserted in tests, all measured by `scoring/dataset_report.py`
 

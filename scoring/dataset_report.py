@@ -56,10 +56,12 @@ def measure(cfg: RunConfig) -> list[Check]:
 
     # ── dead money, using the SHARED rule ───────────────────────────────────
     dead_share, dead_sar, total_sar = dead_money(cfg, stock, mats, tmat, tpos)
-    lo, hi = cfg.dead_money.target_dead_value_share
+    lo, hi = cfg.size.dead_value_band
+    industry = cfg.dead_money.target_dead_value_share
+    note = "" if (lo, hi) == industry else " (sanity range; industry band checked at full)"
     out.append(
         Check("dead value share", dead_share, f"{lo:.0%}-{hi:.0%}", lo <= dead_share <= hi,
-              f"SAR {dead_sar:,.0f} of {total_sar:,.0f}")
+              f"SAR {dead_sar:,.0f} of {total_sar:,.0f}{note}")
     )
 
     # ── shutdown spike ──────────────────────────────────────────────────────

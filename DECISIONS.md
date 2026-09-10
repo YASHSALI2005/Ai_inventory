@@ -512,3 +512,163 @@ Reasoning: Reviewer accepted the partial disagreement on removing every grouping
            hint the engine may legitimately use rather than the answer.
 Rejected: no grouping column at all
 Reverses: —
+
+---
+
+## 2026-09-10 — POC scope fixed to three claims
+Model: Opus 5
+Type: approval
+Reasoning: Scope agreed with the reviewer and written into IMPLEMENTATION-PLAN.md,
+           which is now the authority on what gets built. The POC proves exactly
+           three things: that data problems can be found and measured against the
+           answer key; that stock levels can beat the plant's own min/max, measured
+           by backtest; and that a planner can ask a question in English and get a
+           checkable answer. Anything not serving one of those is out.
+           Explicitly excluded: LightGBM, embedding matching, Arabic, login, SAP
+           connection, purchase orders, and any screen beyond the dashboard and the
+           item view. Transfers, the scenario slider and the work queue happen only
+           if everything above is green.
+Rejected: building all seven capabilities to equal depth (dilutes the two that sell it)
+Reverses: —
+
+---
+
+## 2026-09-10 — rapidfuzz and scikit-learn added for the matcher
+Model: Opus 5
+Type: decision
+Reasoning: Required by the duplicate matcher, and both were named in the original
+           approach: scikit-learn for TF-IDF character n-grams and nearest-neighbour
+           blocking, rapidfuzz for the string scorers. Blocking is not optional —
+           20,000 masters is 200 million pairs, and the TF-IDF step cuts that to
+           80,000 candidates while still containing 100% of the true pairs.
+           Both are inspectable and neither downloads a model at runtime, which is
+           the property that kept sentence-transformers out.
+Rejected: hand-rolled n-gram similarity (slower, and no better)
+Reverses: —
+
+---
+
+## 2026-09-10 — Variants carry two characteristics, not one dimension
+Model: Opus 5
+Type: reversal
+Reasoning: Duplicate detection scored 0% precision, and the cause was the data, not
+           the matcher. One dimension drawn from a small vocabulary cannot keep a
+           family apart: 300 valves drawn from 16 DN sizes repeat themselves
+           nineteen times over. Measured on the full preset, 85% of materials shared
+           a description with another row and there were 82,370 accidental identical
+           pairs against 140 planted ones.
+           On that data the task was not merely hard, it was meaningless — a matcher
+           flagging identical descriptions was right, and the scoreboard called it
+           wrong. Descriptions now carry a dimension plus a characteristic (material,
+           rating, class), generated per family as unique combinations, so an
+           identical description means what it should mean: somebody entered the
+           part twice. A test asserts zero repeats outside the planted copies.
+Rejected: loosening the matcher to tolerate the collisions (fitting the model to a
+          broken fixture)
+Reverses: the single-token descriptions in generator/build.py
+
+---
+
+## 2026-09-10 — Part numbers are near-binary evidence
+Model: Opus 5
+Type: decision
+Reasoning: Scoring MPN similarity as a character ratio gave two unrelated parts from
+           the same maker 0.67, because they share a prefix and most of their
+           digits. That propped up every sibling pair in the catalogue and was the
+           single largest source of false matches.
+           Two different part numbers mean two different parts; there is no "partly
+           the same part". Only a near-identical string is treated as a possible
+           mis-key. SKF1001 against SKF1002 scores zero — sequential catalogue
+           numbers are different products, not a typo.
+           Blank stays NaN: absence of a part number is absence of evidence, which
+           matters because losing the MPN is exactly what a re-keyed duplicate does.
+Rejected: a graded string ratio (mathematically smooth, semantically wrong)
+Reverses: —
+
+---
+
+## 2026-09-10 — Catalogue frequency separates a typo from a variant
+Model: Opus 5
+Type: decision
+Reasoning: "DN65" against "KN65" and "GRADE A" against "GRADE B" are both one
+           character apart. The first is a mis-key, the second is a different
+           product, and no string metric can tell them apart.
+           What can is how often the token appears in the catalogue: KN65 occurs
+           once in twenty thousand rows, GRADE A occurs thousands of times. A rare
+           token that closely resembles a token on the other side is paired off and
+           stops counting against the match; a common one counts in full. This is
+           standard master-data practice — a value outside the known value set is a
+           data error — and it lifted duplicate recall from 82% to 96% without
+           costing precision.
+           Both halves of a matched pair are consumed. Excusing only the rare half
+           left the union inflated and dragged genuine pairs to a half score.
+Rejected: fuzzy string matching on the whole description (cannot distinguish the two)
+Reverses: —
+
+---
+
+## 2026-09-10 — UOM mismatch: what it catches, and what it cannot
+Model: Opus 5
+Type: decision
+Reasoning: Detected by rarity within a material group that otherwise speaks one
+           unit, excluding blanks (which are rarer than anything and are already
+           reported as BLANK_UOM). 86% recall at 100% precision on the full preset.
+           The limit is measured, not assumed: this catches an item swapped into a
+           RARE unit and cannot catch one swapped into the group's dominant unit,
+           which looks exactly like its peers. All eleven misses are that shape.
+           Price was tested as a second signal — the idea being that a unit changed
+           without a price change leaves the price fitting the old unit's peers —
+           and abandoned: only 8 of 80 planted cases had enough same-group same-unit
+           peers for the comparison to have any power, and the measured separation
+           was zero.
+Rejected: a price-consistency scorer (no measurable signal in this data)
+Reverses: —
+
+---
+
+## 2026-09-10 — Duplicate threshold selected on our own data
+Model: Opus 5
+Type: decision
+Reasoning: 0.77, the middle of the band that clears both targets on the full preset
+           (0.76 and 0.78 both pass), and unchanged on toy, which is an independent
+           draw. Full: 96% recall at 88% precision. Toy: 3 of 3, no false alarms.
+           Recorded because it matters how this number was chosen: it was selected
+           against the same answer key it is scored on. That is legitimate model
+           selection but it is not a held-out result, and a real deployment must
+           re-tune it on a labelled sample of the client's own master. The number is
+           a starting point, not a constant of nature. The comment at
+           engine/quality.py:DUPLICATE_THRESHOLD says so.
+Rejected: quoting it as a validated constant
+Reverses: —
+
+---
+
+## 2026-09-10 — Generator must not plant two defects on the same field
+Model: Opus 5
+Type: decision
+Reasoning: BLANK_UOM scored 59 of 60 and the missing one was not an engine failure:
+           the generator blanked a unit and then applied UOM_MISMATCH to the same
+           row, overwriting it. The answer key claimed a blank that was not there,
+           so the engine was marked wrong for being right.
+           UOM_MISMATCH now draws only from rows that still have a unit. This is the
+           worst class of scoring bug, because it presents as an engine failure and
+           sends you looking in the wrong module.
+Rejected: tolerating a one-row discrepancy
+Reverses: —
+
+---
+
+## 2026-09-10 — Dead-value band is asserted at full scale only
+Model: Opus 5
+Type: decision
+Reasoning: Dead value is a VALUE-weighted share, so at 300 materials a handful of
+           expensive rows decide it: measured 15% on toy against 29% on full from
+           the same generator, and it moves several points on any reshuffle of the
+           random stream. Sweeping a parameter through it gave 26%, 16%, 27% for
+           three neighbouring values, which is noise, not response.
+           The industry band (20-40%) is therefore asserted where it means
+           something — the full preset — and toy gets a wide sanity range so a
+           genuinely broken generator still fails there. The report says which band
+           it used.
+Rejected: tuning the generator until toy landed in the industry band (fitting to noise)
+Reverses: the single band in DeadMoneyRule

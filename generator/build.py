@@ -87,6 +87,61 @@ def _size_token(kind: str, rng: np.random.Generator, n: int) -> np.ndarray:
     return np.array([f"TYPE {c}" for c in rng.choice(np.array(list("ABCDEFGHJK")), size=n)])
 
 
+# Second characteristic. ISO 8000 descriptions are noun + modifier + several
+# characteristics, and one dimension is nowhere near enough to tell variants apart:
+# a family of 300 valves drawn from 16 DN sizes produces the same description
+# nineteen times over. That made 85% of the master share a description with some
+# other row, which is not a material master — it is 82,000 duplicate pairs, and it
+# made duplicate detection both impossible and pointless to measure.
+_SPECS = {
+    "seal": ("NBR", "VITON", "EPDM", "PTFE", "SILICONE", "HNBR"),
+    "metal": ("SS316", "SS304", "CS", "DUCTILE IRON", "BRONZE", "INCONEL", "HARDOX"),
+    "pressure": ("PN10", "PN16", "PN25", "PN40", "CL150", "CL300", "CL600"),
+    "electrical": ("400V", "690V", "3.3KV", "6.6KV", "11KV", "IP55", "IP65", "IP66"),
+    "wear": ("ALUMINA", "TUNGSTEN CARBIDE", "SIC", "RUBBER LINED", "CHROME CARBIDE"),
+    "grade": ("GRADE A", "GRADE B", "GRADE C", "CLASS 1", "CLASS 2", "CLASS 3", "HD", "XHD"),
+}
+
+# which characteristic vocabulary suits which primary token type
+_SPEC_FOR_TOKEN = {
+    "bore_mm": ("metal", "grade"),
+    "dn": ("pressure", "metal"),
+    "od_mm": ("metal", "wear", "grade"),
+    "m_thread": ("metal", "grade"),
+    "kw": ("electrical", "grade"),
+    "ah": ("electrical",),
+    "iso_vg": ("grade",),
+    "none": ("grade", "metal", "wear"),
+}
+
+
+def _unique_variants(kind: str, n: int, rng: np.random.Generator) -> list[str]:
+    """
+    n distinct characteristic strings for one family.
+
+    Distinct by construction rather than by luck: the primary token and the
+    characteristic are drawn as a set of unique combinations, and a running mark is
+    appended only if the family is broader than the vocabulary allows. Two rows in
+    the same family never read the same, so an identical description means what it
+    should mean — that somebody entered the part twice.
+    """
+    primary = list(dict.fromkeys(_size_token(kind, rng, min(n * 4 + 32, 4000))))
+    pools = _SPEC_FOR_TOKEN.get(kind, ("grade",))
+    specs = [v for pool in pools for v in _SPECS[pool]]
+
+    combos = [f"{p}, {q}" for p in primary for q in specs]
+    rng.shuffle(combos)
+    if len(combos) >= n:
+        return combos[:n]
+
+    out = list(combos)
+    mark = 1
+    while len(out) < n:
+        out.extend(f"{c}, MK{mark}" for c in combos)
+        mark += 1
+    return out[:n]
+
+
 @dataclass
 class Generated:
     materials: pd.DataFrame
@@ -245,11 +300,13 @@ def build_materials(cfg: RunConfig, fams: pd.DataFrame, equipment: pd.DataFrame,
         g = np.asarray(grp)
         canonical[g] = rng.choice(makers, size=len(g))
 
-    # per-family size token: a bearing gets 6205, an oil gets ISO VG 220
+    # per-family characteristics: a bearing gets "6205, SS316", an oil "ISO VG 220,
+    # GRADE B". Generated per family so that no two variants of the same family read
+    # the same, which is what makes an identical description meaningful.
     token = np.empty(n, dtype=object)
-    for kind, grp in f.groupby("size_token_type").groups.items():
+    for (_fam, kind), grp in f.groupby(["family_id", "size_token_type"]).groups.items():
         g = np.asarray(grp)
-        token[g] = _size_token(str(kind), rng, len(g))
+        token[g] = _unique_variants(str(kind), len(g), rng)
 
     # attach materials only to assets of the type the family actually fits
     by_type = {

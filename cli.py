@@ -95,6 +95,11 @@ def cmd_score(args) -> int:
     print()
     print(defects.render(scores, summary))
 
+    misses = defects.duplicate_miss_report(cfg)
+    if misses:
+        print()
+        print(defects.render_duplicate_misses(misses))
+
     print()
     print("emergent problems (scored against truth, not a planted list):")
     for name, fn in (

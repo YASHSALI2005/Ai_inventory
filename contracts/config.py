@@ -47,6 +47,13 @@ class SizePreset(BaseModel):
     min_decommissioned: int = 3
     min_defects_per_type: int = 3
 
+    # Dead value is a VALUE-weighted share, so at 300 materials a handful of
+    # expensive rows decide it and it swings several points on any reshuffle of the
+    # random stream. The industry band is asserted where it means something — at
+    # full scale — and toy gets a sanity range instead, so a genuinely broken
+    # generator still fails there.
+    dead_value_band: tuple[float, float] = (0.05, 0.60)
+
 
 PRESETS: dict[Preset, SizePreset] = {
     "toy": SizePreset(n_materials=300, n_equipment=40, n_shutdowns_per_year=1),
@@ -56,6 +63,7 @@ PRESETS: dict[Preset, SizePreset] = {
         n_shutdowns_per_year=3,
         min_decommissioned=20,
         min_defects_per_type=10,
+        dead_value_band=(0.20, 0.40),      # the industry band, asserted at scale
     ),
 }
 

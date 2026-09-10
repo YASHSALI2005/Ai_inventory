@@ -172,7 +172,15 @@ def test_manufacturers_come_from_the_family_pool(gen):
 
 
 def test_size_tokens_suit_the_part(gen):
-    """An oil is graded ISO VG, a bolt is M16X60 — neither is '188MM'."""
+    """
+    An oil is graded ISO VG, a bolt is M16X60 — neither is '188MM'.
+
+    Descriptions now carry a second characteristic after the dimension, because one
+    dimension could not keep variants apart: a family of 300 valves drawn from 16 DN
+    sizes repeated itself nineteen times over, and 85% of the whole master shared a
+    description with some other row. So the dimension is asserted as present, not as
+    the final token.
+    """
     j = gen.materials.merge(
         gen.truth_materials[["material_id", "true_family_id"]], on="material_id"
     )
@@ -181,7 +189,7 @@ def test_size_tokens_suit_the_part(gen):
         assert oils.description.str.contains("ISO VG").all()
     bolts = j[j.true_family_id == "CN-BOLT-HEX"]
     if len(bolts):
-        assert bolts.description.str.contains(r", M\d+X\d+$", regex=True).all()
+        assert bolts.description.str.contains(r"\bM\d+X\d+\b", regex=True).all()
 
 
 def test_equipment_is_a_decade_old(cfg, gen):
@@ -364,3 +372,27 @@ def test_newsvendor_service_levels_are_ordered_and_not_pinned(cfg):
 
 def test_service_level_sweep_reaches_the_cap(cfg):
     assert max(cfg.service_level_sweep) == pytest.approx(cfg.costs.service_level_cap)
+
+
+def test_descriptions_are_unique_apart_from_planted_copies(gen):
+    """
+    An identical description has to mean something, and what it should mean is that
+    somebody entered the part twice.
+
+    The first generator drew one dimension from a small vocabulary, so 85% of the
+    master shared a description with another row and there were 82,000 accidental
+    identical pairs against 140 planted ones. Duplicate detection was not merely
+    hard on that data, it was meaningless.
+    """
+    copies = {
+        d["key"]["material_id"]
+        for d in gen.planted_defects
+        if d["defect_type"] == "DUPLICATE_MATERIAL"
+    }
+    clean = gen.materials[~gen.materials.material_id.isin(copies)]
+    repeated = clean.description.value_counts()
+    repeated = repeated[repeated > 1]
+    assert repeated.empty, (
+        f"{len(repeated)} descriptions are used more than once, e.g. "
+        f"{list(repeated.index[:2])}"
+    )
