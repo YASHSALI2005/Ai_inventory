@@ -412,44 +412,27 @@ td .when{font-size:12px;color:var(--muted);margin-top:2px}
 .chart-title{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
   color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:6px}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
-.store{background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);
-  padding:20px 22px 16px;cursor:pointer;display:flex;flex-direction:column;gap:14px;text-align:left;
-  width:100%;transition:transform .15s ease,box-shadow .15s ease}
-.store:hover{transform:translateY(-2px);box-shadow:0 1px 2px rgba(27,29,32,.06),0 14px 32px -12px rgba(27,29,32,.32);
-  border-color:var(--line-2)}
+.store{background:var(--surface);border-radius:8px;box-shadow:var(--shadow);padding:20px 22px;
+  cursor:pointer;display:flex;flex-direction:column;gap:14px;text-align:left;width:100%}
+.store:hover{box-shadow:0 1px 2px rgba(27,29,32,.06),0 10px 28px -12px rgba(27,29,32,.28)}
 .store .name{font-size:18px;font-weight:700;letter-spacing:-.01em;display:flex;
-  justify-content:space-between;align-items:baseline;gap:10px}
-.store .name .v{font-family:"Cascadia Mono",Consolas,Menlo,monospace;font-size:22px;font-weight:600;
-  letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-.store .share{height:6px;border-radius:3px;background:var(--tint-2);overflow:hidden;margin-top:-4px}
-.store .share i{display:block;height:100%;background:var(--ink);border-radius:3px}
-.store .share-k{font-size:11.5px;color:var(--muted);margin-top:-8px}
-.store .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 0;
-  border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-.store .fact .v{font-family:"Cascadia Mono",Consolas,Menlo,monospace;font-size:18px;font-weight:600;
-  font-variant-numeric:tabular-nums;line-height:1.1}
-.store .fact .v.warn{color:var(--accent)}
-.store .fact .k{font-size:10.5px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;
-  margin-top:4px;font-weight:600}
-.store .fact .mini{height:4px;border-radius:2px;background:var(--tint-2);margin-top:7px;overflow:hidden}
-.store .fact .mini i{display:block;height:100%;background:var(--faint);border-radius:2px}
-.store .list .h{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
-  font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between}
-.store .list .h .t{font-family:Consolas,monospace;letter-spacing:0;text-transform:none;color:var(--faint)}
-.store .list .row{position:relative;display:flex;justify-content:space-between;gap:12px;font-size:13px;
-  padding:5px 8px;margin:0 -8px;border-radius:4px;color:var(--ink-2);overflow:hidden}
-.store .list .row::before{content:"";position:absolute;left:0;top:0;bottom:0;width:var(--w,0%);
-  background:var(--tint);border-radius:4px;z-index:0}
-.store .list .row.act::before{background:var(--accent-soft)}
-.store .list .row>span{position:relative;z-index:1}
+  justify-content:space-between;align-items:baseline}
+.store .name .v{font-family:"Cascadia Mono",Consolas,Menlo,monospace;font-size:22px;
+  font-weight:600;letter-spacing:-.02em}
+.store .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.store .fact .v{font-family:"Cascadia Mono",Consolas,Menlo,monospace;font-size:17px;
+  font-weight:600;font-variant-numeric:tabular-nums}
+.store .fact .k{font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;
+  margin-top:2px;font-weight:600}
+.store .list{border-top:1px solid var(--line);padding-top:12px}
+.store .list .h{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+  font-weight:600;margin-bottom:6px}
+.store .list .row{display:flex;justify-content:space-between;gap:12px;font-size:13px;
+  padding:3px 0;color:var(--ink-2)}
 .store .list .row span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.store .list .row .n{font-family:Consolas,monospace;color:var(--ink);flex:0 0 auto;font-variant-numeric:tabular-nums}
-.store .list .row.act .n{color:var(--accent);font-weight:600}
-.store .list .row.dim{color:var(--muted);font-style:italic}
-.store .go{margin-top:auto;align-self:flex-end;font-size:13px;font-weight:600;color:var(--accent);
-  border:1px solid var(--accent-soft);background:var(--accent-soft);border-radius:6px;padding:7px 12px}
-.store:hover .go{background:var(--accent);color:#fff;border-color:var(--accent)}
-:root[data-theme="dark"] .store .share i{background:var(--ink-2)}
+.store .list .row .n{font-family:Consolas,monospace;color:var(--ink);flex:0 0 auto}
+.store .list .row.act .n{color:var(--accent)}
+.store .go{font-size:13px;color:var(--muted);text-align:right}
 .back{font-size:14px;color:var(--muted);margin-bottom:10px;display:inline-block}
 .back:hover{color:var(--ink)}
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line-2);margin-bottom:18px}
@@ -473,25 +456,6 @@ td .when{font-size:12px;color:var(--muted);margin-top:2px}
 .shell.present .store .name{font-size:21px}
 .shell.present .tab{font-size:17px}
 @media (max-width:900px){.charts{grid-template-columns:1fr}}
-
-/* the board's filters: one panel, search on top, each group labelled above its chips */
-.filters{background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);
-  padding:16px 18px 6px;margin-bottom:18px;display:flex;flex-direction:column;gap:14px}
-.filters .toolbar{margin:0}
-.filters .toolbar select{min-width:170px}
-.filters .toolbar input[type=search]{flex:1;min-width:220px}
-.filters .toolbar .clearf{font-size:13px;color:var(--accent);font-weight:600;white-space:nowrap;padding:0 4px}
-.fgroup{display:flex;flex-direction:column;gap:8px;padding-top:12px;border-top:1px solid var(--line)}
-.fgroup .glab{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600;
-  display:flex;align-items:center;gap:6px;white-space:nowrap}
-.fgroup .glab .on{color:var(--accent);text-transform:none;letter-spacing:0;font-weight:600;margin-left:4px}
-.fgroup .chips{display:flex;flex-wrap:wrap;gap:8px;padding-bottom:10px}
-.fgroup .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 12px 6px 14px}
-.fgroup .chip .c{margin:0;opacity:1;font-size:11px;background:var(--tint);color:var(--muted);
-  border-radius:10px;padding:1px 7px;line-height:1.5}
-.fgroup .chip.on .c{background:rgba(255,255,255,.18);color:var(--surface)}
-.fgroup .chip:hover .c{color:var(--ink)}
-.fgroup .chip.on:hover .c{color:var(--surface)}
 
 </style>
 </head>
@@ -1005,39 +969,29 @@ function Dashboard({ summary, stores, bt, fr, store, setStore, dead }) {
 }
 
 /* ── 2 · storerooms ───────────────────────────────────────────────────────── */
-function StoreCard({ r, onOpen, plantValue, maxParts }) {
-  const share = plantValue ? r.value_sar / plantValue : 0;
-  const idle = r.positions ? r.idle_count / r.positions : 0;
-  const topV = Math.max(1, ...r.top_by_value.map(p => p.value_sar));
-  const topA = Math.max(1, ...r.top_to_act.map(p => p.cost_to_level_sar));
-  const actTotal = r.top_to_act.reduce((t, p) => t + p.cost_to_level_sar, 0);
+function StoreCard({ r, onOpen }) {
   return html`
     <button className="store" onClick=${() => onOpen(r.storeroom_id)}>
       <div className="name"><span>${r.storeroom_id}</span><span className="v">${Mshort(r.value_sar)}</span></div>
-      <div className="share" title=${pct(share) + " of the plant's stock value"}><i style=${{ width: (share * 100).toFixed(1) + "%" }}></i></div>
-      <div className="share-k">${pct(share)} of everything on the shelves</div>
       <div className="facts">
-        <div className="fact"><div className="v">${num(r.positions)}</div><div className="k">parts kept</div>
-          <div className="mini"><i style=${{ width: (maxParts ? r.positions / maxParts * 100 : 0).toFixed(0) + "%" }}></i></div></div>
-        <div className="fact"><div className="v">${pct(idle)}</div><div className="k">not used 2 yrs</div>
-          <div className="mini"><i style=${{ width: (idle * 100).toFixed(0) + "%" }}></i></div></div>
-        <div className="fact"><div className=${"v" + (r.stocked_out ? " warn" : "")}>${num(r.stocked_out)}</div><div className="k">none left</div>
-          <div className="mini"><i style=${{ width: (r.positions ? r.stocked_out / r.positions * 100 : 0).toFixed(0) + "%", background: "var(--accent)" }}></i></div></div>
+        <div className="fact"><div className="v">${num(r.positions)}</div><div className="k">parts</div></div>
+        <div className="fact"><div className="v">${pct(r.idle_count / r.positions)}</div><div className="k">not used 2 yrs</div></div>
+        <div className="fact"><div className="v">${num(r.stocked_out)}</div><div className="k">none left</div></div>
       </div>
       <div className="list">
-        <div className="h"><span>Most valuable on the shelf</span><span className="t">value</span></div>
+        <div className="h">Most valuable on the shelf</div>
         ${r.top_by_value.map(p => html`
-          <div key=${p.material_id} className="row" style=${{ "--w": (p.value_sar / topV * 100).toFixed(0) + "%" }}>
-            <span title=${p.description}>${p.description}</span><span className="n">${Mshort(p.value_sar)}</span></div>`)}
+          <div key=${p.material_id} className="row"><span>${p.description}</span>
+            <span className="n">${Mshort(p.value_sar)}</span></div>`)}
       </div>
       <div className="list">
-        <div className="h"><span>To act on first</span><span className="t">${r.top_to_act.length ? "to level · " + Mshort(actTotal) : ""}</span></div>
+        <div className="h">To act on first</div>
         ${r.top_to_act.length ? r.top_to_act.map(p => html`
-          <div key=${p.material_id} className="row act" style=${{ "--w": (p.cost_to_level_sar / topA * 100).toFixed(0) + "%" }}>
-            <span title=${p.description}>${p.description}</span><span className="n">${Mshort(p.cost_to_level_sar)}</span></div>`)
+          <div key=${p.material_id} className="row act"><span>${p.description}</span>
+            <span className="n">${Mshort(p.cost_to_level_sar)}</span></div>`)
           : html`<div className="row dim"><span>Nothing below its level here.</span></div>`}
       </div>
-      <span className="go">See every part in ${r.storeroom_id} →</span>
+      <div className="go">See every part in ${r.storeroom_id} →</div>
     </button>`;
 }
 
@@ -1088,9 +1042,7 @@ function Storerooms({ stores, setOpen, store, setStore }) {
                     + "place — money the plant already owns and does not need to spend "
                     + "again. Click a card for that store's parts."}>
       <div className="cards">
-        ${stores.by_storeroom.map(r => html`<${StoreCard} key=${r.storeroom_id} r=${r} onOpen=${setStore}
-          plantValue=${stores.by_storeroom.reduce((t, s) => t + s.value_sar, 0)}
-          maxParts=${Math.max(...stores.by_storeroom.map(s => s.positions))} />`)}
+        ${stores.by_storeroom.map(r => html`<${StoreCard} key=${r.storeroom_id} r=${r} onOpen=${setStore} />`)}
       </div>
 
       <h2>Stock that could be moved instead of bought <${Info} text=${TIP.moved} /></h2>
@@ -1168,32 +1120,33 @@ function Board({ setOpen }) {
         ${data.total < data.total_unfiltered ? html` <span className="dim">(${num(data.total)} shown,
           of ${" " + num(data.total_unfiltered)})</span>` : ""}
       </div>
-      <div className="filters">
-        <div className="toolbar">
-          <select value=${f.storeroom} title=${TIP.storeroom}
-                  onChange=${e => setF(s => ({ ...s, storeroom: e.target.value, page: 1 }))}>
-            <option value="">All storerooms</option>
-            ${data.storerooms.map(s => html`<option key=${s} value=${s}>${s}</option>`)}
-          </select>
-          <input type="search" placeholder="Search by name, part number or maker…"
-                 value=${typed} onInput=${e => setTyped(e.target.value)} />
-          ${(f.storeroom || f.band || f.demand_class || f.action || f.q) && html`
-            <button className="clearf" onClick=${() => { setTyped(""); setF({ storeroom: "", band: "", demand_class: "", action: "", q: "", page: 1 }); }}>Clear filters</button>`}
-        </div>
-        ${[
-          ["What to do", TIP.what_to_do, "action", ACTION_ORDER.filter(a => data.actions[a]), a => ACTION[a].label, a => data.actions[a], null],
-          ["State", "What the shelf looks like right now.", "band", BAND_ORDER.filter(x => data.bands[x]), x => BAND_LABEL[x], x => data.bands[x], null],
-          ["How it moves", TIP.class, "demand_class", CLASS_ORDER.filter(c => data.classes[c]), c => CLASS_LABEL[c], c => data.classes[c], c => CLASS_TIP[c]],
-        ].map(([label, tip, key, keys, name, count, title]) => html`
-          <div key=${key} className="fgroup">
-            <div className="glab">${label} <${Info} text=${tip} />
-              ${f[key] && html`<span className="on">· ${name(f[key])}</span>`}</div>
-            <div className="chips">
-              ${keys.map(k => html`
-                <button key=${k} title=${title ? title(k) : ""} className=${"chip" + (f[key] === k ? " on" : "")}
-                        onClick=${() => set(key, k)}>${name(k)}<span className="c">${num(count(k))}</span></button>`)}
-            </div>
-          </div>`)}
+      <div className="toolbar">
+        <select value=${f.storeroom} title=${TIP.storeroom}
+                onChange=${e => setF(s => ({ ...s, storeroom: e.target.value, page: 1 }))}>
+          <option value="">All storerooms</option>
+          ${data.storerooms.map(s => html`<option key=${s} value=${s}>${s}</option>`)}
+        </select>
+        <input type="search" placeholder="Search by name, part number or maker…"
+               value=${typed} onInput=${e => setTyped(e.target.value)} />
+      </div>
+      <div className="chiprow">
+        <span className="chiplab">What to do <${Info} text=${TIP.what_to_do} /></span>
+        ${ACTION_ORDER.filter(a => data.actions[a]).map(a => html`
+          <button key=${a} className=${"chip" + (f.action === a ? " on" : "")} onClick=${() => set("action", a)}>
+            ${ACTION[a].label}<span className="c">${num(data.actions[a])}</span></button>`)}
+      </div>
+      <div className="chiprow">
+        <span className="chiplab">State <${Info} text="What the shelf looks like right now." /></span>
+        ${BAND_ORDER.filter(b => data.bands[b]).map(b => html`
+          <button key=${b} className=${"chip" + (f.band === b ? " on" : "")} onClick=${() => set("band", b)}>
+            ${BAND_LABEL[b]}<span className="c">${num(data.bands[b])}</span></button>`)}
+      </div>
+      <div className="chiprow">
+        <span className="chiplab">How it moves <${Info} text=${TIP.class} /></span>
+        ${CLASS_ORDER.filter(c => data.classes[c]).map(c => html`
+          <button key=${c} title=${CLASS_TIP[c]} className=${"chip" + (f.demand_class === c ? " on" : "")}
+                  onClick=${() => set("demand_class", c)}>
+            ${CLASS_LABEL[c]}<span className="c">${num(data.classes[c])}</span></button>`)}
       </div>
 
       <div className="card">
