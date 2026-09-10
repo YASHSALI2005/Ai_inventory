@@ -27,6 +27,9 @@ api = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
 ]
+chat = [
+    "anthropic>=0.40",        # step 8: the model picks a tool and narrates; it never calculates
+]
 dev = [
     "pytest>=8.3",
     "ruff>=0.6",

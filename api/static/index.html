@@ -234,6 +234,81 @@ input[type=search]{min-width:290px}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 @media (prefers-reduced-motion:reduce){.anim .bar,.anim .col,.anim .line,.anim .pt{animation:none;stroke-dashoffset:0}}
 .storepick{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 16px}
+/* scenario slider under the frontier */
+.scenario{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+.scenario .s{background:var(--tint);border-radius:6px;padding:12px 14px}
+.scenario .s .k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.scenario .s .v{font-family:"Cascadia Mono",Consolas,Menlo,monospace;font-size:20px;font-weight:600;
+  margin-top:6px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.scenario .s .d{font-size:12.5px;color:var(--muted);margin-top:3px}
+.scenario .s .d b{color:var(--ink-2)}
+.scen-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;
+  margin-top:14px;font-size:14px;color:var(--ink-2)}
+.scen-head b{color:var(--accent);font-size:16px}
+.scen-head input[type=range]{width:min(420px,100%);accent-color:var(--accent)}
+.handle{cursor:grab}
+/* chat */
+.ask{display:flex;gap:10px;margin:0 0 12px}
+.ask input{flex:1;font:inherit;font-size:16px;padding:12px 14px;border:1px solid var(--line-2);
+  border-radius:6px;background:var(--surface);color:var(--ink)}
+.ask button{background:var(--accent);color:#fff;border-radius:6px;padding:0 18px;font-weight:600}
+.ask button[disabled]{opacity:.5;cursor:default}
+.suggest{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}
+.answer{background:var(--surface);border-radius:8px;box-shadow:var(--shadow);padding:22px 26px;
+  font-size:17px;line-height:1.6;margin-bottom:14px}
+.answer .via{font-size:12px;color:var(--muted);margin-top:12px;font-family:Consolas,monospace}
+.answer .via b{color:var(--ink-2);font-weight:600}
+.shell.present .answer{font-size:20px}
+/* scenario slider under the frontier */
+.scenario{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+.scenario .s{background:var(--tint);border-radius:6px;padding:12px 14px}
+.scenario .s .k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.scenario .s .v{font-family:"Cascadia Mono",Consolas,Menlo,monospace;font-size:20px;font-weight:600;
+  margin-top:6px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.scenario .s .d{font-size:12.5px;color:var(--muted);margin-top:3px}
+.scenario .s .d b{color:var(--ink-2)}
+.scen-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;
+  margin-top:14px;font-size:14px;color:var(--ink-2)}
+.scen-head b{color:var(--accent);font-size:16px}
+.scen-head input[type=range]{width:min(420px,100%);accent-color:var(--accent)}
+.handle{cursor:grab}
+/* chat */
+.ask{display:flex;gap:10px;margin:0 0 12px}
+.ask input{flex:1;font:inherit;font-size:16px;padding:12px 14px;border:1px solid var(--line-2);
+  border-radius:6px;background:var(--surface);color:var(--ink)}
+.ask button{background:var(--accent);color:#fff;border-radius:6px;padding:0 18px;font-weight:600}
+.ask button[disabled]{opacity:.5;cursor:default}
+.suggest{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}
+.answer{background:var(--surface);border-radius:8px;box-shadow:var(--shadow);padding:22px 26px;
+  font-size:17px;line-height:1.6;margin-bottom:14px}
+.answer .via{font-size:12px;color:var(--muted);margin-top:12px;font-family:Consolas,monospace}
+.answer .via b{color:var(--ink-2);font-weight:600}
+.shell.present .answer{font-size:20px}
+/* scenario slider under the frontier */
+.scenario{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+.scenario .s{background:var(--tint);border-radius:6px;padding:12px 14px}
+.scenario .s .k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.scenario .s .v{font-family:"Cascadia Mono",Consolas,Menlo,monospace;font-size:20px;font-weight:600;
+  margin-top:6px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.scenario .s .d{font-size:12.5px;color:var(--muted);margin-top:3px}
+.scenario .s .d b{color:var(--ink-2)}
+.scen-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;
+  margin-top:14px;font-size:14px;color:var(--ink-2)}
+.scen-head b{color:var(--accent);font-size:16px}
+.scen-head input[type=range]{width:min(420px,100%);accent-color:var(--accent)}
+.handle{cursor:grab}
+/* chat */
+.ask{display:flex;gap:10px;margin:0 0 12px}
+.ask input{flex:1;font:inherit;font-size:16px;padding:12px 14px;border:1px solid var(--line-2);
+  border-radius:6px;background:var(--surface);color:var(--ink)}
+.ask button{background:var(--accent);color:#fff;border-radius:6px;padding:0 18px;font-weight:600}
+.ask button[disabled]{opacity:.5;cursor:default}
+.suggest{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}
+.answer{background:var(--surface);border-radius:8px;box-shadow:var(--shadow);padding:22px 26px;
+  font-size:17px;line-height:1.6;margin-bottom:14px}
+.answer .via{font-size:12px;color:var(--muted);margin-top:12px;font-family:Consolas,monospace}
+.answer .via b{color:var(--ink-2);font-weight:600}
+.shell.present .answer{font-size:20px}
 .storepick .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .legend{display:flex;flex-wrap:wrap;gap:18px;font-size:12.5px;color:var(--muted);
   margin-top:10px}
@@ -449,6 +524,8 @@ const pct = n => {
   const v = n * 100;
   return (Math.abs(v) < 10 ? v.toFixed(1) : Math.round(v).toString()) + "%";
 };
+// service levels are quoted to one decimal: 99.5% and 99% are different policies
+const pct1 = n => (n === null || n === undefined ? "—" : (n * 100).toFixed(1) + "%");
 const signPct = n => {
   if (n === null || n === undefined || Number.isNaN(n)) return "—";
   const v = n * 100;
@@ -592,6 +669,100 @@ function Spark({ values }) {
         </g>`)}
     </svg>`;
 }
+/* ── 5 · chat ─────────────────────────────────────────────────────────────── */
+const SUGGESTED = [
+  "Which A-critical parts are out of stock in the rolling mill?",
+  "How much dead money is there, and what is the biggest item?",
+  "Tell me about M-016367.",
+  "What could the refinery get from another store instead of buying?",
+];
+
+function Chat({ setOpen }) {
+  const [status, setStatus] = useState(null);
+  const [q, setQ] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [turns, setTurns] = useState([]);
+  useEffect(() => { getJSON("/api/chat/status").then(setStatus).catch(() => setStatus({ available: false })); }, []);
+
+  const ask = text => {
+    const question = (text || q).trim();
+    if (!question || busy) return;
+    setBusy(true);
+    setQ("");
+    fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
+                         body: JSON.stringify({ question }) })
+      .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.detail || r.status))))
+      .then(a => setTurns(t => [{ question, ...a }, ...t]))
+      .catch(e => setTurns(t => [{ question, status: "error", answer: String(e.message || e), rows: [] }, ...t]))
+      .finally(() => setBusy(false));
+  };
+
+  const rowsTable = rows => {
+    if (!rows || !rows.length) return null;
+    const isDead = "dead_value_sar" in rows[0];
+    const isMove = "from_storeroom" in rows[0];
+    return html`
+      <div className="card"><table>
+        <thead><tr>
+          <th>Part</th>
+          ${isMove ? html`<th>From → to</th><th className="n">Qty</th><th className="n">Saved</th>`
+            : isDead ? html`<th>Store</th><th>Why</th><th className="n">Dead value</th>`
+            : html`<th>Store</th><th>What to do</th><th className="n">On shelf</th><th className="n">Our level</th><th className="n">To level</th>`}
+        </tr></thead>
+        <tbody>${rows.map((r, i) => html`
+          <tr key=${i} className="click" onClick=${() => setOpen([r.material_id, r.storeroom_id || r.to_storeroom])}>
+            <td className="item"><div className="d">${r.description}</div><div className="sub">${r.material_id}</div></td>
+            ${isMove ? html`<td className="strong nw">${r.from_storeroom} → ${r.to_storeroom}</td>
+                <td className="n">${num1(r.qty)} <span className="u">${r.uom}</span></td><td className="n acc">${M(r.value_sar)}</td>`
+              : isDead ? html`<td className="nw">${r.storeroom_id}</td><td className="nw"><${Tag} value=${r.category_label} /></td>
+                <td className="n acc">${M(r.dead_value_sar)}</td>`
+              : html`<td className="nw">${r.storeroom_id}</td><td className="nw"><${Action} value=${r.action} qty=${r.order_now_qty} uom=${r.uom} /></td>
+                <td className="n">${num1(r.on_hand)} <span className="u">${r.uom}</span></td>
+                <td className="n">${num1(r.reorder_point)}</td><td className="n">${M(r.cost_to_level_sar)}</td>`}
+          </tr>`)}</tbody>
+      </table></div>`;
+  };
+
+  return html`
+    <${Page} title="Ask"
+             lede=${"a question in plain English. The assistant picks one of four "
+                    + "questions the system has already answered, reads the answer back "
+                    + "in two or three sentences, and shows the rows it came from. It "
+                    + "never does arithmetic — if a number is not in the results, it says so."}>
+      ${status && !status.available && html`
+        <div className="state" style=${{ margin: "0 0 24px" }}>
+          <h3>Chat unavailable — no key</h3>
+          <p>Set <code style=${{ display: "inline", padding: "1px 6px" }}>${status.key_var || "ANTHROPIC_API_KEY"}</code>
+            in the environment the server runs in and restart it. Everything else on these pages works without it;
+            the four questions the chat can answer are on the Stock board, Recommendations and Storerooms pages.</p>
+        </div>`}
+      <div className="ask">
+        <input type="text" value=${q} placeholder="e.g. which critical parts are out of stock in the smelter?"
+               onInput=${e => setQ(e.target.value)} onKeyDown=${e => e.key === "Enter" && ask()}
+               disabled=${!status || !status.available || busy} />
+        <button onClick=${() => ask()} disabled=${!status || !status.available || busy || !q.trim()}>${busy ? "Asking…" : "Ask"}</button>
+      </div>
+      <div className="suggest">
+        ${SUGGESTED.map(s => html`<button key=${s} className="chip" disabled=${!status || !status.available || busy}
+                                          onClick=${() => ask(s)}>${s}</button>`)}
+      </div>
+      ${turns.map((t, i) => html`
+        <div key=${i}>
+          <div className="answer">
+            <div className="dim" style=${{ fontSize: "14px", marginBottom: "8px" }}>${t.question}</div>
+            <div>${t.answer}</div>
+            ${t.tool && html`<div className="via">answered by <b>${t.tool}</b>${t.args ? " " + JSON.stringify(t.args) : ""} — every figure above is in the rows below</div>`}
+            ${t.status === "unavailable" && html`<div className="via">${t.detail}</div>`}
+          </div>
+          ${rowsTable(t.rows)}
+        </div>`)}
+      ${status && status.available && turns.length === 0 && html`
+        <div className="aside">Four questions it can answer: what is out of stock (by store, by criticality);
+          where the dead money is (by store, by reason); everything about one part; what could be moved instead
+          of bought. Anything else it will say it cannot answer from the data.</div>`}
+    <//>`;
+}
+
 function Loading() {
   return html`<div className="state"><h3><span className="pulse"></span>Loading</h3>
     <p>Reading the results that were written when the analysis last ran.</p></div>`;
@@ -684,8 +855,8 @@ function Dashboard({ summary, stores, bt, fr, store, setStore, dead }) {
           </div>
           ${fr && fr.curve && html`
             <div className="chartbox wide">
-              <div className="chart-title">What a service level costs <${Info} text=${TIP.frontier} /></div>
-              <${Frontier} fr=${fr} compact />
+              <div className="chart-title">What a service level costs — drag the handle <${Info} text=${TIP.frontier + " Drag the handle along the curve: the four figures below are read from the same replay, nothing is computed live."} /></div>
+              <${Scenario} fr=${fr} />
             </div>`}
         </div>`}
       <div className="aside">
@@ -1193,8 +1364,9 @@ function PlantLine({ plant }) {
     </div>`;
 }
 
-function Frontier({ fr, compact }) {
+function Frontier({ fr, compact, handle, onDrag, pts: sorted, t }) {
   const [show, hide, tipNode] = useTip();
+  const [drag, setDrag] = useState(false);
   if (!fr || !fr.curve) return null;
   const W = 1000, H = compact ? 300 : 340, L = 86, R = 170, T = 20, B = 56;
   const iw = W - L - R, ih = H - T - B;
@@ -1213,10 +1385,30 @@ function Frontier({ fr, compact }) {
     <span className="mono">${num(r.stockout_days)}</span> days waiting<br/>
     <span className="mono">${M(r.avg_capital_sar)}</span> on the shelves<br/>
     <span className="mono">${M(r.total_cost_sar)}</span> all costs together`;
+  // dragging: the pointer's x is mapped to the nearest position along the sorted
+  // curve, expressed as the slider's 0..(n-1)*100 parameter
+  const toParam = e => {
+    if (!sorted) return null;
+    const box = e.currentTarget.getBoundingClientRect();
+    const px = ((e.clientX - box.left) / box.width) * W;
+    const xs = sorted.map(p => X(p.stockout_days));
+    let best = 0, bestD = Infinity;
+    for (let k = 0; k < xs.length - 1; k++) {
+      const a = xs[k], b = xs[k + 1];
+      const f = Math.max(0, Math.min(1, (px - a) / ((b - a) || 1e-9)));
+      const dist = Math.abs(a + (b - a) * f - px);
+      if (dist < bestD) { bestD = dist; best = (k + f) * 100; }
+    }
+    return Math.round(best);
+  };
+  const dragStart = e => { if (onDrag) { setDrag(true); const p = toParam(e); if (p !== null) onDrag(p); } };
+  const dragMove = e => { if (drag && onDrag) { const p = toParam(e); if (p !== null) onDrag(p); } };
+  const dragEnd = () => setDrag(false);
   return html`
     <div className="anim">
-      <svg viewBox=${"0 0 " + W + " " + H} width="100%" style=${{ display: "block" }}
-           role="img" aria-label="value on the shelves against days waiting">
+      <svg viewBox=${"0 0 " + W + " " + H} width="100%" style=${{ display: "block", touchAction: "none" }}
+           role="img" aria-label="value on the shelves against days waiting"
+           onPointerDown=${dragStart} onPointerMove=${dragMove} onPointerUp=${dragEnd} onPointerLeave=${dragEnd}>
         ${ticksY.map((v, i) => html`
           <g key=${"y" + i}>
             <line x1=${L} x2=${W - R} y1=${Y(v)} y2=${Y(v)} stroke="var(--line)" />
@@ -1231,12 +1423,12 @@ function Frontier({ fr, compact }) {
         <path className="line" d=${path} fill="none" stroke="var(--ink-2)" strokeWidth="1.6" />
         ${pts.map((p, i) => html`
           <g key=${"p" + i} className="hit"
-             onMouseMove=${e => show(e, tipFor(pct(p.s) + " service for every part", fr.curve[i]))} onMouseLeave=${hide}>
+             onMouseMove=${e => show(e, tipFor(pct1(p.s) + " service for every part", fr.curve[i]))} onMouseLeave=${hide}>
             <circle cx=${X(p.x)} cy=${Y(p.y)} r="9" fill="transparent" />
             <circle className="pt" cx=${X(p.x)} cy=${Y(p.y)} r="3.2" fill="var(--surface)" stroke="var(--ink-2)" strokeWidth="1.4" />
             ${(i === 0 || i === pts.length - 1) && html`
               <text x=${X(p.x) + (i === 0 ? 9 : -9)} y=${Y(p.y) + 4} textAnchor=${i === 0 ? "start" : "end"}
-                    fill="var(--muted)" fontSize="11" fontFamily="Consolas,monospace">${pct(p.s)} service</text>`}
+                    fill="var(--muted)" fontSize="11" fontFamily="Consolas,monospace">${pct1(p.s)} service</text>`}
           </g>`)}
         <g className="hit" onMouseMove=${e => show(e, tipFor("The plant's levels today", fr.baseline))} onMouseLeave=${hide}>
           <circle cx=${X(plant.x)} cy=${Y(plant.y)} r="12" fill="transparent" />
@@ -1248,6 +1440,13 @@ function Frontier({ fr, compact }) {
           <circle className="pt" cx=${X(ours.x)} cy=${Y(ours.y)} r="7" fill="var(--accent)" />
           <text x=${X(ours.x) + 12} y=${Y(ours.y) + 4} fill="var(--accent)" fontSize="12.5" fontWeight="600">our levels</text>
         </g>
+        ${handle && html`
+          <g className="handle">
+            <line x1=${X(handle.stockout_days)} x2=${X(handle.stockout_days)} y1=${T} y2=${T + ih} stroke="var(--accent)" strokeDasharray="3 3" opacity="0.6" />
+            <circle cx=${X(handle.stockout_days)} cy=${Y(handle.avg_capital_sar)} r="11" fill="var(--accent)" opacity="0.18" />
+            <circle cx=${X(handle.stockout_days)} cy=${Y(handle.avg_capital_sar)} r="6" fill="var(--surface)" stroke="var(--accent)" strokeWidth="2.5" />
+            <text x=${X(handle.stockout_days)} y=${Y(handle.avg_capital_sar) - 14} textAnchor="middle" fill="var(--accent)" fontSize="12" fontWeight="600">${pct1(handle.service_level)}</text>
+          </g>`}
         <text x=${L + iw / 2} y=${H - 8} textAnchor="middle" fill="var(--muted)" fontSize="12">
           days a part was wanted and not there, over the whole year and every record</text>
         <text x=${20} y=${T + ih / 2} fill="var(--muted)" fontSize="12"
@@ -1258,6 +1457,48 @@ function Frontier({ fr, compact }) {
         <span><i style=${{ background: "var(--ink-2)" }}></i>one blanket service level for every part, 50% to 99.5%</span>
         <span><i style=${{ background: "var(--ink)", borderRadius: "50%" }}></i>the plant's levels today</span>
         <span><i style=${{ background: "var(--accent)", borderRadius: "50%" }}></i>ours — each part at its own level</span>
+      </div>
+    </div>`;
+}
+
+/* The scenario slider. The handle moves along the measured curve; the four figures
+   are linear interpolation between the two nearest sampled points of the SAME
+   replay, so nothing is computed live and nothing can disagree with the evidence
+   page. Deltas are against the plant's own levels today.                        */
+function Scenario({ fr }) {
+  const pts = fr.curve.slice().sort((a, b) => a.service_level - b.service_level);
+  const ours = fr.recommended, plant = fr.baseline;
+  const startAt = () => {
+    // open on the sampled point nearest our recommendation's total cost
+    let k = 0;
+    pts.forEach((p, i) => { if (Math.abs(p.total_cost_sar - ours.total_cost_sar) < Math.abs(pts[k].total_cost_sar - ours.total_cost_sar)) k = i; });
+    return k * 100;
+  };
+  const [t, setT] = useState(startAt);          // 0 .. (n-1)*100
+  const n = pts.length;
+  const i = Math.min(n - 2, Math.floor(t / 100)), f = t / 100 - i;
+  const lerp = k => pts[i][k] + (pts[i + 1][k] - pts[i][k]) * f;
+  const at = { service_level: lerp("service_level"), stockout_days: lerp("stockout_days"),
+               avg_capital_sar: lerp("avg_capital_sar"), total_cost_sar: lerp("total_cost_sar"),
+               orders_placed: lerp("orders_placed") };
+  const d = (k, money) => {
+    const v = (at[k] - plant[k]) / plant[k];
+    return html`<div className="d"><b>${signPct(v)}</b> vs the plant today${money ? " (" + M(plant[k]) + ")" : " (" + num(plant[k]) + ")"}</div>`;
+  };
+  return html`
+    <div>
+      <${Frontier} fr=${fr} compact handle=${at} onDrag=${x => setT(x)} pts=${pts} t=${t} />
+      <div className="scen-head">
+        <span>Every part held to <b>${pct1(at.service_level)}</b> service</span>
+        <input type="range" min="0" max=${(n - 1) * 100} value=${t} onInput=${e => setT(+e.target.value)}
+               aria-label="service level" />
+        <span className="dim">ours, per part: ${M(ours.avg_capital_sar)} · ${num(ours.stockout_days)} days · ${M(ours.total_cost_sar)}</span>
+      </div>
+      <div className="scenario">
+        <div className="s"><div className="k">Value on the shelves</div><div className="v">${M(at.avg_capital_sar)}</div>${d("avg_capital_sar", true)}</div>
+        <div className="s"><div className="k">Days waiting for a part</div><div className="v">${num(at.stockout_days)}</div>${d("stockout_days")}</div>
+        <div className="s"><div className="k">All costs together</div><div className="v">${M(at.total_cost_sar)}</div>${d("total_cost_sar", true)}</div>
+        <div className="s"><div className="k">Purchase orders</div><div className="v">${num(at.orders_placed)}</div>${d("orders_placed")}</div>
       </div>
     </div>`;
 }
@@ -1305,6 +1546,10 @@ function UsageChart({ usage, forecast, planned, trainMonths, startMonth, uom }) 
         ${forecast.map((v, i) => html`
           <circle key=${"c" + i} cx=${L + (trainMonths + i) * step + step / 2} cy=${y(v + (planned[i] || 0))}
                   r="2.6" fill="var(--accent)" />`)}
+        ${planned.map((p, i) => p > 0 && html`
+          <rect key=${"s" + i} x=${L + (trainMonths + i) * step + (step - bw) / 2} y=${y(p)} width=${bw}
+                height=${Math.max(2, T + ih - y(p))} fill="none" stroke="var(--accent)" strokeWidth="1.4"
+                strokeDasharray="3 2" />`)}
         <line x1=${cutX} x2=${cutX} y1=${T} y2=${T + ih} stroke="var(--ink)" strokeWidth="1" strokeDasharray="4 3" />
         <text x=${cutX + 5} y=${T + 11} fill="var(--muted)" fontSize="11" fontFamily="Consolas,monospace">learned up to here</text>
         <line x1=${L} x2=${W - R} y1=${T + ih} y2=${T + ih} stroke="var(--line-2)" />
@@ -1316,7 +1561,8 @@ function UsageChart({ usage, forecast, planned, trainMonths, startMonth, uom }) 
       ${tipNode}
       <div className="legend">
         <span><i style=${{ background: "var(--ink-2)" }}></i>given out</span>
-        <span><i style=${{ background: "var(--accent)" }}></i>what the system expected for the last year, including scheduled work</span>
+        <span><i style=${{ background: "var(--accent)" }}></i>what the system expected for the last year</span>
+        <span><i style=${{ border: "1.5px dashed var(--accent)", background: "transparent" }}></i>scheduled work — planned jobs and outages already in the calendar</span>
       </div>
     </div>`;
 }
@@ -1497,8 +1743,11 @@ function Drawer({ id, onClose }) {
             So it moves <b>${(CLASS_LABEL[d.demand_class] || d.demand_class).toLowerCase()}</b>
             ${" "}(roughly every ${num1(d.adi)} months; the technical name is ${" " + d.demand_class}), which is why it is
             planned with ${d.forecast_method}.
-            ${d.planned_wo_qty > 0 ? html` On top of that, ${num1(d.planned_wo_qty)} ${" " + d.uom} is already on the
-              maintenance schedule for the year ahead — known, not predicted.` : ""}</p>
+            ${d.planned_wo_qty > 0 ? html` On top of that, ${num1(d.planned_wo_qty)} ${" " + d.uom} was already on the
+              maintenance schedule for the tested year — known, not predicted.` : ""}
+            ${d.shutdown_qty_per_event > 0 ? html` Outages are kept out of the buffer: this part drew about
+              ${" " + num1(d.shutdown_qty_per_event)} ${d.uom} per shutdown, and that is scheduled as its own demand
+              ${d.next_shutdown_date ? " for the next one, starting " + dateShort(d.next_shutdown_date) : ""}${d.shutdown_due_qty > 0 ? " — it is inside this order" : ""}.` : ""}</p>
           <p>The plant's existing rule reorders at <b>${num1(d.min_qty)}</b> and fills to <b>${num1(d.max_qty)}</b>.
             We reorder at <b>${num1(d.reorder_point)}</b> and fill to <b>${num1(d.order_up_to)}</b>${" "}
             ${d.reorder_point > d.min_qty
@@ -1538,6 +1787,7 @@ const SCREENS = [
   { key: "storerooms", name: "Storerooms" },
   { key: "board", name: "Stock board" },
   { key: "recommendations", name: "Recommendations" },
+  { key: "chat", name: "Ask" },
 ];
 const STORES = ["SMELTER", "ROLLING", "CENTRAL", "REFINERY", "BAITHA"];
 
@@ -1636,6 +1886,7 @@ function App() {
     route.screen === "storerooms" ? html`<${Storerooms} stores=${state.stores} setOpen=${setOpen} store=${route.store} setStore=${setStore} />`
     : route.screen === "board" ? html`<${Board} setOpen=${setOpen} />`
     : route.screen === "recommendations" ? html`<${Recommendations} setOpen=${setOpen} />`
+    : route.screen === "chat" ? html`<${Chat} setOpen=${setOpen} />`
     : route.screen === "evidence" ? html`<${Evidence} summary=${state.summary} score=${state.score} bt=${state.bt} fc=${state.fc} fr=${state.fr} />`
     : html`<${Dashboard} summary=${state.summary} stores=${state.stores} bt=${state.bt} fr=${state.fr}
                           store=${route.focus} setStore=${setFocus} dead=${state.dead} />`;

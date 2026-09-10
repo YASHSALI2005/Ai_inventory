@@ -273,6 +273,30 @@ def create_app(cfg: RunConfig) -> FastAPI:
             headers={"Content-Disposition": f'attachment; filename="{which}.csv"'},
         )
 
+    @app.get("/api/chat/status")
+    def chat_status() -> dict:
+        """Whether the chat can run at all: the key comes from the environment only."""
+        from api import chat
+
+        return chat.status()
+
+    @app.post("/api/chat")
+    def chat_ask(body: dict) -> dict:
+        """
+        One question in, one narrated answer out, with the rows it was built from.
+        The model chooses a tool; the tool answers from results/; the model never
+        calculates. Without a key this returns a plain 'unavailable' status.
+        """
+        from api import chat
+
+        question = str((body or {}).get("question", "")).strip()
+        if not question:
+            raise HTTPException(status_code=422, detail="ask a question")
+        try:
+            return chat.answer(cfg, question[:500])
+        except Exception as exc:  # the model is an external service; say what broke
+            raise HTTPException(status_code=502, detail=f"chat failed: {exc}") from exc
+
     @app.get("/api/storerooms")
     def storerooms() -> dict:
         return _read(cfg, STOREROOM_FILE, f"python cli.py run --preset {cfg.preset}")

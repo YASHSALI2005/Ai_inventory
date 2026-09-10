@@ -1232,3 +1232,59 @@ Type: reversal
 Reverses: "dark by default" (same day)
 Reasoning: Asked for. The toggle stays; the choice is the only thing the page
            writes to the browser.
+
+
+## 2026-09-10 — Outage demand leaves the buffer entirely and is scheduled instead
+Model: Fable 5.1
+Type: decision
+Reasoning: The calendar rule excluded only planned work inside a shutdown window;
+           the brief asked for all demand inside the window and on shutdown orders,
+           added back as scheduled demand dated to the next outage. `engine/outage.py`
+           is now the one place that decides what an outage is, used by levels (to
+           exclude) and forecast (to schedule, sized at the position's own draw per
+           outage). The generator carries next year's outages — deterministic, one
+           per plant twelve months after its last — so there is a date to schedule
+           against; it consumes no randomness.
+
+## 2026-09-10 — Regular movers are capped at three windows of EVERYDAY usage
+Model: Fable 5.1
+Type: decision
+Reasoning: Removing outage demand did not move the filter: its 5,000-6,000 bursts fall
+           after the outage windows and are its own erratic demand. The 3x cap was on
+           the mean (1,700/month) and so carried the bursts it existed to stop. The
+           cap is now 3x the median month's usage over the window. M-016367: 12,434 →
+           6,298, "Order 9,999" → 3,863. Capital delta +29% → +28%; days waiting -56%.
+Rejected: raising the cap multiple, or excluding demand outside windows by amount
+          (that is the erratic profile, and the buffer is allowed to know about it).
+
+## 2026-09-10 — Scenario slider interpolates the measured curve; nothing is computed live
+Model: Fable 5.1
+Type: decision
+Reasoning: The handle moves along frontier.json; the four figures are linear
+           interpolation between the two nearest sampled service levels of the same
+           replay, with deltas against the plant. Anything computed in the browser
+           could disagree with the evidence page.
+
+## 2026-09-10 — The assistant is four tools and a narrator; anthropic is the one new dependency
+Model: Fable 5.1
+Type: decision
+Reasoning: SOW capability 7. The model never calculates: every figure must appear in
+           a tool result, and the system prompt says what to do when none does. Tools
+           read results/ only — a test fails if chat.py can reach the source tables or
+           the answer key. `anthropic` is the SDK for the model the brief asked for;
+           the key is read from the environment and nowhere else. Twenty golden
+           questions test the tool side always and the model's routing only with a
+           key present, because a CI run without a key must not pretend.
+Rejected: a free-text SQL tool (arithmetic by another name); a local model (a second
+          new dependency for a worse narrator).
+
+## 2026-09-10 — POC closed
+Model: Fable 5.1
+Type: decision
+Reasoning: The three claims fixed on 2026-09-10 are measured on the full preset and
+           on the screens: faults 98%/98%, levels 56% fewer days
+           waiting at -36% total cost, dead money 98% found at
+           99% precision. Everything not built is listed in HANDOVER under
+           Phase 1 with a reason. The one figure to keep saying out loud is the
+           capital delta (+28%): better stocking spends more to waste less; the
+           cash release is the dead-money list.

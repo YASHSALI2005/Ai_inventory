@@ -1,9 +1,45 @@
-# Ma'aden MRO Intelligence POC
+# Ma'aden Aluminium — AI-Powered Inventory Intelligence & MRO Optimization (POC)
 
-AI-powered inventory intelligence and MRO optimization for Ma'aden Aluminium.
-Response to SOW `MD-404-1000-OE-DG-SOW-0000_` Rev 0.0, Use Case 01.
+**Status: POC complete (2026-09-10).** Three claims, each measured rather than asserted:
 
-**Status: Phase 0 — proposal complete, no code yet.**
+| Claim | Measured on the full preset |
+|---|---|
+| We can find data problems | **98% of planted faults found at 98% precision**, against a sealed answer key the engine never reads |
+| We can set better stock levels | **56% fewer days waiting for parts**, all costs together -36%, holding +28% more stock — the last year replayed under both sets of levels |
+| We can find the dead money | **SAR 382.8m of SAR 391.7m truly dead (98%), 99% precision**, one reason per record |
+
+The plant is invented, the faults were planted, and the answer key is sealed; Phase 1
+swaps the generator for the SAP/PiLog extract behind the same interface.
+
+## Run it
+
+```
+python -m pip install -e ".[engine,report,api,dev]"     # + [chat] for the assistant
+python cli.py all --preset full        # build → run → score → report   (~4 min)
+python cli.py serve --preset full      # the screens, http://127.0.0.1:8000
+python -m pytest -q                    # the suite
+```
+
+Five pages in the nav — Dashboard · Storerooms · Stock board · Recommendations · Ask —
+with Evidence in the footer. **Present** in the nav walks them for a meeting. The
+assistant needs `ANTHROPIC_API_KEY` in the environment; without it the page says so and
+everything else works.
+
+## Read first
+
+- [`HANDOVER.md`](HANDOVER.md) — status, what is done, what to avoid. **Start here.**
+- [`docs/RESULTS-SHEET.md`](docs/RESULTS-SHEET.md) — one page: the three numbers, the backtest, the dead-money score, the limits. Regenerated from `results/`.
+- [`docs/DEMO-SCRIPT.md`](docs/DEMO-SCRIPT.md) — the ten-minute click-through. Regenerated from `results/`.
+- [`docs/progress/POC-PROGRESS.docx`](docs/progress/POC-PROGRESS.docx) — the progress document, screenshots included. `python cli.py report` rebuilds all three.
+- [`DECISIONS.md`](DECISIONS.md) — why things are the way they are, including what was tried and reversed.
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`CONSTRAINTS.md`](CONSTRAINTS.md) · [`docs/reference/UX-NOTES.md`](docs/reference/UX-NOTES.md)
+
+## The rules that hold it together
+
+`engine/` never reads `answer_key/`; `scoring/` grades it afterwards. The screens and the
+assistant read `results/` and compute nothing. Every recommendation carries a reason a
+planner can argue with. The assistant never does arithmetic. No new library without a
+reason in DECISIONS.md.
 
 ## Read these first, in order
 

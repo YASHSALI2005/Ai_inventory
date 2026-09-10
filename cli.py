@@ -198,6 +198,10 @@ def cmd_report(args) -> int:
         print(str(exc), file=sys.stderr)
         return 1
     print(f"progress document: {out}  ({out.stat().st_size / 1024:.0f} KB)")
+    from docs.make_sheets import build as build_sheets
+
+    for sheet in build_sheets(cfg):
+        print(f"regenerated: {sheet.relative_to(Path(__file__).resolve().parent)}")
     return 0
 
 

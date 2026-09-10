@@ -58,6 +58,7 @@ import pandas as pd
 from contracts import schemas as S
 from contracts.config import RunConfig
 from engine.classify import PERIOD
+from engine.outage import outage_mask
 
 LEVELS_FILE = "levels.parquet"
 REPORT_FILE = "levels_report.json"
@@ -212,31 +213,6 @@ def usable_lead_times(materials: pd.DataFrame, findings: pd.DataFrame) -> pd.Ser
     return lead
 
 
-def _is_outage_demand(train: pd.DataFrame, materials: pd.DataFrame,
-                      work_orders: pd.DataFrame, shutdowns: pd.DataFrame) -> np.ndarray:
-    """
-    Which movements are the outage, rather than the plant's ordinary appetite.
-
-    Tagging by the work order alone was not enough: in the shutdown month that put
-    one rolling-mill part at eighteen months of supply, only 4,320 of the 15,474
-    units issued were on a SHUTDOWN order — the other 11,154 sat on PLANNED orders
-    raised for the same outage. So the calendar decides: planned work issued to a
-    plant while that plant is in a scheduled shutdown is the shutdown. Breakdowns
-    in the same window are still breakdowns and still count.
-    """
-    if train.empty or shutdowns.empty:
-        return np.zeros(len(train), dtype=bool)
-    area = train["material_id"].map(materials.set_index("material_id")["area"])
-    wo_type = train["work_order_id"].map(work_orders.set_index("work_order_id")["wo_type"])
-    planned = wo_type.isin(["PLANNED", "SHUTDOWN"]).to_numpy()
-    dates = train["date"].to_numpy()
-    in_window = np.zeros(len(train), dtype=bool)
-    for sd in shutdowns.itertuples():
-        hit = (area == sd.plant).to_numpy() & (dates >= sd.start_date) & (dates <= sd.end_date)
-        in_window |= hit
-    return in_window & planned
-
-
 def _daily_matrix(train: pd.DataFrame, positions: pd.DataFrame,
                   start: pd.Timestamp, n_days: int) -> np.ndarray:
     """Units issued per position per day over the training window."""
@@ -314,10 +290,10 @@ def _reason(level: float, service: float, window_days: float, criticality: str,
         )
     elif capped:
         base = (
-            f"Holding {level:,.0f} {uom} — three times what this part is expected "
-            f"to need in a {window_days:,.0f}-day stretch, which is the most a "
-            f"regularly-used part is buffered even though its history has seen "
-            f"bigger; {criticality}-critical"
+            f"Holding {level:,.0f} {uom} — three times this part's everyday "
+            f"{window_days:,.0f}-day usage, which is the most a regularly-used part "
+            f"is buffered even though its history has seen bigger bursts; "
+            f"{criticality}-critical"
         )
     else:
         kind = "likely" if simulated else "past"
@@ -354,16 +330,15 @@ def compute(cfg: RunConfig) -> Levels:
     train = cfg.train_slice(movements)
     pack_of = pack_sizes(train)
 
-    # Issues against a SHUTDOWN work order are not variability, they are the plan.
-    # A planned outage is known months ahead and its parts should be ordered against
-    # the schedule; sizing a permanent buffer to absorb it treats the most
-    # predictable demand in the plant as its most random. On one rolling-mill part
-    # the shutdown month alone (15,474 against a normal ~900) put the reorder point
-    # at eighteen months of supply. Ordering against the schedule is step 4's
-    # known-demand overlay; the buffer here covers everything else.
+    # Outage demand is not variability, it is the plan. Everything issued to a plant
+    # while it is in a scheduled shutdown — whatever the work order says — leaves
+    # the buffer distribution here and comes back as scheduled demand in the
+    # forecast, dated to the next outage in the calendar (`engine.outage`). On one
+    # rolling-mill filter the outage months alone put the reorder point at eighteen
+    # months of everyday supply.
     work_orders = S.read(S.WORK_ORDERS, cfg.source_dir)
     shutdowns = S.read(S.SHUTDOWNS, cfg.source_dir)
-    unplanned = train[~_is_outage_demand(train, materials, work_orders, shutdowns)]
+    unplanned = train[~outage_mask(train, materials, work_orders, shutdowns)]
     consumed = unplanned[unplanned["movement_type"].isin(["ISSUE", "RETURN"])].copy()
     consumed["demand"] = -consumed["qty"]
     consumed["period"] = consumed["date"].dt.to_period(PERIOD)
@@ -408,6 +383,11 @@ def compute(cfg: RunConfig) -> Levels:
         sums = _window_sums(daily[i], window_days)
         max_window = float(sums.max()) if sums.size else 0.0
         expected_window = float(daily[i].mean()) * window_days
+        # "everyday" usage is the typical month, not the average one. For a part that
+        # draws 900 most months and 6,000 twice a year the mean is 1,700 and the
+        # median 900; a buffer capped at three windows of the MEAN quietly carries
+        # the bursts it was meant to stop carrying.
+        everyday_window = float(np.median(series)) / DAYS_PER_PERIOD * window_days
 
         simulated = pos.demand_class not in HISTORY_CLASSES
         capped = False
@@ -432,7 +412,7 @@ def compute(cfg: RunConfig) -> Levels:
             # thousand in a fortnight; the 99th percentile of its real 74-day
             # windows is honestly 20,000, and holding that is a policy decision the
             # plant would not take. The cap says so.
-            cap = SIM_CAP_MULTIPLE * expected_window
+            cap = SIM_CAP_MULTIPLE * (everyday_window if everyday_window > 0 else expected_window)
             raw = float(np.quantile(sums, service)) if sums.size else 0.0
             capped = raw > cap
             reorder = min(raw, cap)
@@ -481,6 +461,7 @@ def compute(cfg: RunConfig) -> Levels:
                 "pack_size": pack,
                 "order_quantity": float(np.ceil(quantity)),
                 "expected_window_demand": expected_window,
+                "everyday_window_demand": everyday_window,
                 "max_window_demand": max_window,
                 "buffer_simulated": bool(simulated),
                 "buffer_capped": bool(capped),

@@ -508,7 +508,7 @@ def build_shutdowns(cfg, rng):
     plants = rng.choice(np.array(["SMELTER", "REFINERY", "ROLLING", "MINE"]), size=n)
     offsets = np.sort(rng.integers(150, cfg.n_days - 40, size=n))
     notice = rng.integers(*cfg.work_orders.shutdown_notice_days, size=n)
-    return pd.DataFrame(
+    past = pd.DataFrame(
         {
             "shutdown_id": [f"SD-{i:03d}" for i in range(1, n + 1)],
             "plant": plants,
@@ -517,6 +517,23 @@ def build_shutdowns(cfg, rng):
             "scheduled_on": start + pd.to_timedelta(np.maximum(offsets - notice, 0), "D"),
         }
     )
+    # A plant plans next year's outages this year. One per plant that had one,
+    # twelve months after its last, already in the calendar at the end of the
+    # data — deterministic, so it consumes no randomness and moves nothing else.
+    # Without it the year ahead has no outage to schedule the outage demand against.
+    end = pd.Timestamp(cfg.history_end)
+    last = past.sort_values("start_date").groupby("plant").last()
+    future = []
+    for k, (plant, r) in enumerate(last.iterrows(), start=1):
+        start_next = r["start_date"] + pd.DateOffset(months=12)
+        if start_next <= end:
+            continue
+        future.append({
+            "shutdown_id": f"SD-{n + k:03d}", "plant": plant, "start_date": start_next,
+            "end_date": start_next + (r["end_date"] - r["start_date"]),
+            "scheduled_on": min(end, start_next - pd.Timedelta(days=180)),
+        })
+    return pd.concat([past, pd.DataFrame(future)], ignore_index=True) if future else past
 
 
 __all__ = [

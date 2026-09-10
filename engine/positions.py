@@ -34,6 +34,7 @@ import pandas as pd
 from contracts import schemas as S
 from contracts.config import RunConfig
 from engine.classify import PERIOD
+from engine.outage import draw_per_event, next_shutdown
 
 POSITIONS_FILE = "positions.parquet"
 STOREROOM_FILE = "storeroom_report.json"
@@ -72,6 +73,8 @@ def build(cfg: RunConfig) -> pd.DataFrame:
     materials = S.read(S.MATERIALS, cfg.source_dir)
     stock = S.read(S.STOCK, cfg.source_dir)
     movements = S.read(S.MOVEMENTS, cfg.source_dir)
+    work_orders = S.read(S.WORK_ORDERS, cfg.source_dir)
+    shutdowns = S.read(S.SHUTDOWNS, cfg.source_dir)
     levels = pd.read_parquet(cfg.results_dir / "levels.parquet")
     classes = pd.read_parquet(cfg.results_dir / "classification.parquet")
     forecast = pd.read_parquet(cfg.results_dir / "forecast.parquet")
@@ -139,6 +142,15 @@ def build(cfg: RunConfig) -> pd.DataFrame:
 
     df["value_sar"] = df["on_hand"].clip(lower=0) * df["avg_unit_cost_sar"].fillna(0.0)
 
+    # What this position draws in one outage, and when the next one is. The buffer
+    # no longer carries outage demand; this is where it went.
+    draw = draw_per_event(movements, materials, work_orders, shutdowns,
+                          cfg.history_start, cfg.history_end)
+    df["shutdown_qty_per_event"] = draw.reindex(idx).fillna(0.0).to_numpy()
+    nxt = next_shutdown(shutdowns, cfg.history_end, known_by=cfg.history_end)
+    area = df["material_id"].map(materials.set_index("material_id")["area"])
+    df["next_shutdown_date"] = pd.to_datetime(area.map(nxt))
+
     last_issue = pd.to_datetime(df["last_issue_date"])
     cutoff = pd.Timestamp(cfg.history_end) - pd.DateOffset(months=IDLE_MONTHS)
     never = df["never_moved"].fillna(True).to_numpy(dtype=bool) | last_issue.isna().to_numpy()
@@ -179,6 +191,13 @@ def build(cfg: RunConfig) -> pd.DataFrame:
         (df["reorder_point"] - on_hand).clip(lower=0.0) * df["unit_price_sar"]
     )
     df["order_now_qty"] = (df["order_up_to"] - on_hand).clip(lower=0.0).round()
+    # an outage that starts before this order could be repeated is part of this order
+    horizon = pd.Timestamp(cfg.history_end) + pd.to_timedelta(df["lead_time_days"] + 30, unit="D")
+    due = df["next_shutdown_date"].notna() & (df["next_shutdown_date"] <= horizon)
+    df["shutdown_due_qty"] = np.where(due, df["shutdown_qty_per_event"].round(), 0.0)
+    df["order_now_qty"] = np.where(df["order_now_qty"] > 0,
+                                   df["order_now_qty"] + df["shutdown_due_qty"],
+                                   df["order_now_qty"])
     df["order_cost_sar"] = df["order_now_qty"] * df["unit_price_sar"]
 
     # When it runs out, and when the order has to go in to arrive before that.

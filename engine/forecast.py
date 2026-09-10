@@ -49,6 +49,7 @@ from statsforecast.models import (
 from contracts import schemas as S
 from contracts.config import RunConfig
 from engine.classify import PERIOD
+from engine.outage import draw_per_event
 
 REPORT_FILE = "forecast_report.json"
 FORECAST_FILE = "forecast.parquet"
@@ -117,47 +118,80 @@ def _dense_panel(demand: pd.DataFrame, positions: pd.DataFrame,
 
 def _known_future_demand(cfg: RunConfig, materials: pd.DataFrame,
                          work_orders: pd.DataFrame, shutdowns: pd.DataFrame,
-                         eval_index: pd.DatetimeIndex) -> pd.DataFrame:
+                         index: pd.DatetimeIndex, movements: pd.DataFrame | None = None,
+                         known_by=None, history_to=None) -> pd.DataFrame:
     """
-    Demand we already know about: jobs raised before the cut-off but not yet done,
-    and shutdowns already in the calendar.
+    Demand we already know about: jobs raised but not yet done, and outages already
+    in the calendar — sized at what each position drew per outage in the past.
 
-    Only what was visible on the cut-off date is used. A job created afterwards is
-    information the system would not have had.
+    Only what was visible on `known_by` is used. A job created afterwards, or an
+    outage announced afterwards, is information the system would not have had.
+    Returned per (material, storeroom, month); the shutdown draw is per position
+    because the same filter is drawn from the rolling mill's store, not the mine's.
     """
-    cut = pd.Timestamp(cfg.cutoff_date)
-    known = work_orders[
-        (work_orders["created_date"] <= cut) & (work_orders["date"] > cut)
-    ]
+    cut = pd.Timestamp(known_by if known_by is not None else cfg.cutoff_date)
     rows = []
-    if len(known):
-        by_equipment = (
-            materials.groupby("equipment_id")["material_id"].apply(list).to_dict()
-        )
-        for wo in known.itertuples():
+
+    jobs = work_orders[(work_orders["created_date"] <= cut) & (work_orders["date"] > cut)]
+    if len(jobs):
+        by_equipment = materials.groupby("equipment_id")["material_id"].apply(list).to_dict()
+        for wo in jobs.itertuples():
             month = pd.Timestamp(wo.date).to_period(PERIOD).to_timestamp()
-            if month not in eval_index:
+            if month not in index:
                 continue
             for material in by_equipment.get(wo.equipment_id, [])[:3]:
-                rows.append({"material_id": material, "ds": month, "known_qty": 1.0})
+                rows.append({"material_id": material, "storeroom_id": None, "ds": month,
+                             "known_qty": 1.0})
+    jobs_df = pd.DataFrame(rows) if rows else pd.DataFrame(
+        columns=["material_id", "storeroom_id", "ds", "known_qty"])
 
-    upcoming = shutdowns[
-        (shutdowns["scheduled_on"] <= cut) & (shutdowns["start_date"] > cut)
-    ]
-    if len(upcoming):
-        for sd in upcoming.itertuples():
-            month = pd.Timestamp(sd.start_date).to_period(PERIOD).to_timestamp()
-            if month not in eval_index:
-                continue
-            area = materials["area"] == sd.plant
-            for material in materials.loc[area, "material_id"]:
-                rows.append({"material_id": material, "ds": month, "known_qty": 0.5})
+    # the outage draw, per position, at the month each announced outage starts
+    outage_rows = []
+    upcoming = shutdowns[(shutdowns["scheduled_on"] <= cut) & (shutdowns["start_date"] > cut)]
+    if len(upcoming) and movements is not None:
+        hist_end = pd.Timestamp(history_to if history_to is not None else cut)
+        hist = movements[movements["date"] <= hist_end]
+        draw = draw_per_event(hist, materials, work_orders, shutdowns,
+                              cfg.history_start, hist_end)
+        if len(draw):
+            area = materials.set_index("material_id")["area"]
+            frame = draw.reset_index()
+            frame["area"] = frame["material_id"].map(area)
+            for sd in upcoming.itertuples():
+                month = pd.Timestamp(sd.start_date).to_period(PERIOD).to_timestamp()
+                if month not in index:
+                    continue
+                hit = frame[frame["area"] == sd.plant]
+                for r in hit.itertuples():
+                    outage_rows.append({"material_id": r.material_id,
+                                        "storeroom_id": r.storeroom_id, "ds": month,
+                                        "known_qty": float(r.shutdown_qty_per_event)})
+    outage_df = pd.DataFrame(outage_rows) if outage_rows else pd.DataFrame(
+        columns=["material_id", "storeroom_id", "ds", "known_qty"])
+    out = pd.concat([jobs_df, outage_df], ignore_index=True)
+    if out.empty:
+        return out
+    return out.groupby(["material_id", "storeroom_id", "ds"], as_index=False, dropna=False)[
+        "known_qty"].sum()
 
-    if not rows:
-        return pd.DataFrame(columns=["material_id", "ds", "known_qty"])
-    return (
-        pd.DataFrame(rows).groupby(["material_id", "ds"], as_index=False)["known_qty"].sum()
-    )
+
+def _merge_known(fitted: pd.DataFrame, known: pd.DataFrame) -> pd.DataFrame:
+    """Position-level rows join on both keys; material-level rows reach every store."""
+    fitted = fitted.copy()
+    fitted["known_qty"] = 0.0
+    if known.empty:
+        return fitted
+    by_pos = known[known["storeroom_id"].notna()]
+    by_mat = known[known["storeroom_id"].isna()].drop(columns=["storeroom_id"])
+    if len(by_pos):
+        fitted = fitted.merge(by_pos.rename(columns={"known_qty": "_pos"}),
+                              on=["material_id", "storeroom_id", "ds"], how="left")
+        fitted["known_qty"] += fitted.pop("_pos").fillna(0.0)
+    if len(by_mat):
+        fitted = fitted.merge(by_mat.rename(columns={"known_qty": "_mat"}),
+                              on=["material_id", "ds"], how="left")
+        fitted["known_qty"] += fitted.pop("_mat").fillna(0.0)
+    return fitted
 
 
 def _poisson_from_service_life(materials: pd.DataFrame, positions: pd.DataFrame,
@@ -254,12 +288,10 @@ def run(cfg: RunConfig) -> Forecast:
             ignore_index=True,
         )
 
-    known = _known_future_demand(cfg, materials, work_orders, shutdowns, eval_index)
-    if len(known):
-        fitted = fitted.merge(known, on=["material_id", "ds"], how="left")
-        fitted["known_qty"] = fitted["known_qty"].fillna(0.0)
-    else:
-        fitted["known_qty"] = 0.0
+    known = _known_future_demand(cfg, materials, work_orders, shutdowns, eval_index,
+                                 movements=movements, known_by=cfg.cutoff_date,
+                                 history_to=cfg.cutoff_date)
+    fitted = _merge_known(fitted, known)
     fitted["forecast_total"] = fitted["forecast"] + fitted["known_qty"]
 
     report = _score_and_report(cfg, fitted, demand, panel, classes, eval_index,
@@ -306,12 +338,10 @@ def run(cfg: RunConfig) -> Forecast:
             [forward, grid[["material_id", "storeroom_id", "ds", "forecast", "method"]]],
             ignore_index=True,
         )
-    known_ahead = _known_future_demand(cfg, materials, work_orders, shutdowns, forward_index)
-    if len(known_ahead):
-        forward = forward.merge(known_ahead, on=["material_id", "ds"], how="left")
-        forward["known_qty"] = forward["known_qty"].fillna(0.0)
-    else:
-        forward["known_qty"] = 0.0
+    known_ahead = _known_future_demand(cfg, materials, work_orders, shutdowns, forward_index,
+                                       movements=movements, known_by=cfg.history_end,
+                                       history_to=cfg.history_end)
+    forward = _merge_known(forward, known_ahead)
     forward["forecast_total"] = forward["forecast"] + forward["known_qty"]
 
     cfg.results_dir.mkdir(parents=True, exist_ok=True)

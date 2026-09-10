@@ -244,29 +244,27 @@ def num(x):
 
 SCREENS = [
     ("dashboard.png", "#/present/", "Dashboard",
-     "The four headline figures and four charts: value by store, how the parts "
-     "move, the plant's monthly usage with the forecast year laid over what "
-     "actually happened, and the service-level curve with both policies on it."),
+     "Four headline figures and four charts: value by store, how the parts move, the "
+     "plant's monthly usage with the forecast over the tested year and the year ahead, "
+     "and the service-level curve with a draggable handle."),
     ("storerooms.png", "#/present/storerooms", "Storerooms",
-     "One card per store — value, parts, idle share, stock-outs, the five most "
-     "valuable lines and the five to act on — and below them the stock that could "
-     "be moved instead of bought."),
+     "One card per store with its five most valuable lines and five to act on; below, "
+     "the stock that could be moved instead of bought."),
     ("board.png", "#/present/board", "Stock board",
-     "One row per part in one storeroom, most urgent first. What to do, the last "
-     "twelve months as a sparkline, and for anything below its level the date it "
-     "runs out and the date the order has to go in."),
+     "One row per part per store, most urgent first: what to do, order-by and runs-out "
+     "dates, the last twelve months as a sparkline."),
     ("drawer.png", "#/present/board/{position}", "One part, in full",
-     "Clicking a row opens the part: what to do, three years of movement with the "
-     "forecast laid over the year it was tested on, and the plain-English "
-     "explanation of where the level came from."),
+     "What to do, three years of movement with the forecast and scheduled work, and "
+     "the plain-English reason for the level."),
     ("recommendations.png", "#/present/recommendations", "Recommendations",
-     "Three lists a planner can act on today, each ranked by money and exportable "
-     "to a spreadsheet: what to order and by when, what to move between stores, and "
-     "— once the dead-money step lands — what to write off or review."),
+     "Order, Move and Write off, each ranked by money with a total and a spreadsheet "
+     "export."),
+    ("chat.png", "#/present/chat", "Ask",
+     "A question in plain English, answered from one of four precomputed results and "
+     "shown with its rows. The assistant never calculates."),
     ("evidence.png", "#/evidence", "Evidence",
-     "Reached from the footer. Faults found against the sealed answer key, forecast "
-     "accuracy on the held-out year, the backtest, and the service-level curve. The "
-     "only page that uses technical language."),
+     "For engineers: faults found against the sealed answer key, forecast accuracy, "
+     "the backtest, the service-level curve."),
 ]
 
 

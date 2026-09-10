@@ -26,3 +26,7 @@ docs/progress/*.tmp.docx
 
 # Office lock files, created whenever a document is open
 ~$*
+
+# secrets never enter the repo; the assistant reads ANTHROPIC_API_KEY from the environment
+.env
+.env.*

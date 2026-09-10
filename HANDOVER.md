@@ -25,17 +25,21 @@ Build plan in plain words (algorithms named): **[`docs/build-plan.html`](docs/bu
 Client-facing scope, benchmarks and architecture: **[`docs/PROPOSAL.md`](docs/PROPOSAL.md)**.
 Read it before touching anything — it is the agreed statement of what we are building and why.
 
-## Status — 2026-09-10
+## Status — 2026-09-10 — **POC complete**
 
-**Phase 0 approved. Phase 1 (POC) in progress — vertical slice runs end to end at
-both presets, and the dataset now survives review.**
+All three claims measured on the full preset and on screen. Faults: 98% recall,
+98% precision. Levels: 56% fewer days waiting, all costs
+-36%, capital +28%, orders -10%. Dead money:
+SAR 382.8m of SAR 391.7m found (98%), precision 99%.
+Screens, scenario slider, assistant, demo script and results sheet all in. What is left
+is Phase 1: the real extract behind the adapter.
 
 Run it:
 
 ```
 python cli.py all --preset toy      # build + engine + scoreboard   (~1s)
 python cli.py all --preset full     # 20k materials                 (~33s)
-python -m pytest -q                 # 154 tests
+python -m pytest -q                 # 202 tests (20 live-routing checks skip without ANTHROPIC_API_KEY)
 python cli.py serve --preset full   # the three screens
 python -m ruff check .
 ```
@@ -55,8 +59,8 @@ produced. `--data-dir` redirects everything, which is how the CLI smoke test wor
 | 5 · levels + backtest | **Done — headline number two.** Total cost −8% on the held-out year, with the service-level sweep and order quantities |
 | 6a · dead money | **Done.** Engine finds SAR 382.7m of SAR 391.7m truly dead (98%), SAR 5.3m wrongly flagged; figure sits beside the answer key's on the Dashboard |
 | Screens | **Done — Dashboard · Storerooms · Stock board · Recommendations, Evidence in the footer.** Present mode, dark by default with a toggle, vendored JS, no CDN |
-| 8 · chat, thin | Not started — four tools, twenty golden questions |
-| 6b · transfers, slider, work queue | **Only if everything above is green** |
+| 8 · chat, thin | **Done.** Four tools over `results/`, Pydantic-validated, twenty golden questions; live routing tested only when a key is present |
+| 6b · slider · transfers | **Slider done** on the frontier (interpolated from `frontier.json`, nothing live). Transfers ranked by value on Storerooms and Recommendations; by distance not built. Work queue not built |
 
 **Current score, full preset** — every planted defect type now has a check:
 
@@ -274,13 +278,40 @@ with its reason and exports to CSV.
   the dashboard line; not gradeable and labelled as such.
 - **Light is the default** again; dark stays one click away.
 
-## Next — the thin chat
+## Levels, final form (fourth pass, 2026-09-10)
 
-1. Claude with four tools (`get_stockouts`, `get_dead_money`, `get_item`,
-   `get_levels`), Pydantic-validated, reading `results/` only; twenty golden
-   questions in CI. The chat never calculates.
-2. Then, only if all green: the scenario slider (data in `results/frontier.json`),
-   transfers ranked by distance, the work queue.
+Outage demand is decided by the calendar, not the work-order tag: everything issued
+to a plant while it is in a scheduled shutdown leaves the buffer distribution
+(`engine/outage.py`, shared by levels and forecast) and comes back as scheduled
+demand sized at what the position drew per outage, dated to the next outage in the
+calendar. The generator now carries next year's outages so there is one to date it
+to. Regular movers are capped at three windows of **everyday** usage — the median
+month, not the mean, because a part that draws 900 most months and 6,000 twice a
+year has a mean of 1,700 and the mean was carrying the bursts the cap was meant to
+stop. The filter that started all this (M-016367): reorder point 20,089 → 12,434 →
+**6,298**; "Order 32,630" → **3,863**; its 1,186-per-outage draw is scheduled for the
+December 2026 shutdown and shows on its chart as its own series.
+
+## Assistant (step 8) — `api/chat.py`
+
+Four tools — `get_stockouts`, `get_dead_money`, `get_item`, `get_transfers` — each a
+filter over `results/`, arguments validated with Pydantic. The model picks one, the
+tool answers, the model narrates in two or three sentences, the rows render under the
+answer with links into the drawer. `SYSTEM` forbids arithmetic and says what to do when
+no tool has the number. `ANTHROPIC_API_KEY` from the environment only; without it
+`/api/chat/status` says so and the page shows it. `tests/golden_questions.json` holds
+twenty questions with the expected tool and figure; the tool side is tested always,
+the model's routing only when a key is present (skipped, not faked, without one).
+
+## Next — Phase 1
+
+1. The real SAP/PiLog extract behind `generator/`'s interface; nothing downstream
+   changes. Re-baseline every figure on it.
+2. The plant's own numbers for the assumptions that decide the answer: holding rate,
+   expedite premium, downtime per criticality, target service levels, order cost.
+3. Transfers ranked by distance and delivery time; a work queue with owners.
+
+
 
 Full order and the exclusions are in [`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-PLAN.md).
 

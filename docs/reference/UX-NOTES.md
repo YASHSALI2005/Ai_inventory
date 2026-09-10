@@ -127,6 +127,9 @@ words.
 | **The year ahead on the dashboard line**, dashed, after a "data ends" marker | The graded forecast lies over the tested year; a planner also wants next year. Two lines, two labels, one honest about not being gradeable yet. |
 | **Dead-money tile carries both figures** — the system's and the answer key's | The claim on page one is now the engine's; the truth sits beside it so the gap is visible, not assumed. |
 | **Write off / review tab filled** from the engine's list, one reason each, CSV export | The third list a planner acts on, ranked by value like the other two. |
+| **Scenario slider on the frontier** — a handle on the curve, four figures with deltas vs the plant | SOW capability 6. The slider moves along a measured curve; nothing is computed live, so it cannot disagree with the evidence page. |
+| **Ask** — a fifth page: one question, one tool, two sentences, the rows underneath | SOW capability 7. The assistant never calculates; the rows are the proof. Without a key the page says so and nothing else breaks. |
+| **Scheduled work as its own series** on the drawer chart, and the outage draw named in the reason | The filter story: bursts the buffer used to carry now sit on the calendar where they belong. |
 | **Drawer**: what to do first in the accent, one stat row, chart, reason in a quiet panel at the bottom | Round 2 had the reason above the chart; round 3 asked for it below. The chart now overlays the forecast on the tested year instead of drawing it a year to the right — that was a bug, not a choice. |
 
 ## Status — built 2026-09-10
