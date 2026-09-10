@@ -1304,3 +1304,19 @@ Reasoning: The key supplied was an OpenRouter key (`sk-or-`), which the Anthropi
            twenty golden questions route to the expected tool.
 Rejected: telling the user to get an Anthropic key (the POC should run with what the
           user has); the `openai` SDK (a dependency for one endpoint).
+
+
+## 2026-09-10 — The Ask page is a chatbot, with six turns of memory as plain text
+Model: Fable 5.1
+Type: decision
+Reasoning: Asked for. A chat window — header, messages oldest to newest, avatars, typing
+           indicator, composer pinned at the bottom, auto-scroll — is what people expect
+           of an assistant, and the answered-from strip and the rows now live inside the
+           assistant's bubble so the proof stays with the sentence. Follow-ups work
+           because the last six exchanges travel with each question as plain user /
+           assistant text: only the narrated answers, never a tool result, so the model
+           must call the tool again rather than remember a figure. The live routing test
+           now skips, not fails, on the provider's 402/429 — an exhausted credit balance
+           is not a regression.
+Rejected: streaming (the answer is two sentences; a spinner is honest enough); server-
+          side session state (the browser already holds the conversation).

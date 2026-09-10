@@ -106,7 +106,34 @@ def test_the_system_prompt_forbids_arithmetic():
 @pytest.mark.skipif(not os.environ.get(chat.KEY_VAR), reason="no API key in the environment")
 @pytest.mark.parametrize("g", GOLDEN, ids=[g["q"][:40] for g in GOLDEN])
 def test_live_model_routes_each_golden_question_to_the_expected_tool(built, g):
-    out = chat.answer(built, g["q"])
+    try:
+        out = chat.answer(built, g["q"])
+    except RuntimeError as exc:
+        # the provider's credit or rate limit is not a routing regression
+        if any(code in str(exc) for code in ("402", "429")):
+            pytest.skip(f"provider budget or rate limit: {str(exc)[:80]}")
+        raise
     assert out["status"] == "ok"
     assert out["tool"] == g["tool"], f"routed to {out['tool']} with {out['args']}"
     assert len(out["answer"].split(". ")) <= 4, "two or three sentences"
+
+
+def test_prior_turns_travel_as_plain_text_only():
+    """
+    A follow-up like "and in the smelter?" needs the previous exchange, but only
+    the narrated answers go back to the model — never a tool result, so it must
+    call the tool again rather than remember a figure. Junk history is dropped.
+    """
+    prior = chat._prior([
+        {"question": "Which A-critical parts are out?", "answer": "There are 572."},
+        {"question": "", "answer": "orphan"},
+        {"question": "no answer yet"},
+        {"question": "x" * 900, "answer": "y" * 2000},
+    ])
+    assert [m["role"] for m in prior] == ["user", "assistant", "user", "assistant"]
+    assert prior[0]["content"] == "Which A-critical parts are out?"
+    assert len(prior[2]["content"]) == 500 and len(prior[3]["content"]) == 1000
+    assert chat._prior(None) == [] and chat._prior([{}]) == []
+    # only the last six exchanges are kept
+    many = [{"question": f"q{i}", "answer": f"a{i}"} for i in range(10)]
+    assert len(chat._prior(many)) == 12 and chat._prior(many)[0]["content"] == "q4"

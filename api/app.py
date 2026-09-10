@@ -293,7 +293,9 @@ def create_app(cfg: RunConfig) -> FastAPI:
         if not question:
             raise HTTPException(status_code=422, detail="ask a question")
         try:
-            return chat.answer(cfg, question[:500])
+            history = (body or {}).get("history")
+            return chat.answer(cfg, question[:500],
+                               history if isinstance(history, list) else None)
         except Exception as exc:  # the model is an external service; say what broke
             raise HTTPException(status_code=502, detail=f"chat failed: {exc}") from exc
 

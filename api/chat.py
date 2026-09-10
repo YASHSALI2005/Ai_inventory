@@ -276,17 +276,31 @@ def status() -> dict:
             "key_var": KEY_VAR, "tools": list(TOOLS)}
 
 
-def answer(cfg: RunConfig, question: str) -> dict:
+def _prior(history: list | None) -> list[dict]:
+    """
+    The last few exchanges, as plain user/assistant text, so a follow-up like "and
+    in the smelter?" has something to follow. Only the narrated answers are carried,
+    never the tool results — the model must call the tool again, not remember it.
+    """
+    out = []
+    for h in (history or [])[-6:]:
+        q, a = str(h.get("question", "")).strip()[:500], str(h.get("answer", "")).strip()[:1000]
+        if q and a:
+            out += [{"role": "user", "content": q}, {"role": "assistant", "content": a}]
+    return out
+
+
+def answer(cfg: RunConfig, question: str, history: list | None = None) -> dict:
     """One round: the model picks a tool, the engine answers, the model narrates."""
     if not _key():
         return {"status": "unavailable",
                 "detail": f"chat unavailable — set {KEY_VAR} in the environment"}
     if _provider() == "openrouter":
-        return _answer_openrouter(cfg, question)
+        return _answer_openrouter(cfg, question, history)
     import anthropic
 
     client = anthropic.Anthropic()
-    messages = [{"role": "user", "content": question}]
+    messages = _prior(history) + [{"role": "user", "content": question}]
     first = client.messages.create(model=MODEL, max_tokens=600, system=SYSTEM,
                                    tools=tool_specs(), messages=messages)
     calls = [b for b in first.content if b.type == "tool_use"]
@@ -335,11 +349,12 @@ def _openrouter(payload: dict) -> dict:
         raise RuntimeError(f"OpenRouter {exc.code}: {body}") from exc
 
 
-def _answer_openrouter(cfg: RunConfig, question: str) -> dict:
+def _answer_openrouter(cfg: RunConfig, question: str, history: list | None = None) -> dict:
     tools = [{"type": "function", "function": {
         "name": name, "description": desc, "parameters": schema.model_json_schema()}}
         for name, (schema, desc) in TOOLS.items()]
-    messages = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": question}]
+    messages = ([{"role": "system", "content": SYSTEM}] + _prior(history)
+                + [{"role": "user", "content": question}])
     first = _openrouter({"model": _model(), "messages": messages, "tools": tools,
                          "tool_choice": "auto", "max_tokens": 600, "temperature": 0})
     msg = first["choices"][0]["message"]

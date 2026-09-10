@@ -259,9 +259,9 @@ SCREENS = [
     ("recommendations.png", "#/present/recommendations", "Recommendations",
      "Order, Move and Write off, each ranked by money with a total and a spreadsheet "
      "export."),
-    ("chat.png", "#/present/chat", "Ask",
-     "A question in plain English, answered from one of four precomputed results and "
-     "shown with its rows. The assistant never calculates."),
+    ("chat.png", "#/present/chat/q/Which%20A-critical%20parts%20are%20out%20of%20stock%20in%20the%20rolling%20mill%3F", "Ask",
+     "A chat with the storeroom data. The assistant answers from one of four precomputed "
+     "results, shows the rows behind every figure, and never calculates."),
     ("evidence.png", "#/evidence", "Evidence",
      "For engineers: faults found against the sealed answer key, forecast accuracy, "
      "the backtest, the service-level curve."),

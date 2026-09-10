@@ -247,101 +247,66 @@ input[type=search]{min-width:290px}
 .scen-head b{color:var(--accent);font-size:16px}
 .scen-head input[type=range]{width:min(420px,100%);accent-color:var(--accent)}
 .handle{cursor:grab}
-/* chat */
-.ask{display:flex;gap:10px;margin:0 0 10px;position:relative}
-.ask input{flex:1;font:inherit;font-size:17px;padding:14px 16px;border:1px solid var(--line-2);
-  border-radius:8px;background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
-.ask input:focus{outline:none;border-color:var(--accent)}
-.ask button{background:var(--accent);color:#fff;border-radius:8px;padding:0 22px;font-weight:600;font-size:15px}
-.ask button[disabled]{opacity:.45;cursor:default}
-.ask .clear{background:transparent;color:var(--muted);font-weight:400;padding:0 10px}
-.ask .clear:hover{color:var(--ink)}
-.suggest{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:26px}
-.suggest .chip{font-size:13px}
-.caps{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:6px 0 26px}
-.cap{background:var(--surface);border-radius:8px;box-shadow:var(--shadow);padding:18px 20px;text-align:left;
-  display:flex;flex-direction:column;gap:8px;width:100%}
-.cap:hover{box-shadow:0 1px 2px rgba(27,29,32,.06),0 10px 28px -12px rgba(27,29,32,.28)}
-.cap .t{font-weight:700;font-size:15px;letter-spacing:-.01em}
-.cap .e{font-size:13.5px;color:var(--muted);line-height:1.45}
-.cap .go{font-size:13px;color:var(--accent);font-weight:600;margin-top:auto}
-.thread{display:flex;flex-direction:column;gap:18px}
-.turn{display:flex;flex-direction:column;gap:10px}
-.you{align-self:flex-end;max-width:70ch;background:var(--tint);border-radius:14px 14px 4px 14px;
-  padding:10px 16px;font-size:15px;color:var(--ink-2)}
-.answer{background:var(--surface);border-radius:8px;box-shadow:var(--shadow);padding:22px 26px 18px;
-  font-size:17px;line-height:1.6}
-.answer .say b.n{color:var(--accent);font-weight:600}
-.answer .facts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:16px;padding-top:14px;
-  border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
-.answer .facts .f{background:var(--tint);border-radius:4px;padding:4px 9px;color:var(--ink-2);white-space:nowrap}
-.answer .facts .f b{font-family:Consolas,monospace;color:var(--ink)}
-.answer .facts .lab{font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;margin-right:2px}
-.answer.thinking{color:var(--muted);font-size:15px;display:flex;align-items:center;gap:12px}
-.answer.err{border-left:3px solid var(--accent)}
-.rows-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;
-  font-size:12px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;font-weight:600;padding:0 4px}
-.rows-head button{color:var(--accent);font-size:12.5px;text-transform:none;letter-spacing:0;font-weight:600}
-.follow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12.5px;color:var(--muted)}
-.follow .chip{font-size:12.5px;padding:5px 12px}
-.shell.present .answer{font-size:20px}
-.shell.present .you{font-size:17px}
-.shell.present .ask input{font-size:19px}
-/* scenario slider under the frontier */
-.scenario{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
-.scenario .s{background:var(--tint);border-radius:6px;padding:12px 14px}
-.scenario .s .k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
-.scenario .s .v{font-family:"Cascadia Mono",Consolas,Menlo,monospace;font-size:20px;font-weight:600;
-  margin-top:6px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-.scenario .s .d{font-size:12.5px;color:var(--muted);margin-top:3px}
-.scenario .s .d b{color:var(--ink-2)}
-.scen-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;
-  margin-top:14px;font-size:14px;color:var(--ink-2)}
-.scen-head b{color:var(--accent);font-size:16px}
-.scen-head input[type=range]{width:min(420px,100%);accent-color:var(--accent)}
-.handle{cursor:grab}
-/* chat */
-.ask{display:flex;gap:10px;margin:0 0 12px}
-.ask input{flex:1;font:inherit;font-size:16px;padding:12px 14px;border:1px solid var(--line-2);
-  border-radius:6px;background:var(--surface);color:var(--ink)}
-.ask button{background:var(--accent);color:#fff;border-radius:6px;padding:0 18px;font-weight:600}
-.ask button[disabled]{opacity:.5;cursor:default}
-.suggest{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}
-.answer{background:var(--surface);border-radius:8px;box-shadow:var(--shadow);padding:22px 26px;
-  font-size:17px;line-height:1.6;margin-bottom:14px}
-.answer .via{font-size:12px;color:var(--muted);margin-top:12px;font-family:Consolas,monospace}
-.answer .via b{color:var(--ink-2);font-weight:600}
-.shell.present .answer{font-size:20px}
-/* scenario slider under the frontier */
-.scenario{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
-.scenario .s{background:var(--tint);border-radius:6px;padding:12px 14px}
-.scenario .s .k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
-.scenario .s .v{font-family:"Cascadia Mono",Consolas,Menlo,monospace;font-size:20px;font-weight:600;
-  margin-top:6px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-.scenario .s .d{font-size:12.5px;color:var(--muted);margin-top:3px}
-.scenario .s .d b{color:var(--ink-2)}
-.scen-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;
-  margin-top:14px;font-size:14px;color:var(--ink-2)}
-.scen-head b{color:var(--accent);font-size:16px}
-.scen-head input[type=range]{width:min(420px,100%);accent-color:var(--accent)}
-.handle{cursor:grab}
-/* chat */
-.ask{display:flex;gap:10px;margin:0 0 12px}
-.ask input{flex:1;font:inherit;font-size:16px;padding:12px 14px;border:1px solid var(--line-2);
-  border-radius:6px;background:var(--surface);color:var(--ink)}
-.ask button{background:var(--accent);color:#fff;border-radius:6px;padding:0 18px;font-weight:600}
-.ask button[disabled]{opacity:.5;cursor:default}
-.suggest{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}
-.answer{background:var(--surface);border-radius:8px;box-shadow:var(--shadow);padding:22px 26px;
-  font-size:17px;line-height:1.6;margin-bottom:14px}
-.answer .via{font-size:12px;color:var(--muted);margin-top:12px;font-family:Consolas,monospace}
-.answer .via b{color:var(--ink-2);font-weight:600}
-.shell.present .answer{font-size:20px}
-.storepick .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
-.legend{display:flex;flex-wrap:wrap;gap:18px;font-size:12.5px;color:var(--muted);
-  margin-top:10px}
-.legend i{display:inline-block;width:10px;height:10px;margin-right:6px;border-radius:2px;
-  vertical-align:-1px}
+/* chat — a chat window: header, scrolling messages, composer pinned at the bottom */
+.chatwin{background:var(--surface);border-radius:12px;box-shadow:var(--shadow);display:flex;
+  flex-direction:column;height:calc(100vh - 250px);min-height:520px;overflow:hidden}
+.chathead{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--accent);color:#fff;display:flex;
+  align-items:center;justify-content:center;font-weight:700;font-size:13px;letter-spacing:.02em;flex:0 0 auto}
+.avatar.you{background:var(--tint-2);color:var(--ink-2)}
+.chathead .who{font-weight:700;font-size:15px;line-height:1.2}
+.chathead .st{font-size:12px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:6px}
+.chathead .st i{width:7px;height:7px;border-radius:50%;background:#3E8E5B;display:inline-block}
+.chathead .st i.off{background:var(--faint)}
+.chathead .tools{margin-left:auto;display:flex;gap:8px}
+.chathead .tools button{font-size:13px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:6px 12px}
+.chathead .tools button:hover{color:var(--ink);border-color:var(--line-2)}
+.msgs{flex:1;overflow-y:auto;padding:22px 20px;display:flex;flex-direction:column;gap:18px;
+  background:var(--ground);scroll-behavior:smooth}
+.msg{display:flex;gap:12px;align-items:flex-end;max-width:88%}
+.msg.you{align-self:flex-end;flex-direction:row-reverse}
+.bubble{border-radius:16px;padding:13px 17px;font-size:16px;line-height:1.55;position:relative;min-width:0}
+.msg.bot .bubble{background:var(--surface);color:var(--ink);border-bottom-left-radius:4px;box-shadow:var(--shadow)}
+.msg.you .bubble{background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+.msg.bot .bubble.err{border-left:3px solid var(--accent)}
+.bubble .say b.n{color:var(--accent);font-weight:600}
+.bubble .facts{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px;padding-top:10px;
+  border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.bubble .facts .f{background:var(--tint);border-radius:4px;padding:3px 8px;color:var(--ink-2);white-space:nowrap}
+.bubble .facts .f b{font-family:Consolas,monospace;color:var(--ink)}
+.bubble .facts .lab{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;margin-right:2px}
+.bubble .rows{margin-top:12px}
+.bubble .rows-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:11.5px;
+  color:var(--muted);letter-spacing:.08em;text-transform:uppercase;font-weight:600;padding:0 2px 6px}
+.bubble .rows-head button{color:var(--accent);font-size:12.5px;text-transform:none;letter-spacing:0;font-weight:600}
+.bubble .card{box-shadow:none;border:1px solid var(--line)}
+.bubble table{font-size:13.5px}
+.bubble td{padding:9px 11px}
+.bubble th{padding:10px 11px 8px}
+.msg .when{font-size:11px;color:var(--faint);margin-top:5px;padding:0 4px}
+.msg.you .when{text-align:right}
+.chips-in{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.chips-in .chip{font-size:13px;padding:6px 12px;background:var(--tint);border-color:transparent}
+.chips-in .chip:hover{border-color:var(--accent);color:var(--accent)}
+.typing{display:inline-flex;gap:5px;align-items:center;padding:4px 2px}
+.typing i{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:blink 1.2s infinite}
+.typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
+@media (prefers-reduced-motion:reduce){.typing i{animation:none;opacity:.6}}
+.composer{display:flex;gap:10px;align-items:center;padding:12px 14px;border-top:1px solid var(--line);
+  background:var(--surface)}
+.composer input{flex:1;font:inherit;font-size:16px;padding:13px 16px;border:1px solid var(--line-2);
+  border-radius:24px;background:var(--ground);color:var(--ink)}
+.composer input:focus{outline:none;border-color:var(--accent);background:var(--surface)}
+.composer input:disabled{opacity:.6}
+.composer .send{width:46px;height:46px;border-radius:50%;background:var(--accent);color:#fff;display:flex;
+  align-items:center;justify-content:center;flex:0 0 auto}
+.composer .send[disabled]{opacity:.35;cursor:default}
+.composer .send svg{width:20px;height:20px}
+.chatfoot{font-size:12px;color:var(--muted);text-align:center;padding:6px 0 0}
+.shell.present .chatwin{height:calc(100vh - 210px)}
+.shell.present .bubble{font-size:19px}
+.shell.present .composer input{font-size:18px}
 
 /* ── drawer ───────────────────────────────────────────────────────────────── */
 .scrim{position:fixed;inset:0;background:rgba(27,29,32,.36);z-index:40}
@@ -758,17 +723,18 @@ function Facts({ tool, args, result }) {
     </div>`;
 }
 
-function RowsTable({ rows, setOpen, all, setAll }) {
+function RowsTable({ rows, setOpen }) {
+  const [all, setAll] = useState(false);
   if (!rows || !rows.length) return null;
   const isDead = "dead_value_sar" in rows[0], isMove = "from_storeroom" in rows[0];
   const shown = all ? rows : rows.slice(0, 5);
   return html`
-    <div>
+    <div className="rows">
       <div className="rows-head">
-        <span>The rows behind the answer · click one to open it</span>
-        ${rows.length > 5 && html`<button onClick=${() => setAll(!all)}>${all ? "Show the first five" : "Show all " + rows.length}</button>`}
+        <span>The rows behind this · click one to open it</span>
+        ${rows.length > 5 && html`<button onClick=${() => setAll(!all)}>${all ? "First five" : "All " + rows.length}</button>`}
       </div>
-      <div className="card" style=${{ marginTop: "6px" }}><table>
+      <div className="card"><table>
         ${isMove ? html`<colgroup><col style=${{ width: "44%" }} /><col style=${{ width: "22%" }} /><col style=${{ width: "14%" }} /><col style=${{ width: "20%" }} /></colgroup>`
           : isDead ? html`<colgroup><col style=${{ width: "42%" }} /><col style=${{ width: "14%" }} /><col style=${{ width: "24%" }} /><col style=${{ width: "20%" }} /></colgroup>`
           : html`<colgroup><col style=${{ width: "34%" }} /><col style=${{ width: "12%" }} /><col style=${{ width: "18%" }} /><col style=${{ width: "12%" }} /><col style=${{ width: "12%" }} /><col style=${{ width: "12%" }} /></colgroup>`}
@@ -793,90 +759,110 @@ function RowsTable({ rows, setOpen, all, setAll }) {
     </div>`;
 }
 
-function Turn({ t, setOpen, ask, busy }) {
-  const [all, setAll] = useState(false);
-  const cap = t.tool ? CAP_BY_TOOL[t.tool] : null;
+const clock = d => d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+
+function Message({ m, setOpen, ask, busy }) {
+  if (m.role === "you") {
+    return html`<div className="msg you"><div className="avatar you">You</div>
+      <div><div className="bubble">${m.text}</div><div className="when">${clock(m.at)}</div></div></div>`;
+  }
+  const cap = m.tool ? CAP_BY_TOOL[m.tool] : null;
   return html`
-    <div className="turn">
-      <div className="you">${t.question}</div>
-      ${t.status === "error" || t.status === "unavailable"
-        ? html`<div className="answer err"><div className="say">${t.answer || t.detail}</div></div>`
-        : html`<div className="answer">
-            <${Say} text=${t.answer} />
-            ${t.tool && html`<${Facts} tool=${t.tool} args=${t.args} result=${t.result} />`}
-          </div>`}
-      <${RowsTable} rows=${t.rows} setOpen=${setOpen} all=${all} setAll=${setAll} />
-      ${cap && cap.follow.length > 0 && html`
-        <div className="follow"><span>Ask next:</span>
-          ${cap.follow.map(f => html`<button key=${f} className="chip" disabled=${busy} onClick=${() => ask(f)}>${f}</button>`)}
-        </div>`}
+    <div className="msg bot"><div className="avatar">✦</div>
+      <div style=${{ minWidth: 0 }}>
+        <div className=${"bubble" + (m.error ? " err" : "")}>
+          ${m.typing ? html`<span className="typing"><i></i><i></i><i></i></span>` : html`<${Say} text=${m.text} />`}
+          ${m.tool && html`<${Facts} tool=${m.tool} args=${m.args} result=${m.result} />`}
+          ${m.rows && m.rows.length > 0 && html`<${RowsTable} rows=${m.rows} setOpen=${setOpen} />`}
+          ${m.chips && m.chips.length > 0 && html`<div className="chips-in">
+            ${m.chips.map(c => html`<button key=${c} className="chip" disabled=${busy} onClick=${() => ask(c)}>${c}</button>`)}</div>`}
+          ${cap && cap.follow.length > 0 && !m.typing && html`<div className="chips-in">
+            ${cap.follow.map(f => html`<button key=${f} className="chip" disabled=${busy} onClick=${() => ask(f)}>${f}</button>`)}</div>`}
+        </div>
+        ${!m.typing && html`<div className="when">${clock(m.at)}</div>`}
+      </div>
     </div>`;
 }
+
+const WELCOME = ready => ({
+  role: "bot", at: new Date(), chips: ready ? SUGGESTED : [],
+  text: ready
+    ? "Hello. I can answer four kinds of question about the storerooms: what is out of stock, where the dead money is, everything about one part, and what could be moved instead of bought. Every figure I give you comes from a result the system has already written, and I will show you the rows it came from. Try one of these, or type your own."
+    : "Hello. I am not available right now — there is no API key. Set ANTHROPIC_API_KEY in the environment the server runs in, or in a .env file next to cli.py, and restart it. Everything else on these pages works without me.",
+});
 
 function Chat({ setOpen, ask: preset }) {
   const [status, setStatus] = useState(null);
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
-  const [pending, setPending] = useState("");
-  const [turns, setTurns] = useState([]);
-  useEffect(() => { getJSON("/api/chat/status").then(setStatus).catch(() => setStatus({ available: false })); }, []);
-  useEffect(() => { if (preset && status && status.available && turns.length === 0) ask(preset); }, [preset, status]);
+  const [msgs, setMsgs] = useState([]);
+  const endRef = React.useRef(null);
+  const inputRef = React.useRef(null);
+
+  useEffect(() => {
+    getJSON("/api/chat/status").then(setStatus).catch(() => setStatus({ available: false }));
+  }, []);
+  useEffect(() => { if (status) setMsgs([WELCOME(status.available)]); }, [status]);
+  useEffect(() => { if (preset && status && status.available && msgs.length === 1) ask(preset); }, [preset, status, msgs.length]);
+  useEffect(() => { if (endRef.current) endRef.current.scrollIntoView({ block: "end" }); }, [msgs, busy]);
+
+  const ready = status && status.available;
 
   const ask = text => {
     const question = (text || q).trim();
-    if (!question || busy) return;
-    setBusy(true); setPending(question); setQ("");
+    if (!question || busy || !ready) return;
+    // the last few exchanges go with the question so "and in the smelter?" makes sense
+    const history = [];
+    for (let i = 0, pair = null; i < msgs.length; i++) {
+      const m = msgs[i];
+      if (m.role === "you") pair = { question: m.text };
+      else if (pair && m.text && !m.chips) { pair.answer = m.text; history.push(pair); pair = null; }
+    }
+    setBusy(true); setQ("");
+    setMsgs(ms => [...ms, { role: "you", text: question, at: new Date() }, { role: "bot", typing: true, at: new Date() }]);
     fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
-                         body: JSON.stringify({ question }) })
+                         body: JSON.stringify({ question, history: history.slice(-6) }) })
       .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.detail || r.status))))
-      .then(a => setTurns(t => [{ question, ...a }, ...t]))
-      .catch(e => setTurns(t => [{ question, status: "error", answer: "The assistant could not answer: " + String(e.message || e), rows: [] }, ...t]))
-      .finally(() => { setBusy(false); setPending(""); });
+      .then(a => setMsgs(ms => [...ms.slice(0, -1), { role: "bot", at: new Date(), text: a.answer || a.detail,
+                                                   tool: a.tool, args: a.args, result: a.result, rows: a.rows || [],
+                                                   error: a.status !== "ok" }]))
+      .catch(e => setMsgs(ms => [...ms.slice(0, -1), { role: "bot", at: new Date(), error: true,
+                                                    text: "I could not answer that: " + String(e.message || e) }]))
+      .finally(() => { setBusy(false); if (inputRef.current) inputRef.current.focus(); });
   };
-  const ready = status && status.available;
 
   return html`
     <${Page} title="Ask"
-             lede=${"a question in plain English. The assistant picks one of four "
-                    + "questions the system has already answered, reads the answer back "
-                    + "in two or three sentences, and shows the rows it came from. It "
-                    + "never does arithmetic — if a number is not in the results, it says so."}>
-      ${status && !status.available && html`
-        <div className="state" style=${{ margin: "0 0 24px" }}>
-          <h3>Chat unavailable — no key</h3>
-          <p>Set <code style=${{ display: "inline", padding: "1px 6px" }}>${status.key_var || "ANTHROPIC_API_KEY"}</code>
-            in the environment the server runs in — or in a <code style=${{ display: "inline", padding: "1px 6px" }}>.env</code>
-            file next to <code style=${{ display: "inline", padding: "1px 6px" }}>cli.py</code> (an OpenRouter key works too) — and restart it.
-            Everything else on these pages works without it.</p>
-        </div>`}
-      <div className="ask">
-        <input type="text" value=${q} placeholder=${ready ? "Ask about stock-outs, dead money, one part, or moves between stores…" : "Chat unavailable"}
-               onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === "Enter") ask(); if (e.key === "Escape") setQ(""); }}
-               disabled=${!ready || busy} autoFocus />
-        <button onClick=${() => ask()} disabled=${!ready || busy || !q.trim()}>${busy ? "Reading…" : "Ask"}</button>
-        ${turns.length > 0 && html`<button className="clear" onClick=${() => setTurns([])} title="Clear the conversation">Clear</button>`}
+             lede=${"a chat with the storeroom data. The assistant answers only from results "
+                    + "the system has already written and shows the rows behind every answer. "
+                    + "It never does arithmetic — if a number is not in the results, it says so."}>
+      <div className="chatwin">
+        <div className="chathead">
+          <div className="avatar">✦</div>
+          <div><div className="who">Inventory assistant</div>
+            <div className="st"><i className=${ready ? "" : "off"}></i>
+              ${status ? (ready ? "reads results/ only · " + (status.model || "") : "unavailable — no key") : "connecting…"}</div></div>
+          <div className="tools">
+            ${msgs.length > 1 && html`<button onClick=${() => setMsgs([WELCOME(ready)])}>New chat</button>`}
+          </div>
+        </div>
+        <div className="msgs">
+          ${msgs.map((m, i) => html`<${Message} key=${i} m=${m} setOpen=${setOpen} ask=${ask} busy=${busy} />`)}
+          <div ref=${endRef}></div>
+        </div>
+        <div className="composer">
+          <input ref=${inputRef} type="text" value=${q} autoFocus
+                 placeholder=${ready ? "Ask about stock-outs, dead money, one part, or moves between stores…" : "Assistant unavailable"}
+                 onInput=${e => setQ(e.target.value)}
+                 onKeyDown=${e => { if (e.key === "Enter") ask(); if (e.key === "Escape") setQ(""); }}
+                 disabled=${!ready || busy} />
+          <button className="send" onClick=${() => ask()} disabled=${!ready || busy || !q.trim()} aria-label="Send">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h13M13 6l6 6-6 6" /></svg>
+          </button>
+        </div>
       </div>
-      ${turns.length === 0 && !busy && html`
-        <div className="caps">
-          ${CAPS.map(c => html`
-            <button key=${c.tool} className="cap" disabled=${!ready} onClick=${() => ask(c.ask)}>
-              <div className="t">${c.title}</div>
-              <div className="e">${c.hint}</div>
-              <div className="go">“${c.ask}” →</div>
-            </button>`)}
-        </div>`}
-      ${turns.length > 0 && !busy && html`
-        <div className="suggest">${SUGGESTED.filter(s => !turns.some(t => t.question === s)).map(s => html`
-          <button key=${s} className="chip" onClick=${() => ask(s)}>${s}</button>`)}</div>`}
-      <div className="thread">
-        ${busy && html`<div className="turn"><div className="you">${pending}</div>
-          <div className="answer thinking"><span className="pulse" style=${{ display: "inline-block", width: "10px", height: "10px", borderRadius: "50%", background: "var(--accent)" }}></span>
-            Reading the results…</div></div>`}
-        ${turns.map((t, i) => html`<${Turn} key=${i} t=${t} setOpen=${setOpen} ask=${ask} busy=${busy} />`)}
-      </div>
-      ${ready && turns.length === 0 && html`
-        <div className="aside">Four questions it can answer; anything else it will say it cannot answer from the data.
-          Every figure in an answer appears in the rows beneath it, and any row opens the part.</div>`}
+      <div className="chatfoot">Answers are read back from precomputed results — the assistant chooses which result, it does not calculate.</div>
     <//>`;
 }
 
