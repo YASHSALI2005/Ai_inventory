@@ -16,10 +16,12 @@ dependencies = [
 [project.optional-dependencies]
 # Pulled in from step 4 onward; the vertical slice does not need them.
 engine = [
-    "statsforecast>=1.7",
-    "lightgbm>=4.5",
-    "scikit-learn>=1.5",
-    "rapidfuzz>=3.9",
+    "statsforecast>=1.7",     # Croston / SBA / TSB, already implemented and tested
+    "scikit-learn>=1.5",      # TF-IDF blocking for the duplicate matcher
+    "rapidfuzz>=3.9",         # string scorers for the duplicate matcher
+]
+report = [
+    "python-docx>=1.1",       # the progress document
 ]
 api = [
     "fastapi>=0.115",

@@ -710,3 +710,93 @@ Reasoning: The review asked for `family_id` to be removed from the source tables
            assumed to hold.
 Rejected: removing every grouping column (no real extract looks like that)
 Reverses: partially reverses the 2026-09-10 entry "family_id removed from source"
+
+---
+
+## 2026-09-10 - TSB chosen for both sparse classes, on measurement
+Model: Opus 5
+Type: decision
+Reasoning: All four Croston-family combinations were run on the full preset and
+           scored on the evaluation year. On the intermittent class, which is 83% of
+           all positions: Croston 1.033, SBA 1.012, TSB 0.871. On lumpy: SBA 0.848,
+           TSB 0.837.
+           TSB wins both, and by a wide margin where it matters most. The reason is
+           structural rather than lucky: TSB updates the probability that demand
+           occurs at all in EVERY period, including the months where nothing
+           happened, whereas Croston and SBA only update when something moves. On a
+           series that is mostly zeros, the zeros are most of the information.
+Rejected: SBA on intermittent (the obvious default, and measurably worse here)
+Reverses: -
+
+---
+
+## 2026-09-10 - We lose to the zero baseline on sparse demand, and say so
+Model: Opus 5
+Type: decision
+Reasoning: On the full preset the forecast beats both baselines on the two dense
+           classes (smooth 0.86 against 1.11 and 1.48; erratic 0.84 against 1.19 and
+           1.00) and beats the naive baseline but NOT the zero baseline on the two
+           sparse ones (intermittent 0.87 against 0.98 and 0.71; lumpy 0.84 against
+           1.04 and 0.76).
+           This is reported prominently rather than buried, because it is the
+           expected result and hiding it would be the kind of thing that destroys
+           credibility the moment a statistician in the room notices. When a part
+           moves four times in two years, always answering zero is wrong only four
+           times and produces the smallest average error of any possible answer.
+           It is also a useless answer. A forecast of zero sets a reorder level of
+           zero, which guarantees a stockout on every critical spare in the plant.
+           Average forecast error is the wrong scoreboard for this problem, which is
+           exactly why the decisive test is the step-5 backtest measured in days
+           without a part and capital tied up.
+Rejected: quoting only the naive comparison, which we win everywhere
+Reverses: -
+
+---
+
+## 2026-09-10 - expected_life_years added to the master, deliberately noisy
+Model: Opus 5
+Type: decision
+Reasoning: A part that has never once been issued has no history to forecast from,
+           and forecasting zero on a spare whose absence stops the plant is the worst
+           available answer. The failure-rate model needs an expected service life.
+           `mtbf_years` lives in the answer key, so the engine cannot use it. A
+           planning attribute for expected service life is a real field - SAP and
+           PiLog both carry one - so it was added to the material master.
+           Crucially it is generated as a PLANNER'S ESTIMATE, not the truth: the real
+           interval multiplied by a lognormal error, landing between about 0.63 and
+           1.57 times the true value at the tenth and ninetieth percentiles. Handing
+           the engine the exact figure would have leaked the answer key through a
+           source column, which is the same failure as reading the answer key
+           directly but considerably harder to notice.
+Rejected: deriving a rate from the equipment population alone (weaker, no more honest)
+Reverses: -
+
+---
+
+## 2026-09-10 - statsforecast added
+Model: Opus 5
+Type: decision
+Reasoning: Provides Croston, SBA and TSB as tested implementations. Writing three
+           intermittent-demand methods by hand, and then having their behaviour
+           questioned by a reliability engineer, is the wrong use of the time; the
+           library is the reference implementation the literature is written against.
+           LightGBM stays out, per the agreed scope, and has been removed from the
+           dependency list so it cannot creep back in.
+Rejected: hand-written Croston variants
+Reverses: -
+
+---
+
+## 2026-09-10 - Shutdown multiple joins dead value as a full-scale-only target
+Model: Opus 5
+Type: decision
+Reasoning: Same reasoning as the dead-value band, and the same evidence: with three
+           shutdowns and 300 parts the measured multiple is a small-sample statistic.
+           It reads 2.1x on toy and 3.5x on full from the same generator, and moves
+           on any reshuffle of the random stream.
+           The 3x target is asserted at full scale. Toy asserts only that an outage
+           has a visible effect at all (1.5x), so a genuinely broken overlay still
+           fails there. Tuning the generator until toy cleared 3x would be fitting to
+           noise, which is the mistake the dead-value entry already records.
+Rejected: one target for both presets
+Reverses: -

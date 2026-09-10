@@ -53,7 +53,7 @@ def cmd_build(args) -> int:
 
 def cmd_run(args) -> int:
     """The engine. Reads source tables only — never the answer key."""
-    from engine import classify, quality
+    from engine import classify, forecast, quality
 
     cfg = _cfg(args)
     if not (cfg.source_dir / "stock.parquet").exists():
@@ -75,6 +75,18 @@ def cmd_run(args) -> int:
     for k in S.DEMAND_CLASS:
         n = mix.get(k, 0)
         print(f"  {k:<26} {n:>6}  ({n / max(len(result.per_material), 1):.0%})")
+
+    t2 = time.time()
+    fc = forecast.run(cfg)
+    print(f"engine, forecast: {fc.report['horizon_months']} months ahead   "
+          f"({time.time() - t2:.1f}s)")
+    print(f"  {'class':<14}{'positions':>10}{'method':>28}"
+          f"{'ours':>8}{'naive':>8}{'zero':>8}")
+    for row in fc.report["mase_by_class"]:
+        print(f"  {row['class']:<14}{row['positions']:>10,}{row['method']:>28}"
+              f"{row['mase']:>8.2f}{row['naive']:>8.2f}{row['zero']:>8.2f}")
+    beat = fc.report["classes_beating_both_baselines"]
+    print(f"  beats both baselines: {', '.join(beat) if beat else 'none'}")
     return 0
 
 

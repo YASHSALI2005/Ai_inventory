@@ -54,6 +54,11 @@ class SizePreset(BaseModel):
     # generator still fails there.
     dead_value_band: tuple[float, float] = (0.05, 0.60)
 
+    # Same reasoning: with three shutdowns and 300 parts the measured multiple is a
+    # small-sample statistic. The real target is asserted at full scale; toy only has
+    # to show the outage has a visible effect at all.
+    shutdown_multiple_min: float = 1.5
+
 
 PRESETS: dict[Preset, SizePreset] = {
     "toy": SizePreset(n_materials=300, n_equipment=40, n_shutdowns_per_year=1),
@@ -64,6 +69,7 @@ PRESETS: dict[Preset, SizePreset] = {
         min_decommissioned=20,
         min_defects_per_type=10,
         dead_value_band=(0.20, 0.40),      # the industry band, asserted at scale
+        shutdown_multiple_min=3.0,
     ),
 }
 

@@ -170,6 +170,7 @@ def _tiny(tmp_path, monkeypatch, *, dates, qty_fn, extra_dates=None) -> RunConfi
                 "mpn": ["X-1"], "uom": ["EA"], "unit_price_sar": [100.0],
                 "lead_time_days": [30], "area": ["SITEWIDE"], "equipment_id": ["EQ-1"],
                 "criticality": ["B"], "is_mro": [True],
+                "expected_life_years": [float("nan")],
             }
         ),
         S.MATERIALS, cfg.source_dir,

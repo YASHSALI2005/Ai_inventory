@@ -364,6 +364,19 @@ def build_materials(cfg: RunConfig, fams: pd.DataFrame, equipment: pd.DataFrame,
             "equipment_id": owner,
             "criticality": crit,
             "is_mro": True,
+            # what a planner WROTE DOWN, not what the plant will actually do: the
+            # true interval blurred by a factor typically within about 40%. Handing
+            # the engine the exact figure would be leaking the answer key through a
+            # source column.
+            "expected_life_years": np.where(
+                np.isnan(f["mtbf_years"].to_numpy(dtype=float)),
+                np.nan,
+                np.round(
+                    f["mtbf_years"].to_numpy(dtype=float)
+                    * rng.lognormal(0.0, 0.35, n),
+                    1,
+                ),
+            ),
         }
     )
     # family and behaviour stay out of the source tables; they live in the answer key

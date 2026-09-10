@@ -122,6 +122,12 @@ MATERIALS = TableSchema(
         "equipment_id": "string",      # owning equipment, "" if site-wide
         "criticality": "string",       # from what the part IS, bumped on an A asset
         "is_mro": "bool",              # false for process raw materials
+        # Planner's estimate of how long a capital spare lasts, in years. NaN for
+        # anything that is not a capital spare. This is the only thing available for
+        # a part that has never once been issued, and it is an ESTIMATE — noisy, and
+        # deliberately not equal to the true failure interval in the answer key. A
+        # planning system holds somebody's judgement, not the truth.
+        "expected_life_years": "float64",
     },
 )
 

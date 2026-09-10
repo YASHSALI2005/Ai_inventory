@@ -66,9 +66,12 @@ def measure(cfg: RunConfig) -> list[Check]:
 
     # ── shutdown spike ──────────────────────────────────────────────────────
     ratio, base, inside = shutdown_spike(mats, issues, sds)
+    floor = cfg.size.shutdown_multiple_min
+    note = "" if floor >= 3.0 else " (sanity floor; 3x checked at full)"
     out.append(
-        Check("shutdown issue-rate multiple", ratio, ">= 3x baseline", ratio >= 3.0,
-              f"{inside:.2f}/day inside vs {base:.2f}/day baseline")
+        Check("shutdown issue-rate multiple", ratio, f">= {floor:g}x baseline",
+              ratio >= floor,
+              f"{inside:.2f}/day inside vs {base:.2f}/day baseline{note}")
     )
 
     # ── work orders ─────────────────────────────────────────────────────────

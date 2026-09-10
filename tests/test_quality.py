@@ -32,6 +32,7 @@ def _materials(**overrides) -> pd.DataFrame:
         "equipment_id": ["EQ-1"] * 3,
         "criticality": ["C"] * 3,
         "is_mro": [True] * 3,
+        "expected_life_years": [float("nan")] * 3,
     }
     base.update(overrides)
     return pd.DataFrame(base)
