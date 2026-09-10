@@ -723,7 +723,8 @@ const SUGGESTED = CAPS.map(c => c.ask);
 
 // figures in the narration are the checkable part; make them stand out
 function Say({ text }) {
-  const parts = String(text || "").split(/(SAR\s?[\d.,]+\s?(?:million|billion|bn|m|k)?|\b\d[\d,]*(?:\.\d+)?%?)/g);
+  // digits inside a part id (M-016367) are a name, not a figure
+  const parts = String(text || "").split(/(SAR\s?[\d.,]+\s?(?:million|billion|bn|m|k)?|(?<![A-Z]-)\b\d[\d,]*(?:\.\d+)?%?)/g);
   return html`<div className="say">${parts.map((p, i) => i % 2 ? html`<b key=${i} className="n">${p}</b>` : p)}</div>`;
 }
 
