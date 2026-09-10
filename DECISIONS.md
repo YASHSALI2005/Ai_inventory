@@ -888,3 +888,84 @@ Reasoning: Our levels hold 36% MORE capital, buying a 42% cut in days waiting fo
            we spend more to waste less, and states that the cash release is step
            6a (dead money) — a different exercise. A number that survives being
            read honestly is the only kind worth showing a manager.
+
+
+## 2026-09-10 — One precomputed position file behind every screen
+Model: Opus 5
+Type: decision
+Reasoning: `engine/positions.py` writes one row per material x storeroom at the
+           end of `run`, carrying the usage history, the forecast, the level, the
+           reason and a band. The API filters and pages that frame and computes
+           nothing. Two reasons: a page that recalculates can disagree with the
+           scoreboard printed beside it, and on 24,887 positions it stalls while
+           somebody is watching. The history arrays are served only by the detail
+           endpoint — 36 + 12 + 12 floats a row would make the list view slow for
+           data the list does not show.
+Rejected: querying the parquet per request with DuckDB (fast enough, but it puts
+          the join logic in the API where the tests cannot see it drift).
+
+## 2026-09-10 — The band is one value with a priority, not a set of flags
+Model: Opus 5
+Type: decision
+Reasoning: stocked out > below our reorder point > below the old minimum > never
+           issued > idle 24 months > well stocked. An insurance spare that has
+           never been issued and sits below its criticality floor reads as
+           `below_reorder`, because that is the thing to act on. The cost is that
+           the "never issued" chip does not find it; that is the right trade for a
+           board whose top row has to be the most expensive mistake.
+
+## 2026-09-10 — Ranking is by shortage cost, and on_hand is clamped at zero first
+Model: Opus 5
+Type: decision
+Reasoning: Value at risk is `shortage_cost_per_unit` x units below the reorder
+           point — the same function that sets each item's service level and
+           prices the backtest, so the board cannot contradict the scoreboard.
+           The clamp was a real bug found by looking at the board: a planted
+           balance of -29 against a reorder point of 5 scored as 34 units short
+           and took the top of the ranking. A data defect is not the plant's most
+           urgent shortage.
+
+## 2026-09-10 — Pack size is inferred from receipts rather than invented
+Model: Opus 5
+Type: decision
+Reasoning: The order quantity has to respect the pack a supplier ships in, and an
+           ERP extract of this shape has no pack-size column. Adding one to the
+           generator would have been inventing the answer and would have shifted
+           every score through RNG drift. The modal RECEIPT quantity per material
+           is the same fact, observed: a part received in 24s is bought in 24s
+           whatever the master record says. Stated as a limit in the report, and
+           on real data it should come from the purchasing extract.
+Rejected: a pack_size column in MATERIALS (a giveaway, and a rebuild).
+
+## 2026-09-10 — Placing an order costs SAR 900, and order quantity covers the wait
+Model: Opus 5
+Type: decision
+Reasoning: The first cut of step 5 placed 71% more purchase orders than the plant
+           does for the same material flow. That looked acceptable only because
+           placing an order was free in the model. `cfg.costs.order_cost_sar`
+           charges for it, and the order quantity now has to cover at least the
+           expected demand over the protection window, rounded up to the pack.
+           Orders placed fell to +3%. The knock-on is that the total-cost
+           improvement moved from -13% to -8%: bigger orders mean more stock, and
+           the earlier figure was flattered by an order policy nobody would run.
+Reverses: the "ordering costs are not modelled" limit in the 2026-09-10 backtest
+          entry.
+
+## 2026-09-10 — The service-level sweep reads one simulation, and reports a number we cannot claim
+Model: Opus 5
+Type: decision
+Reasoning: `engine.levels` now keeps the simulated protection-window draws and
+           reads every service level in `cfg.costs.service_sweep` off the same
+           simulation. Re-simulating per level would make the slider wobble for
+           reasons that are not the service level.
+           The sweep was asked to produce "at the plant's current service level,
+           how much less capital ours needs". It cannot: the plant waits longer
+           than our lowest sampled point while holding less capital than any point
+           on the curve. Rather than extrapolate past the sampled range,
+           `scoring/frontier.py` returns a status of
+           `plant_below_the_sampled_range` and a plain sentence saying their
+           policy is under-serving rather than over-invested. The grid was
+           extended below 80% (to 50%) purely to bracket them and prove it, which
+           is a deliberate widening of the 80-99.5% range the brief specified.
+Rejected: extrapolating the curve to their service level (would have produced a
+          confident saving with nothing behind it).

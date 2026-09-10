@@ -35,7 +35,8 @@ Run it:
 ```
 python cli.py all --preset toy      # build + engine + scoreboard   (~1s)
 python cli.py all --preset full     # 20k materials                 (~33s)
-python -m pytest -q                 # 106 tests
+python -m pytest -q                 # 128 tests
+python cli.py serve --preset full   # the three screens
 python -m ruff check .
 ```
 
@@ -51,9 +52,9 @@ produced. `--data-dir` redirects everything, which is how the CLI smoke test wor
 | 2 · data quality (cap 4) | **Done — all 7 checks + matcher.** 99% recall, 99% precision at full |
 | 3 · classifier (ADI × CV²) | **Done.** Monthly periods, 97.6% agreement with `PROFILE_TO_SBC_CLASS` |
 | 4 · forecast (Croston family) | **Done.** TSB for sparse, SES for the rest; MASE 0.84–0.87, all four beat naive |
-| 5 · levels + backtest | **Done — headline number two.** Total cost −13% on the held-out year |
+| 5 · levels + backtest | **Done — headline number two.** Total cost −8% on the held-out year, with the service-level sweep and order quantities |
 | 6a · dead money | Not started — scorer stubbed; engine figure goes beside truth on the dashboard |
-| Screens | Dashboard done (one screen). Item view not started. Vendor the JS before any demo |
+| Screens | **Done — overview, stock board, item drawer.** Vendored JS, inline SVG, no CDN |
 | 8 · chat, thin | Not started — four tools, twenty golden questions |
 | 6b · transfers, slider, work queue | **Only if everything above is green** |
 
@@ -115,24 +116,24 @@ nothing but their levels.
 
 | | plant's min/max | ours | change |
 |---|---|---|---|
-| Days waiting for a part | 842,897 | 492,976 | **−42%** |
-| Units short | 600,292 | 316,017 | **−47%** |
-| Capital on the shelf | SAR 1.367bn | SAR 1.863bn | **+36%** |
-| Cost of being short | SAR 473m | SAR 242m | −49% |
-| Cost of holding | SAR 342m | SAR 466m | +36% |
-| **Both costs together** | **SAR 815m** | **SAR 708m** | **−13%** |
-| Orders placed | 34,808 | 59,425 | +71% |
+| Days waiting for a part | 842,897 | 376,732 | **−55%** |
+| Units short | 600,292 | 237,022 | **−61%** |
+| Capital on the shelf | SAR 1.367bn | SAR 2.046bn | **+50%** |
+| Cost of being short | SAR 473m | SAR 236m | −50% |
+| Cost of holding | SAR 342m | SAR 512m | +50% |
+| Cost of placing orders | SAR 31.3m | SAR 32.3m | +3% |
+| **All three together** | **SAR 846m** | **SAR 780m** | **−8%** |
+| Orders placed | 34,808 | 35,848 | +3% |
 
 **Say this out loud, it is the honest framing:** our levels hold *more* stock, not
-less. We spend 36% more capital to buy a 42% cut in days waiting, and the two
-together net out 13% cheaper. That runs the opposite way to the "release cash at the
-same service level" line in the pitch — the cash release belongs to step 6a (dead
-money), not here. Underneath the net, capital moves both ways: SAR 22.5m comes off
-2,577 positions, SAR 519m goes onto 13,997.
+less. We spend 50% more capital to buy a 55% cut in days waiting, and the three
+costs together net out 8% cheaper. That runs the opposite way to the "release cash
+at the same service level" line in the pitch — the cash release belongs to step 6a
+(dead money), not here. Underneath the net, SAR 11.7m comes off 990 positions and
+SAR 691m goes onto 15,639.
 
-By criticality, the improvement lands where it should: A-critical 285,998 → 129,281
-stockout days, B 287,793 → 123,938, C 269,106 → 239,757 (C gets the least, correctly
-— its 80% service level is what its own economics justify).
+By criticality the improvement lands where it should: A 285,998 → 126,149 stockout
+days, B 287,793 → 110,156, C 269,106 → 140,427.
 
 How the level is set: TSB's demand probability × a bootstrap of the part's own issue
 sizes over lead time + review, quantile taken at that item's newsvendor fractile
@@ -145,6 +146,62 @@ days produced a reorder point of 35,826 against a plant figure of 318; the mater
 group's median is substituted (73 positions) and the reason string says so. That is
 what makes step 2 a check rather than a report.
 
+### The service-level sweep — and the number we cannot claim
+
+The same year replayed at ten service levels, same demand and same lead-time draws:
+
+| Aim to have the part | Days waiting | Capital | Orders | All costs |
+|---|---|---|---|---|
+| 50% | 624,678 | SAR 1.583bn | 32,616 | SAR 771m |
+| 70% | 503,843 | SAR 1.677bn | 33,837 | SAR 753m |
+| 80% | 445,254 | SAR 1.750bn | 34,666 | **SAR 751m** |
+| 90% | 378,464 | SAR 1.868bn | 35,764 | SAR 759m |
+| 95% | 341,120 | SAR 1.964bn | 36,629 | SAR 772m |
+| 99.5% | 291,285 | SAR 2.228bn | 38,126 | SAR 824m |
+| plant's own | 842,897 | SAR 1.367bn | 34,808 | SAR 846m |
+| **ours (per item)** | **376,732** | **SAR 2.046bn** | **35,848** | **SAR 780m** |
+
+**The plant sits off the left end of that curve.** It waits longer than our lowest
+sampled service level manages while holding less capital than any point on it. So
+the headline "at their service level we need X% less capital" **has no honest
+answer here** — their policy is under-serving, not over-invested. Do not go looking
+for a way to phrase it that produces a number; the cash-release story is dead money
+(step 6a), and this is the sentence that says why.
+
+Our recommended levels are deliberately not on the curve: each item gets its own
+service level from its own economics, which is why they beat every blanket setting
+on total cost.
+
+### Order quantities
+
+The first cut placed **71% more purchase orders** than the plant does for the same
+material flow — a trickle every week, which looked free because placing an order was
+free in the model. Three changes: an order must cover at least the demand expected
+while it is in transit; it is rounded up to the pack the plant is already receiving
+in (read off its own receipt history — there is no pack-size column); and
+`cfg.costs.order_cost_sar` charges SAR 900 per order into the total. Orders placed
+are now **+3%**.
+
+## The screens
+
+`python cli.py serve --preset full` — three screens, vendored JS, inline SVG, no
+CDN and no build step. Every figure is read from `results/positions.parquet`, which
+`run` writes; the API filters and pages a frame and computes nothing.
+
+- **Overview** — stock value, idle share and dead value (still answer-key measured),
+  the backtest headline with the honest callout, by-storeroom table, the defect
+  scoreboard, and forecast accuracy with the plain-English note on why we lose to
+  forecasting zero on sparse movers.
+- **Stock board** — one table ranked by what it costs to ignore (criticality weight
+  × unit price × units below our reorder point), band and demand-class chips,
+  search, 25 rows a page.
+- **Item drawer** — 36 months of usage as inline SVG with the cut-off line, the
+  forecast and the known maintenance demand overlaid, and a paragraph that ends with
+  the engine's own reason string verbatim.
+
+Routes are a contract: `#/board` and `#/board/{material}/{storeroom}` are what the
+progress document photographs.
+
 ## Next — step 6a, dead money
 
 1. Engine computes its own dead-money list from step 5's justified quantity plus
@@ -152,8 +209,9 @@ what makes step 2 a check rather than a report.
    at SAP moving average.
 2. Scored against `truth`: SAR found / true / wrongly flagged; obsolete
    found / missed / falsely flagged. Engine figure sits beside the truth figure.
-3. Then the two screens (per [`docs/reference/UX-NOTES.md`](docs/reference/UX-NOTES.md)),
-   then the thin chat. Transfers, slider and work queue only if all of it is green.
+3. Then the thin chat (four tools, twenty golden questions). The scenario slider
+   now has its data (`results/frontier.json`); transfers and the work queue only
+   if everything above is green.
 
 Full order and the exclusions are in [`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-PLAN.md).
 
@@ -178,6 +236,11 @@ Full order and the exclusions are in [`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-P
   value and it is wrong: insurance spares correctly sit still for years.
 - **Fit on `cfg.train_slice()`, score on `cfg.eval_slice()`.** Never touch the
   movements frame directly for either.
+- **Never let a screen calculate.** The API reads `results/positions.parquet` and
+  filters it. A page that recomputes will disagree with the scoreboard beside it,
+  and will stall on 25,000 positions while somebody is watching.
+- **No CDN, ever.** A demo laptop on a plant site may have no route out.
+  `tests/test_screens.py` fails on any remote `src` or `href`.
 - **Never let the two backtest policies draw their own lead times.** They share one
   pre-drawn matrix (`sim.replenish.walk(lead_time_draws=…)`). Separate draws make
   part of any improvement luck, and nothing in the output would show it.

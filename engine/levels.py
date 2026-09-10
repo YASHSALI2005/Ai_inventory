@@ -89,20 +89,24 @@ def _demand_probability(occurred: np.ndarray, alpha: float = ALPHA_P) -> float:
     return float(np.clip(p, 0.0, 1.0))
 
 
-def _protection_quantile(
-    p: float, sizes: np.ndarray, periods: float, service: float,
+def _window_draws(
+    p: float, sizes: np.ndarray, periods: float,
     rng: np.random.Generator, n_sim: int = N_SIMULATIONS,
-) -> float:
+) -> np.ndarray:
     """
-    The empirical quantile of demand over the protection window.
+    Simulated total demand over the protection window, one value per simulation.
 
     Compounding a Bernoulli occurrence with a bootstrap of the part's own demand
     sizes, rather than fitting a distribution to it. For a part whose history is
     "nothing, nothing, forty, nothing", that history IS the distribution and any
     smooth curve laid over it would be an invention.
+
+    The draws are returned rather than one quantile so the scenario sweep can read
+    every service level off the same simulation. Re-simulating per service level
+    would make the frontier wobble for reasons that are not the service level.
     """
     if p <= 0 or not len(sizes) or periods <= 0:
-        return 0.0
+        return np.zeros(n_sim)
     whole = int(np.floor(periods))
     part = periods - whole
 
@@ -115,7 +119,38 @@ def _protection_quantile(
         hits = rng.random(n_sim) < p * part
         picks = sizes[rng.integers(0, len(sizes), size=n_sim)]
         draws += hits * picks
-    return float(np.quantile(draws, service))
+    return draws
+
+
+def _protection_quantile(
+    p: float, sizes: np.ndarray, periods: float, service: float,
+    rng: np.random.Generator, n_sim: int = N_SIMULATIONS,
+) -> float:
+    """The empirical quantile of demand over the protection window."""
+    draws = _window_draws(p, sizes, periods, rng, n_sim)
+    return float(np.quantile(draws, service)) if draws.any() else 0.0
+
+
+def pack_sizes(movements: pd.DataFrame) -> pd.Series:
+    """
+    How this plant actually buys each part, read off its receipts.
+
+    There is no pack-size column in an ERP extract of this shape, and inventing
+    one in the engine would be a guess dressed as data. What IS observable is the
+    quantity that keeps arriving: a part received in 24s twelve times is bought in
+    boxes of 24, whatever the master record says. The modal receipt quantity is
+    exactly that, measured. Parts never received fall back to one.
+    """
+    received = movements[movements["movement_type"] == "RECEIPT"]
+    if received.empty:
+        return pd.Series(dtype=float)
+    frame = pd.DataFrame(
+        {"material_id": received["material_id"], "qty": received["qty"].round()}
+    )
+    modal = frame.groupby("material_id")["qty"].agg(
+        lambda s: float(s.mode().iloc[0]) if len(s.mode()) else 1.0
+    )
+    return modal.clip(lower=1.0)
 
 
 def usable_lead_times(materials: pd.DataFrame, findings: pd.DataFrame) -> pd.Series:
@@ -190,6 +225,7 @@ def compute(cfg: RunConfig) -> Levels:
     )
 
     train = cfg.train_slice(movements)
+    pack_of = pack_sizes(train)
     consumed = train[train["movement_type"].isin(["ISSUE", "RETURN"])].copy()
     consumed["demand"] = -consumed["qty"]
     consumed["period"] = consumed["date"].dt.to_period(PERIOD)
@@ -227,17 +263,33 @@ def compute(cfg: RunConfig) -> Levels:
         window_periods = window_days / DAYS_PER_PERIOD
 
         p = _demand_probability((series > 0).astype(float))
-        reorder = _protection_quantile(p, sizes, window_periods, service, rng)
+        window = _window_draws(p, sizes, window_periods, rng)
+        reorder = float(np.quantile(window, service)) if window.any() else 0.0
 
         floor = cfg.dead_money.criticality_floor.get(criticality, 0.0)
         floored = reorder < floor
         reorder = max(reorder, floor)
 
-        # order-up-to covers the protection window plus one review cycle of demand
+        # How much to bring it back up to. Three things set a floor under the order
+        # quantity, and the largest wins:
+        #   1. one review cycle of demand, so the next review is not immediate;
+        #   2. the expected demand over the whole protection window - ordering less
+        #      than that guarantees another order before this one has landed;
+        #   3. the pack the supplier actually ships in.
+        # Without 2 and 3 the policy orders a trickle every week, which looks cheap
+        # only because placing an order is free on paper.
         cycle = _protection_quantile(
             p, sizes, REVIEW_PERIOD_DAYS / DAYS_PER_PERIOD, service, rng
         )
-        order_up_to = reorder + max(cycle, 1.0 if reorder > 0 else 0.0)
+        expected_window = float(window.mean())
+        pack = float(pack_of.get(pos.material_id, 1.0))
+        quantity = max(cycle, expected_window, 1.0 if reorder > 0 else 0.0)
+        quantity = float(np.ceil(quantity / pack) * pack) if pack > 0 else quantity
+        order_up_to = reorder + quantity
+
+        # the same simulation read at every service level the sweep asks for
+        sweep = [max(float(np.quantile(window, q)), floor)
+                 for q in cfg.costs.service_sweep]
 
         rows.append(
             {
@@ -253,6 +305,9 @@ def compute(cfg: RunConfig) -> Levels:
                 "unit_price_sar": price,
                 "lead_time_days": int(lead_days),
                 "lead_time_substituted": bool(lead_fixed),
+                "pack_size": pack,
+                "order_quantity": float(np.ceil(quantity)),
+                "sweep_reorder_points": np.ceil(np.array(sweep, dtype=float)),
                 "reason": _reason(np.ceil(reorder), service, window_days, criticality,
                                   lead_days, bool(pos.never_moved), floored, uom,
                                   lead_fixed),
@@ -278,6 +333,10 @@ def compute(cfg: RunConfig) -> Levels:
             - (levels["demand_probability"] > 0).sum()
         ),
         "positions_with_lead_time_substituted": int(levels["lead_time_substituted"].sum()),
+        "service_sweep": list(cfg.costs.service_sweep),
+        "order_cost_sar": cfg.costs.order_cost_sar,
+        "median_pack_size": float(levels["pack_size"].median()),
+        "positions_with_a_pack_above_one": int((levels["pack_size"] > 1).sum()),
         "limits": [
             "Levels are set from the first two years only, so a part whose use "
             "changed in the last year is sized on how it used to behave. That is the "
@@ -288,6 +347,11 @@ def compute(cfg: RunConfig) -> Levels:
             "A part never issued in two years is held at the minimum its criticality "
             "requires, not at a calculated level — there is nothing to calculate "
             "from, and the alternative is holding none of it.",
+            "Pack size is read off the quantities the plant already receives, "
+            "because an extract of this shape carries no pack-size column. A part "
+            "received in the same quantity again and again is bought in that pack, "
+            "whatever the master record says; a part never received falls back to "
+            "one. On real data this should be replaced by the purchasing record.",
             "Where the delivery time on the record was flagged as impossible, the "
             "typical figure for that kind of part is used instead and the reason says "
             "so. The substitute is a guess: it is better than a ten-year protection "

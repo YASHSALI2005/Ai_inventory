@@ -62,8 +62,16 @@ def _daily_demand(cfg: RunConfig, movements: pd.DataFrame, positions: pd.DataFra
     return np.maximum(out, 0.0)
 
 
-def _summarise(result, price, criticality, cfg: RunConfig, days: int) -> dict:
-    """Turn one policy's outcome into money and days."""
+def summarise(result, price, criticality, cfg: RunConfig, days: int) -> dict:
+    """
+    Turn one policy's outcome into money and days.
+
+    Placing an order costs money whatever is on it — raising it, chasing it,
+    receiving it, matching the invoice — so `cfg.costs.order_cost_sar` is
+    charged per order and lands in the total. Without it a policy that orders
+    every week looks free, and the buying team pays for a number that never
+    appeared in the comparison.
+    """
     shortage_rate = np.array(
         [cfg.costs.shortage_cost_per_unit_day(p, c)
          for p, c in zip(price, criticality, strict=True)]
@@ -80,9 +88,11 @@ def _summarise(result, price, criticality, cfg: RunConfig, days: int) -> dict:
         # The number a decision actually turns on. Service and capital pull against
         # each other, so either one on its own can be made to look good by
         # sacrificing the other; only their sum says whether the plant is better off.
+        "ordering_cost_sar": float(cfg.costs.ordering_cost(result.n_orders.sum())),
         "total_cost_sar": float(
             (result.avg_on_hand * holding_rate * days).sum()
             + (result.units_short * shortage_rate).sum()
+            + cfg.costs.ordering_cost(result.n_orders.sum())
         ),
     }
 
@@ -119,7 +129,15 @@ def _breakdown(result_a, result_b, keys, price, criticality, cfg, days, label) -
     return sorted(rows, key=lambda r: -r["baseline_capital_sar"])
 
 
-def run(cfg: RunConfig) -> dict:
+def prepare(cfg: RunConfig) -> dict:
+    """
+    Everything both policies must share, built once.
+
+    The scenario sweep replays the same year at seven more service levels, and it
+    has to do so in exactly this world — same demand, same opening stock, same
+    lead-time draws — or its curve is not comparable to the backtest that sits
+    beside it in the report.
+    """
     movements = S.read(S.MOVEMENTS, cfg.source_dir)
     materials = S.read(S.MATERIALS, cfg.source_dir)
     stock = S.read(S.STOCK, cfg.source_dir)
@@ -141,7 +159,7 @@ def run(cfg: RunConfig) -> dict:
     )
     demand = _daily_demand(cfg, movements, positions, days)
 
-    # ONE set of lead times, used by both policies. See the module docstring.
+    # ONE set of lead times, used by every policy. See the module docstring.
     rng = np.random.default_rng(cfg.seed + 77)
     sigma = np.sqrt(np.log1p(cfg.lead_time.cv ** 2))
     mu = np.log(np.maximum(lead, 1e-6)) - 0.5 * sigma ** 2
@@ -150,10 +168,24 @@ def run(cfg: RunConfig) -> dict:
         cfg.lead_time.min_days, cfg.lead_time.max_days,
     ).astype(np.int64)
 
-    shared = dict(
-        opening=opening, lead_time=lead, review_period_days=REVIEW_PERIOD_DAYS,
-        lead_time_draws=draws,
-    )
+    return {
+        "levels": levels,
+        "positions": positions,
+        "price": price,
+        "lead": lead,
+        "criticality": criticality,
+        "demand": demand,
+        "days": days,
+        "shared": dict(opening=opening, lead_time=lead,
+                       review_period_days=REVIEW_PERIOD_DAYS, lead_time_draws=draws),
+    }
+
+
+def run(cfg: RunConfig) -> dict:
+    setup = prepare(cfg)
+    levels, positions = setup["levels"], setup["positions"]
+    price, criticality = setup["price"], setup["criticality"]
+    demand, days, shared = setup["demand"], setup["days"], setup["shared"]
 
     baseline = walk(
         demand,
@@ -168,8 +200,8 @@ def run(cfg: RunConfig) -> dict:
         **shared,
     )
 
-    base = _summarise(baseline, price, criticality, cfg, days)
-    new = _summarise(ours, price, criticality, cfg, days)
+    base = summarise(baseline, price, criticality, cfg, days)
+    new = summarise(ours, price, criticality, cfg, days)
 
     def change(key: str) -> float | None:
         if not base[key]:
@@ -186,7 +218,7 @@ def run(cfg: RunConfig) -> dict:
         "change": {k: change(k) for k in
                    ("stockout_days", "units_short", "avg_capital_sar",
                     "shortage_cost_sar", "holding_cost_sar", "orders_placed",
-                    "total_cost_sar")},
+                    "ordering_cost_sar", "total_cost_sar")},
         "positions_raised": int((ours.avg_on_hand > baseline.avg_on_hand * 1.05).sum()),
         "positions_lowered": int((ours.avg_on_hand < baseline.avg_on_hand * 0.95).sum()),
         "capital_moved_out_sar": float(
@@ -213,8 +245,13 @@ def run(cfg: RunConfig) -> dict:
             "Unmet demand is treated as waiting, not lost: an MRO job waits for the "
             "part rather than cancelling. Days short therefore measures how long the "
             "plant waited.",
-            "Ordering costs and supplier minimum quantities are not modelled, so a "
-            "policy that orders more often is not charged for it.",
+            "Placing an order costs SAR " + f"{cfg.costs.order_cost_sar:,.0f}" +
+            " whatever is on it, and that is in the total. The figure is an "
+            "assumption, not a measurement — on real data it comes from the "
+            "purchasing team.",
+            "Order quantities respect the pack the plant is already receiving in, "
+            "read off its own receipt history. There is no pack-size column to "
+            "read, so this is inference, and a purchasing extract would beat it.",
         ],
     }
 

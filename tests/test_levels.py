@@ -191,3 +191,102 @@ def test_service_levels_differ_by_criticality():
     c = cfg.costs.critical_fractile(1000.0, "C")
     assert a > c
     assert c < 0.9, "a C-class washer should not be stocked to the same standard as a drive"
+
+
+# ── order quantity: a policy that orders every week is not free ──────────────
+
+
+def test_pack_size_is_read_off_what_the_plant_actually_receives():
+    """
+    There is no pack-size column in an extract of this shape. What is observable
+    is the quantity that keeps arriving — a part received in 24s is bought in 24s,
+    whatever the master record says.
+    """
+    movements = pd.DataFrame(
+        {
+            "material_id": ["M-1"] * 4 + ["M-2"] * 2,
+            "movement_type": ["RECEIPT"] * 3 + ["ISSUE"] + ["RECEIPT"] * 2,
+            "qty": [24.0, 24.0, 24.0, -1.0, 5.0, 7.0],
+        }
+    )
+    packs = L.pack_sizes(movements)
+    assert packs["M-1"] == 24.0
+    assert packs["M-2"] >= 1.0, "a tie still has to give a usable pack"
+    assert "M-3" not in packs, "a part never received has no observed pack"
+
+
+def test_the_order_quantity_covers_the_wait_it_creates():
+    """
+    Ordering less than the demand expected over the lead time guarantees another
+    order before this one lands. That is how the first cut produced 71% more
+    purchase orders than the plant places today for the same material flow.
+    """
+    cfg = RunConfig(preset="toy")
+    levels = pd.read_parquet(cfg.results_dir / "levels.parquet")
+    moving = levels[levels["demand_probability"] > 0.5]
+    if moving.empty:
+        pytest.skip("no fast movers in this preset")
+    gap = moving["order_up_to"] - moving["reorder_point"]
+    assert (gap >= 1.0).all(), "an order-up-to equal to the reorder point orders nothing"
+
+
+def test_placing_an_order_costs_money_in_the_backtest():
+    """
+    Without a cost per order, a policy that orders every week looks free and the
+    comparison quietly rewards it. The buying team pays for that number.
+    """
+    import json
+
+    cfg = RunConfig(preset="toy")
+    report = json.loads((cfg.results_dir / "backtest_report.json").read_text("utf-8"))
+    for side in ("baseline", "policy"):
+        s = report[side]
+        assert s["ordering_cost_sar"] == pytest.approx(
+            s["orders_placed"] * cfg.costs.order_cost_sar
+        )
+        assert s["total_cost_sar"] > s["holding_cost_sar"] + s["shortage_cost_sar"]
+
+
+# ── the scenario sweep ───────────────────────────────────────────────────────
+
+
+def test_the_frontier_slopes_the_only_way_it_can():
+    """
+    More service costs more capital and buys fewer days waiting. A curve that does
+    anything else is a bug in the sweep, not a discovery about inventory.
+    """
+    import json
+
+    cfg = RunConfig(preset="toy")
+    path = cfg.results_dir / "frontier.json"
+    if not path.exists():
+        pytest.skip("frontier not written — run `cli.py score`")
+    curve = sorted(json.loads(path.read_text("utf-8"))["curve"],
+                   key=lambda r: r["service_level"])
+    capital = [r["avg_capital_sar"] for r in curve]
+    waiting = [r["stockout_days"] for r in curve]
+    assert capital == sorted(capital)
+    assert waiting == sorted(waiting, reverse=True)
+
+
+def test_the_sweep_reads_one_simulation_at_every_service_level():
+    """
+    Re-simulating per service level would make the curve wobble for reasons that
+    are not the service level, which is exactly the noise a slider must not have.
+    """
+    rng = np.random.default_rng(4)
+    draws = L._window_draws(0.4, np.array([2.0, 9.0, 40.0]), 3.0, rng)
+    quantiles = [float(np.quantile(draws, q)) for q in (0.5, 0.8, 0.95, 0.995)]
+    assert quantiles == sorted(quantiles)
+
+
+def test_the_sweep_never_dips_below_the_criticality_floor():
+    cfg = RunConfig(preset="toy")
+    levels = pd.read_parquet(cfg.results_dir / "levels.parquet")
+    if "sweep_reorder_points" not in levels.columns:
+        pytest.skip("levels predate the sweep")
+    floors = levels["criticality"].map(cfg.dead_money.criticality_floor).fillna(0.0)
+    lowest = levels["sweep_reorder_points"].map(lambda a: float(a[0]))
+    assert (lowest >= floors - 1e-9).all(), (
+        "a business rule that the slider can turn off is not a business rule"
+    )

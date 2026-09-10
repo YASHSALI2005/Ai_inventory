@@ -10,6 +10,9 @@
   CDN. A dashboard that renders a blank page in a meeting room is worse than no
   dashboard, and a demo laptop on a client site may have no route to the internet at
   all. Same files, pinned versions, no network.
+
+  The usage chart is inline SVG for the same reason, and because a chart library
+  would be a new dependency for four rectangles and a line.
 -->
 <script src="/static/vendor/react.production.min.js"></script>
 <script src="/static/vendor/react-dom.production.min.js"></script>
@@ -23,6 +26,9 @@
   --accent:#A24E28; --accent-soft:#F3E4DB;
   --teal:#2B6B67; --teal-soft:#DFEBEA;
   --warn:#8A6212; --warn-soft:#F5EBD4;
+  --red:#9C2F26; --red-soft:#F6E1DE;
+  --blue:#2C5A82; --blue-soft:#DFE9F2;
+  --violet:#5B4B8A; --violet-soft:#E7E3F2;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){
@@ -33,6 +39,9 @@
     --accent:#D9825A; --accent-soft:#3A2A22;
     --teal:#5FAAA4; --teal-soft:#1E2E2D;
     --warn:#D0A445; --warn-soft:#312813;
+    --red:#E08076; --red-soft:#3A211E;
+    --blue:#7FAAD2; --blue-soft:#1C2733;
+    --violet:#A297D4; --violet-soft:#25213A;
     color-scheme:dark;
   }
 }
@@ -44,60 +53,155 @@ body{
 }
 .mono,.num,td.n,th.n{font-family:"Cascadia Mono",Consolas,"SF Mono",Menlo,monospace;
   font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:none}
+a{color:var(--accent)}
 
-.wrap{max-width:1120px;margin:0 auto;padding:34px 26px 70px}
+/* ── shell: left nav + one working column ─────────────────────────────────── */
+.shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+nav{background:var(--panel);border-right:1px solid var(--line);padding:22px 0;
+  display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
+nav .brand{padding:0 20px 18px;border-bottom:1px solid var(--line);margin-bottom:14px}
+nav .brand .mark{font-family:Consolas,monospace;font-size:10.5px;letter-spacing:.15em;
+  text-transform:uppercase;color:var(--accent)}
+nav .brand .name{font-size:16px;font-weight:700;letter-spacing:-.01em;margin-top:5px}
+nav .brand .sub{font-size:11.5px;color:var(--muted);margin-top:3px}
+nav button.link{display:block;width:100%;text-align:left;padding:9px 20px;font-size:14px;
+  color:var(--ink-2);border-left:3px solid transparent}
+nav button.link:hover{background:var(--panel-2)}
+nav button.link.on{background:var(--accent-soft);color:var(--accent);font-weight:600;
+  border-left-color:var(--accent)}
+nav .foot{margin-top:auto;padding:16px 20px 0;border-top:1px solid var(--line);
+  font-family:Consolas,monospace;font-size:10.5px;color:var(--muted);line-height:1.8}
+main{padding:30px 30px 70px;max-width:1280px;overflow-x:hidden}
 
-header{border-bottom:2px solid var(--ink);padding-bottom:18px;margin-bottom:26px}
-.eyebrow{font-family:Consolas,monospace;font-size:11px;letter-spacing:.13em;
-  text-transform:uppercase;color:var(--accent);margin-bottom:9px}
-h1{font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
-.runline{display:flex;flex-wrap:wrap;gap:6px 22px;margin-top:12px;
-  font-family:Consolas,monospace;font-size:11px;color:var(--muted);
-  letter-spacing:.04em;text-transform:uppercase}
-
+header{border-bottom:2px solid var(--ink);padding-bottom:16px;margin-bottom:22px}
+h1{font-size:25px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+header .lede{font-size:13.5px;color:var(--muted);margin-top:7px}
 h2{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
-  color:var(--muted);margin:32px 0 12px}
+  color:var(--muted);margin:30px 0 11px}
 h2:first-of-type{margin-top:0}
 
-.tiles{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
-.tile{background:var(--surface);border:1px solid var(--line);border-radius:3px;padding:16px 18px}
-.tile .v{font-family:Consolas,monospace;font-size:29px;font-weight:600;
-  letter-spacing:-.02em;line-height:1.05}
-.tile .k{font-size:12.5px;color:var(--muted);margin-top:8px;line-height:1.4}
+/* ── tiles ────────────────────────────────────────────────────────────────── */
+.tiles{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(215px,1fr))}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:3px;padding:15px 17px}
+.tile .v{font-family:Consolas,monospace;font-size:26px;font-weight:600;
+  letter-spacing:-.02em;line-height:1.08}
+.tile .k{font-size:12.5px;color:var(--muted);margin-top:7px;line-height:1.4}
 .tile .band{font-family:Consolas,monospace;font-size:11px;margin-top:9px;
   padding-top:8px;border-top:1px solid var(--line);display:flex;
   justify-content:space-between;gap:10px}
 .tile.hero{background:var(--accent-soft);border-color:var(--accent)}
 .tile.hero .v{color:var(--accent)}
+.tile.good .v{color:var(--teal)} .tile.bad .v{color:var(--red)}
 .in-band{color:var(--teal)} .out-band{color:var(--warn)}
 
+/* ── tables ───────────────────────────────────────────────────────────────── */
 .scroller{overflow-x:auto;border:1px solid var(--line);border-radius:3px;background:var(--surface)}
-table{border-collapse:collapse;width:100%;font-size:14px;min-width:640px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:640px}
 th{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
-  color:var(--muted);text-align:left;padding:11px 15px;background:var(--panel-2);
+  color:var(--muted);text-align:left;padding:10px 13px;background:var(--panel-2);
   border-bottom:1px solid var(--line);white-space:nowrap}
 th.n,td.n{text-align:right}
-td{padding:11px 15px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 13px;border-bottom:1px solid var(--line);white-space:nowrap}
 tbody tr:last-child td{border-bottom:none}
 tr.total td{background:var(--panel);font-weight:600;border-top:1px solid var(--line-2)}
+tr.click{cursor:pointer}
+tr.click:hover td{background:var(--panel)}
 .good{color:var(--teal);font-weight:600}
-.bad{color:var(--warn);font-weight:600}
+.bad{color:var(--red);font-weight:600}
+.dim{color:var(--muted)}
+td .sub{font-size:11.5px;color:var(--muted);margin-top:2px;white-space:normal}
+td.item{white-space:normal;max-width:330px;min-width:250px}
+td.item .d{line-height:1.35}
 
-.note{border:1px dashed var(--line-2);border-radius:3px;padding:13px 16px;
-  margin-top:12px;font-size:13px;color:var(--ink-2);line-height:1.5}
+/* ── chips and bands ──────────────────────────────────────────────────────── */
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 12px}
+.chip{border:1px solid var(--line-2);border-radius:14px;padding:5px 13px;font-size:12.5px;
+  background:var(--surface);color:var(--ink-2);white-space:nowrap}
+.chip:hover{border-color:var(--ink-2)}
+.chip.on{background:var(--ink);color:var(--ground);border-color:var(--ink);font-weight:600}
+.chip .c{font-family:Consolas,monospace;font-size:11px;opacity:.7;margin-left:6px}
+.pill{display:inline-block;font-family:Consolas,monospace;font-size:10.5px;
+  letter-spacing:.05em;text-transform:uppercase;padding:2px 7px;border-radius:2px;
+  white-space:nowrap}
+.b-stocked_out{background:var(--red-soft);color:var(--red)}
+.b-below_reorder{background:var(--accent-soft);color:var(--accent)}
+.b-below_old_min{background:var(--warn-soft);color:var(--warn)}
+.b-never_issued{background:var(--panel-2);color:var(--muted)}
+.b-idle_24m{background:var(--blue-soft);color:var(--blue)}
+.b-well_stocked{background:var(--teal-soft);color:var(--teal)}
+.c-smooth{background:var(--teal-soft);color:var(--teal)}
+.c-erratic{background:var(--warn-soft);color:var(--warn)}
+.c-intermittent{background:var(--blue-soft);color:var(--blue)}
+.c-lumpy{background:var(--violet-soft);color:var(--violet)}
+.crit{font-family:Consolas,monospace;font-weight:600}
+.crit-A{color:var(--red)} .crit-B{color:var(--warn)} .crit-C{color:var(--muted)}
+
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+select,input[type=search]{font:inherit;font-size:13.5px;padding:6px 10px;
+  border:1px solid var(--line-2);border-radius:3px;background:var(--surface);color:var(--ink)}
+input[type=search]{min-width:250px}
+.pager{display:flex;gap:10px;align-items:center;justify-content:space-between;
+  margin-top:12px;font-size:13px;color:var(--muted)}
+.pager button{border:1px solid var(--line-2);border-radius:3px;padding:5px 12px;
+  background:var(--surface);font-size:13px}
+.pager button[disabled]{opacity:.4;cursor:default}
+
+.note{border:1px dashed var(--line-2);border-radius:3px;padding:12px 15px;
+  margin-top:11px;font-size:13px;color:var(--ink-2);line-height:1.55}
 .note b{color:var(--ink)}
 .note.warn{border-color:var(--warn);background:var(--warn-soft)}
 .pending{color:var(--muted);font-size:13px;margin-top:10px;line-height:1.55}
-.pending code{font-family:Consolas,monospace;font-size:12px;background:var(--panel-2);
-  padding:1px 5px;border-radius:2px}
+.pending code,.note code{font-family:Consolas,monospace;font-size:12px;
+  background:var(--panel-2);padding:1px 5px;border-radius:2px}
+
+/* ── drawer ───────────────────────────────────────────────────────────────── */
+.scrim{position:fixed;inset:0;background:rgba(20,20,22,.42);z-index:40}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(680px,96vw);z-index:41;
+  background:var(--surface);border-left:1px solid var(--line-2);overflow-y:auto;
+  box-shadow:-18px 0 44px rgba(0,0,0,.16)}
+.drawer .dh{padding:20px 24px 16px;border-bottom:1px solid var(--line);
+  position:sticky;top:0;background:var(--surface);z-index:2}
+.drawer .dh .t{font-size:18px;font-weight:700;line-height:1.25;padding-right:34px}
+.drawer .dh .m{font-family:Consolas,monospace;font-size:11.5px;color:var(--muted);
+  margin-top:7px;line-height:1.7}
+.drawer .x{position:absolute;top:17px;right:18px;font-size:22px;line-height:1;
+  color:var(--muted);padding:2px 7px}
+.drawer .body{padding:20px 24px 60px}
+.stats{display:grid;gap:9px;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));
+  margin-bottom:20px}
+.stat{border:1px solid var(--line);border-radius:3px;padding:11px 13px;background:var(--panel)}
+.stat .k{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.stat .v{font-family:Consolas,monospace;font-size:19px;font-weight:600;margin-top:5px;
+  letter-spacing:-.01em}
+.stat .u{font-size:11px;color:var(--muted);margin-top:2px}
+.why{border:1px solid var(--accent);background:var(--accent-soft);border-radius:3px;
+  padding:15px 17px;margin:18px 0;font-size:13.5px;line-height:1.65;color:var(--ink)}
+.why .lab{font-family:Consolas,monospace;font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+.why p+p{margin-top:9px}
+.why q{quotes:'"' '"'}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:11.5px;color:var(--muted);
+  margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;margin-right:5px;border-radius:1px}
+.chartbox{border:1px solid var(--line);border-radius:3px;background:var(--surface);
+  padding:12px 12px 8px;overflow-x:auto}
 
 .err{background:var(--warn-soft);border:1px solid var(--warn);border-radius:3px;
   padding:18px 20px;color:var(--ink)}
 .err h3{font-size:15px;margin-bottom:8px}
 .err code{font-family:Consolas,monospace;font-size:13px;display:block;margin-top:10px;
   background:var(--surface);padding:9px 12px;border-radius:2px;border:1px solid var(--line)}
-footer{margin-top:38px;padding-top:16px;border-top:1px solid var(--line);
+footer{margin-top:36px;padding-top:15px;border-top:1px solid var(--line);
   font-size:12px;color:var(--muted);line-height:1.6}
+@media (max-width:860px){
+  .shell{grid-template-columns:1fr}
+  nav{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;
+    padding:12px 16px;gap:8px}
+  nav .brand{border:none;padding:0 14px 0 0;margin:0}
+  nav .foot{display:none}
+  main{padding:20px 16px 60px}
+}
 </style>
 </head>
 <body>
@@ -111,7 +215,7 @@ function fatal(what, err) {
   const root = document.getElementById("root");
   if (root) {
     root.innerHTML =
-      '<div class="wrap"><div class="err"><h3>' + what + "</h3><code>" +
+      '<div style="padding:30px"><div class="err"><h3>' + what + "</h3><code>" +
       String((err && (err.stack || err.message)) || err) + "</code></div></div>";
   }
 }
@@ -123,33 +227,382 @@ for (const [name, obj] of [["React", window.React], ["ReactDOM", window.ReactDOM
 }
 
 const html = htm.bind(React.createElement);
-const { useState, useEffect } = React;
+const { useState, useEffect, useCallback } = React;
 
-const sar = n => "SAR " + Math.round(n).toLocaleString("en-US");
-const pct = n => (n * 100).toFixed(1) + "%";
-const pctInt = n => Math.round(n * 100) + "%";
+const sar = n => "SAR " + Math.round(n || 0).toLocaleString("en-US");
+const sarShort = n => {
+  const v = Math.abs(n || 0);
+  if (v >= 1e9) return "SAR " + (n / 1e9).toFixed(2) + "bn";
+  if (v >= 1e6) return "SAR " + (n / 1e6).toFixed(1) + "m";
+  return sar(n);
+};
+const num = n => (n === null || n === undefined ? "—" : Math.round(n).toLocaleString("en-US"));
+const num1 = n => (n === null || n === undefined ? "—" : (Math.round(n * 10) / 10).toLocaleString("en-US"));
+const pct = n => (n === null || n === undefined ? "—" : (n * 100).toFixed(1) + "%");
+const pctInt = n => (n === null || n === undefined ? "—" : Math.round(n * 100) + "%");
+const signPct = n => (n === null || n === undefined ? "—"
+  : (n >= 0 ? "+" : "") + Math.round(n * 100) + "%");
 
-function Tile({ label, value, hero, band, actual }) {
+const BAND_LABEL = {
+  stocked_out: "Stocked out",
+  below_reorder: "Below our reorder point",
+  below_old_min: "Below the old minimum",
+  never_issued: "Never issued",
+  idle_24m: "Idle 24 months",
+  well_stocked: "Well stocked",
+};
+const BAND_ORDER = ["stocked_out", "below_reorder", "below_old_min", "idle_24m",
+                    "never_issued", "well_stocked"];
+const CLASS_ORDER = ["smooth", "erratic", "intermittent", "lumpy"];
+const CLASS_PLAIN = {
+  smooth: "moves steadily",
+  erratic: "moves often, in wildly different amounts",
+  intermittent: "moves rarely, in similar amounts",
+  lumpy: "moves rarely, in wildly different amounts",
+};
+
+const getJSON = url => fetch(url).then(r =>
+  r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.detail || r.status))));
+
+function Pill({ kind, value }) {
+  if (!value) return null;
+  return html`<span className=${"pill " + kind + "-" + value}>
+    ${kind === "b" ? BAND_LABEL[value] || value : value}</span>`;
+}
+
+function Tile({ label, value, hero, tone, band, actual, foot }) {
   const inBand = band ? actual >= band[0] && actual <= band[1] : null;
   return html`
-    <div className=${"tile" + (hero ? " hero" : "")}>
+    <div className=${"tile" + (hero ? " hero" : "") + (tone ? " " + tone : "")}>
       <div className="v">${value}</div>
       <div className="k">${label}</div>
       ${band && html`
         <div className="band">
-          <span className="${inBand ? "in-band" : "out-band"}">${inBand ? "in band" : "OUT OF BAND"}</span>
-          <span style=${{ color: "var(--muted)" }}>target ${pctInt(band[0])}–${pctInt(band[1])}</span>
+          <span className=${inBand ? "in-band" : "out-band"}>${inBand ? "in band" : "OUT OF BAND"}</span>
+          <span className="dim">target ${pctInt(band[0])}–${pctInt(band[1])}</span>
         </div>`}
+      ${foot && html`<div className="band"><span className="dim">${foot}</span></div>`}
     </div>`;
 }
 
+/* ── the usage chart ─────────────────────────────────────────────────────────
+   Three series over the same months: what was actually issued, what we forecast,
+   and the part of the forecast that is not a forecast at all — demand already on
+   the maintenance schedule. The cutoff line matters more than it looks: it is the
+   line the engine was not allowed to see past.                                */
+function UsageChart({ usage, forecast, planned, trainMonths, startMonth, uom }) {
+  const W = 620, H = 190, L = 46, R = 12, T = 12, B = 30;
+  const n = usage.length, fN = forecast.length;
+  const total = n + fN;
+  const iw = W - L - R, ih = H - T - B;
+  const step = iw / Math.max(total, 1);
+  const peak = Math.max(1, ...usage, ...forecast.map((f, i) => f + (planned[i] || 0)));
+  const y = v => T + ih - (v / peak) * ih;
+  const bw = Math.max(1.5, step * 0.62);
+
+  const [ys, ms] = startMonth.split("-").map(Number);
+  const label = i => {
+    const d = new Date(Date.UTC(ys, ms - 1 + i, 1));
+    return ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
+            "Nov", "Dec"][d.getUTCMonth()] + " " + String(d.getUTCFullYear()).slice(2);
+  };
+  const ticks = [];
+  for (let i = 0; i < total; i += 6) ticks.push(i);
+
+  const cutX = L + trainMonths * step;
+
+  return html`
+    <div className="chartbox">
+      <svg viewBox=${"0 0 " + W + " " + H} width="100%" style=${{ minWidth: "560px", display: "block" }}
+           role="img" aria-label="monthly usage and forecast">
+        ${[0, 0.5, 1].map(f => html`
+          <g key=${f}>
+            <line x1=${L} x2=${W - R} y1=${y(peak * f)} y2=${y(peak * f)}
+                  stroke="var(--line)" strokeWidth="1" />
+            <text x=${L - 7} y=${y(peak * f) + 3.5} textAnchor="end"
+                  fill="var(--muted)" fontSize="9.5"
+                  fontFamily="Consolas,monospace">${num1(peak * f)}</text>
+          </g>`)}
+
+        ${usage.map((v, i) => v > 0 && html`
+          <rect key=${"u" + i} x=${L + i * step + (step - bw) / 2} y=${y(v)}
+                width=${bw} height=${Math.max(1, T + ih - y(v))} fill="var(--ink-2)" />`)}
+
+        ${forecast.map((v, i) => html`
+          <g key=${"f" + i}>
+            <rect x=${L + (n + i) * step + (step - bw) / 2} y=${y(v)}
+                  width=${bw} height=${Math.max(0.5, T + ih - y(v))}
+                  fill="var(--accent)" opacity="0.85" />
+            ${planned[i] > 0 && html`
+              <rect x=${L + (n + i) * step + (step - bw) / 2} y=${y(v + planned[i])}
+                    width=${bw} height=${Math.max(1, y(v) - y(v + planned[i]))}
+                    fill="var(--teal)" />`}
+          </g>`)}
+
+        <line x1=${cutX} x2=${cutX} y1=${T} y2=${T + ih} stroke="var(--accent)"
+              strokeWidth="1.2" strokeDasharray="4 3" />
+        <text x=${cutX + 4} y=${T + 10} fill="var(--accent)" fontSize="9.5"
+              fontFamily="Consolas,monospace">fitted up to here</text>
+
+        <line x1=${L} x2=${W - R} y1=${T + ih} y2=${T + ih} stroke="var(--line-2)" />
+        ${ticks.map(i => html`
+          <text key=${"t" + i} x=${L + i * step + step / 2} y=${H - 15} textAnchor="middle"
+                fill="var(--muted)" fontSize="9.5"
+                fontFamily="Consolas,monospace">${label(i)}</text>`)}
+        <text x=${L} y=${H - 3} fill="var(--muted)" fontSize="9.5"
+              fontFamily="Consolas,monospace">${uom} per month</text>
+      </svg>
+      <div className="legend">
+        <span><i style=${{ background: "var(--ink-2)" }}></i>issued</span>
+        <span><i style=${{ background: "var(--accent)" }}></i>forecast</span>
+        <span><i style=${{ background: "var(--teal)" }}></i>already on the maintenance schedule</span>
+      </div>
+    </div>`;
+}
+
+/* ── the drawer ───────────────────────────────────────────────────────────── */
+function Drawer({ id, onClose }) {
+  const [state, setState] = useState({ status: "loading" });
+
+  useEffect(() => {
+    setState({ status: "loading" });
+    getJSON("/api/positions/" + id[0] + "/" + id[1])
+      .then(d => setState({ status: "ready", d }))
+      .catch(e => setState({ status: "error", detail: String(e.message || e) }));
+  }, [id[0], id[1]]);
+
+  useEffect(() => {
+    const esc = e => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [onClose]);
+
+  const inner = () => {
+    if (state.status === "loading") return html`<div className="body">Loading…</div>`;
+    if (state.status === "error")
+      return html`<div className="body"><div className="err"><h3>Not found</h3>
+        <div>${state.detail}</div></div></div>`;
+
+    const d = state.d;
+    const usage = d.usage_months || [];
+    const fc = d.forecast_months || [];
+    const planned = d.planned_wo_months || [];
+    const monthly = d.qty_24m / 24;
+    const sinceIssue = d.last_issue_date
+      ? Math.round((Date.now() - Date.parse(d.last_issue_date)) / 86400000) : null;
+
+    return html`
+      <div className="body">
+        <div className="stats">
+          <div className="stat"><div className="k">On hand</div>
+            <div className=${"v " + (d.on_hand <= 0 ? "bad" : "")}>${num1(d.on_hand)}</div>
+            <div className="u">${d.uom}</div></div>
+          <div className="stat"><div className="k">Last issued</div>
+            <div className="v">${sinceIssue === null ? "never" : num(sinceIssue)}</div>
+            <div className="u">${sinceIssue === null ? "in three years of history" : "days ago"}</div></div>
+          <div className="stat"><div className="k">Forecast</div>
+            <div className="v">${num1(d.forecast_6m / 6)}</div>
+            <div className="u">${d.uom} per month, next 6</div></div>
+          <div className="stat"><div className="k">Value on the shelf</div>
+            <div className="v">${sarShort(d.value_sar)}</div>
+            <div className="u">at moving average</div></div>
+        </div>
+
+        <h2>Three years of movement, and the year ahead</h2>
+        <${UsageChart} usage=${usage} forecast=${fc} planned=${planned}
+                       trainMonths=${d.train_months} startMonth=${d.months_start}
+                       uom=${d.uom} />
+
+        <div className="why">
+          <div className="lab">Why this number</div>
+          <p>
+            This part was issued ${d.issues_24m === 0 ? "not once" : num(d.issues_24m) +
+            (d.issues_24m === 1 ? " time" : " times")} in the last 24 months
+            ${d.issues_24m > 0 ? html`, ${num1(d.qty_24m)} ${d.uom} in total —
+              about ${num1(monthly)} ${d.uom} a month` : ""}.
+            That makes it <b>${d.demand_class}</b> — it ${CLASS_PLAIN[d.demand_class] || ""}
+            ${" "}(demand roughly every ${num1(d.adi)} months, size variability
+            ${" " + num1(d.cv2)}), so it is forecast with <b>${d.forecast_method}</b>.
+            ${d.planned_wo_qty > 0 ? html` On top of the forecast, ${num1(d.planned_wo_qty)}
+              ${" " + d.uom} is already on the maintenance schedule for the year ahead —
+              that part is known, not predicted.` : ""}
+          </p>
+          <p>
+            The plant's rule reorders at <b>${num1(d.min_qty)}</b> and fills to
+            ${" "}<b>${num1(d.max_qty)}</b>. We reorder at <b>${num1(d.reorder_point)}</b>
+            ${" "}and fill to <b>${num1(d.order_up_to)}</b>${" "}
+            ${d.reorder_point > d.min_qty
+              ? html`— higher, because ${pctInt(d.service_level)} of the time is how
+                     often an ${d.criticality}-critical part has to be there.`
+              : html`— lower, because the old rule was holding more than this part's
+                     own history justifies.`}
+          </p>
+          <p><q>${d.reason}</q></p>
+        </div>
+
+        ${d.elsewhere && d.elsewhere.length > 0 && html`
+          <h2>Also stocked elsewhere</h2>
+          <div className="scroller">
+            <table>
+              <thead><tr><th>Storeroom</th><th className="n">On hand</th>
+                <th className="n">Our reorder point</th><th>State</th>
+                <th className="n">Value</th></tr></thead>
+              <tbody>${d.elsewhere.map(e => html`
+                <tr key=${e.storeroom_id}>
+                  <td className="mono">${e.storeroom_id}</td>
+                  <td className="n">${num1(e.on_hand)}</td>
+                  <td className="n">${num1(e.reorder_point)}</td>
+                  <td><${Pill} kind="b" value=${e.band} /></td>
+                  <td className="n">${sarShort(e.value_sar)}</td>
+                </tr>`)}</tbody>
+            </table>
+          </div>
+          <div className="note">One storeroom short while another is long is a transfer,
+            not a purchase. Ranking those is capability 5, and it is not built yet.</div>`}
+      </div>`;
+  };
+
+  const d = state.d;
+  return html`
+    <div>
+      <div className="scrim" onClick=${onClose}></div>
+      <aside className="drawer">
+        <div className="dh">
+          <button className="x" onClick=${onClose} aria-label="Close">×</button>
+          <div className="t">${d ? d.description : id[0]}</div>
+          <div className="m">
+            ${id[0]} · ${id[1]}
+            ${d ? html`<br/>${d.manufacturer} · MPN ${d.mpn} · ${d.material_group}
+              <br/><span className=${"crit crit-" + d.criticality}>
+                ${d.criticality}-critical</span> · lead time ${num(d.lead_time_days)} days
+              ${d.lead_time_substituted ? " (substituted — the record was not usable)" : ""}` : ""}
+          </div>
+        </div>
+        ${inner()}
+      </aside>
+    </div>`;
+}
+
+/* ── screen 2: the stock board ────────────────────────────────────────────── */
+function Board({ open, setOpen }) {
+  const [f, setF] = useState({ storeroom: "", band: "", demand_class: "", q: "", page: 1 });
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState(null);
+  const [typed, setTyped] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setF(s => ({ ...s, q: typed, page: 1 })), 250);
+    return () => clearTimeout(t);
+  }, [typed]);
+
+  useEffect(() => {
+    const qs = new URLSearchParams({
+      storeroom: f.storeroom, band: f.band, demand_class: f.demand_class,
+      q: f.q, page: String(f.page),
+    });
+    getJSON("/api/positions?" + qs).then(setData).catch(e => setErr(String(e.message || e)));
+  }, [f.storeroom, f.band, f.demand_class, f.q, f.page]);
+
+  if (err) return html`<div className="err"><h3>No positions to show</h3><div>${err}</div>
+    <code>python cli.py run --preset full</code></div>`;
+  if (!data) return html`<p>Loading…</p>`;
+
+  const set = (k, v) => setF(s => ({ ...s, [k]: s[k] === v ? "" : v, page: 1 }));
+
+  return html`
+    <div>
+      <header>
+        <h1>Stock board</h1>
+        <div className="lede">
+          Ranked by what it costs to ignore, not by quantity — the units missing below
+          our reorder point, priced at what being short of them costs.
+          Showing ${num(data.total)} of ${num(data.total_unfiltered)} positions;
+          ${" " + sarShort(data.value_at_risk_sar)} at risk, ${sarShort(data.value_sar)} on the shelf.
+        </div>
+      </header>
+
+      <div className="toolbar">
+        <select value=${f.storeroom} onChange=${e => setF(s => ({ ...s, storeroom: e.target.value, page: 1 }))}>
+          <option value="">All storerooms</option>
+          ${data.storerooms.map(s => html`<option key=${s} value=${s}>${s}</option>`)}
+        </select>
+        <input type="search" placeholder="Search description, MPN, maker or id…"
+               value=${typed} onInput=${e => setTyped(e.target.value)} />
+      </div>
+
+      <div className="chips">
+        ${BAND_ORDER.filter(b => data.bands[b]).map(b => html`
+          <button key=${b} className=${"chip" + (f.band === b ? " on" : "")}
+                  onClick=${() => set("band", b)}>
+            ${BAND_LABEL[b]}<span className="c">${num(data.bands[b])}</span></button>`)}
+      </div>
+      <div className="chips">
+        ${CLASS_ORDER.filter(c => data.classes[c]).map(c => html`
+          <button key=${c} className=${"chip" + (f.demand_class === c ? " on" : "")}
+                  onClick=${() => set("demand_class", c)}>
+            ${c}<span className="c">${num(data.classes[c])}</span></button>`)}
+      </div>
+
+      <div className="scroller">
+        <table>
+          <thead><tr>
+            <th>Item</th><th className="n">At risk</th><th>Class</th><th>Crit</th>
+            <th className="n">On hand</th><th className="n">Old min / max</th>
+            <th className="n">Our reorder</th>
+            <th className="n">Forecast 6m</th><th className="n">On shelf</th>
+          </tr></thead>
+          <tbody>
+            ${data.rows.map(r => html`
+              <tr key=${r.material_id + r.storeroom_id} className="click"
+                  onClick=${() => setOpen([r.material_id, r.storeroom_id])}>
+                <td className="item">
+                  <div className="d"><${Pill} kind="b" value=${r.band} />${" "}${r.description}</div>
+                  <div className="sub">${r.material_id} · ${r.storeroom_id} · ${r.mpn}
+                    ${" · last issued " + (r.last_issue_date || "never")}</div>
+                </td>
+                <td className=${"n " + (r.value_at_risk_sar > 0 ? "bad" : "dim")}>
+                  ${r.value_at_risk_sar > 0 ? sarShort(r.value_at_risk_sar) : "—"}</td>
+                <td><${Pill} kind="c" value=${r.demand_class} /></td>
+                <td className=${"crit crit-" + r.criticality}>${r.criticality}</td>
+                <td className=${"n " + (r.on_hand <= 0 ? "bad" : "")}>${num1(r.on_hand)}</td>
+                <td className="n dim">${num1(r.min_qty)} / ${num1(r.max_qty)}</td>
+                <td className="n">${num1(r.reorder_point)}</td>
+                <td className="n">${num1(r.forecast_6m)}</td>
+                <td className="n">${sarShort(r.value_sar)}</td>
+              </tr>`)}
+            ${data.rows.length === 0 && html`
+              <tr><td colSpan="9" className="dim">Nothing matches those filters.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="pager">
+        <span>Page ${data.page} of ${data.pages} · ${data.page_size} rows a page</span>
+        <span>
+          <button disabled=${data.page <= 1}
+                  onClick=${() => setF(s => ({ ...s, page: s.page - 1 }))}>Previous</button>
+          ${" "}
+          <button disabled=${data.page >= data.pages}
+                  onClick=${() => setF(s => ({ ...s, page: s.page + 1 }))}>Next</button>
+        </span>
+      </div>
+
+      <div className="note">
+        <b>At risk</b> is the shortage cost of the units missing below our reorder point —
+        criticality weight × unit price × units short. It is the same
+        ${" "}<code>shortage_cost_per_unit</code> that sets each item's service level and
+        prices the backtest, so the board and the scoreboard cannot disagree.
+      </div>
+    </div>`;
+}
+
+/* ── screen 1: the overview ───────────────────────────────────────────────── */
 function Scoreboard({ data }) {
   const rows = data.by_type || [];
   const s = data.summary || {};
-  const rate = (v) => (v === null || v === undefined || Number.isNaN(v) ? "—" : pctInt(v));
+  const rate = v => (v === null || v === undefined || Number.isNaN(v) ? "—" : pctInt(v));
   const recall = r => (r.planted ? r.found / r.planted : null);
   const prec = r => (r.found + r.false_alarms ? r.found / (r.found + r.false_alarms) : null);
-
   return html`
     <div className="scroller">
       <table>
@@ -162,8 +615,7 @@ function Scoreboard({ data }) {
           ${rows.map(r => html`
             <tr key=${r.defect_type}>
               <td>${r.defect_type}</td>
-              <td className="n">${r.planted}</td>
-              <td className="n">${r.found}</td>
+              <td className="n">${r.planted}</td><td className="n">${r.found}</td>
               <td className=${"n " + (r.missed ? "bad" : "")}>${r.missed}</td>
               <td className=${"n " + (r.false_alarms ? "bad" : "")}>${r.false_alarms}</td>
               <td className=${"n " + (recall(r) === 1 ? "good" : "")}>${rate(recall(r))}</td>
@@ -171,8 +623,7 @@ function Scoreboard({ data }) {
             </tr>`)}
           <tr className="total">
             <td>Total — checks that ran</td>
-            <td className="n">${s.planted}</td>
-            <td className="n">${s.found}</td>
+            <td className="n">${s.planted}</td><td className="n">${s.found}</td>
             <td className=${"n " + (s.missed ? "bad" : "")}>${s.missed}</td>
             <td className=${"n " + (s.false_alarms ? "bad" : "")}>${s.false_alarms}</td>
             <td className=${"n " + (s.recall === 1 ? "good" : "")}>${rate(s.recall)}</td>
@@ -180,94 +631,230 @@ function Scoreboard({ data }) {
           </tr>
         </tbody>
       </table>
-    </div>
-
-    ${s.informational && Object.keys(s.informational).length > 0 && html`
-      <div className="note">
-        <b>Informational findings</b> — real problems with no planted counterpart, so
-        they are counted but excluded from precision:
-        ${" " + Object.entries(s.informational).map(([k, v]) => k + " = " + v).join(", ")}.
-      </div>`}
-
-    ${s.not_yet_implemented && s.not_yet_implemented.length > 0 && html`
-      <p className="pending">
-        Checks not written yet: ${s.not_yet_implemented.map(t => html`<code>${t}</code> `)}
-        — these are excluded from the totals rather than scored as missed, so the board
-        reads as progress rather than as failure.
-      </p>`}`;
+    </div>`;
 }
 
-function App() {
-  const [state, setState] = useState({ status: "loading" });
-
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/summary").then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e))),
-      fetch("/api/scoreboard").then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e))),
-    ])
-      .then(([summary, score]) => setState({ status: "ready", summary, score }))
-      .catch(err => setState({ status: "error", detail: err.detail || String(err) }));
-  }, []);
-
-  if (state.status === "loading") return html`<div className="wrap"><p>Loading…</p></div>`;
-
-  if (state.status === "error") {
-    return html`<div className="wrap">
-      <div className="err">
-        <h3>No results to show</h3>
-        <div>${state.detail}</div>
-        <code>python cli.py all --preset full</code>
-      </div>
-    </div>`;
-  }
-
-  const { summary, score } = state;
+function Overview({ summary, score, bt, fc, stores, setOpen }) {
   const inv = summary.inventory, run = summary.run, c = summary.counts;
+  const b = (bt && bt.baseline) || {}, p = (bt && bt.policy) || {}, ch = (bt && bt.change) || {};
+  const zeroLosers = (fc && fc.mase_by_class || [])
+    .filter(r => r.mase >= r.zero).map(r => r.class);
 
   return html`
-    <div className="wrap">
+    <div>
       <header>
-        <div className="eyebrow">Ma'aden Aluminium · Use Case 01 · POC</div>
-        <h1>Inventory Intelligence & MRO Optimization</h1>
-        <div className="runline">
-          <span>preset ${run.preset}</span>
-          <span>seed ${run.seed}</span>
-          <span>git ${run.git_sha}</span>
-          <span>config ${run.config_hash}</span>
-          <span>cutoff ${run.cutoff_date}</span>
-          <span>${c.materials.toLocaleString()} materials · ${c.positions.toLocaleString()} positions
-            · ${c.movements.toLocaleString()} movements</span>
+        <h1>Inventory Intelligence ${"&"} MRO Optimization</h1>
+        <div className="lede">
+          Ma'aden Aluminium · Use Case 01 · synthetic data, sealed answer key ·
+          ${" " + c.materials.toLocaleString()} materials,
+          ${" " + c.positions.toLocaleString()} positions,
+          ${" " + c.movements.toLocaleString()} movements
         </div>
       </header>
 
-      <h2>Inventory</h2>
+      <h2>What is on the shelves</h2>
       <div className="tiles">
-        <${Tile} hero label="Total stock value, ${c.storerooms} storerooms"
-                 value=${sar(inv.total_stock_value_sar)} />
-        <${Tile} label=${"Lines not issued in 24 months (" + inv.idle_24m_count.toLocaleString() + " of " + c.materials.toLocaleString() + ")"}
+        <${Tile} hero label=${"Total stock value, " + c.storerooms + " storerooms"}
+                 value=${sarShort(inv.total_stock_value_sar)} />
+        <${Tile} label=${"Lines not issued in 24 months (" + num(inv.idle_24m_count) + ")"}
                  value=${pct(inv.idle_24m_share)}
                  band=${summary.targets.idle_24m_share} actual=${inv.idle_24m_share} />
-        <${Tile} label=${"Dead value — " + sar(inv.dead_value_sar)}
+        <${Tile} label=${"Dead value — " + sarShort(inv.dead_value_sar)}
                  value=${pct(inv.dead_value_share)}
                  band=${summary.targets.dead_value_share} actual=${inv.dead_value_share} />
       </div>
-
       <div className="note warn">
-        <b>These three figures are measured from the answer key, not found by the engine.</b>
+        <b>These three are measured from the answer key, not found by the engine.</b>
         ${" " + inv.note} They are the size of the prize, not a claim about what the
-        system detected — step 6 adds the engine's own dead-money figure beside them so
-        the two can be compared.
+        system detected — step 6 puts the engine's own dead-money figure beside them.
       </div>
+
+      ${bt && html`
+        <h2>The held-out year, replayed twice — the plant's levels against ours</h2>
+        <div className="tiles">
+          <${Tile} tone="good" value=${signPct(ch.stockout_days)}
+                   label="Days spent waiting for a part"
+                   foot=${num(b.stockout_days) + " → " + num(p.stockout_days)} />
+          <${Tile} tone="bad" value=${signPct(ch.avg_capital_sar)}
+                   label="Capital sitting on the shelves"
+                   foot=${sarShort(b.avg_capital_sar) + " → " + sarShort(p.avg_capital_sar)} />
+          <${Tile} hero value=${signPct(ch.total_cost_sar)}
+                   label="Both costs together — shortage plus holding"
+                   foot=${sarShort(b.total_cost_sar) + " → " + sarShort(p.total_cost_sar)} />
+        </div>
+        <div className="note warn">
+          <b>Read this honestly: we spend more to waste less.</b> Our levels hold
+          ${" " + signPct(ch.avg_capital_sar)} more stock, not less. In exchange the
+          plant waits ${" " + signPct(ch.stockout_days)} fewer days for a part, and the
+          two costs together come out ${" " + signPct(ch.total_cost_sar)}. That runs the
+          opposite way to the usual pitch: better stocking here moves cash to where it
+          stops production losses. Releasing cash is a different exercise — finding the
+          stock that is dead — and that is the next step.
+          ${bt.capital_moved_out_sar !== undefined ? html` Underneath the net,
+            ${" " + sarShort(bt.capital_moved_out_sar)} comes off
+            ${" " + num(bt.positions_lowered)} positions while
+            ${" " + sarShort(bt.capital_moved_in_sar)} goes onto
+            ${" " + num(bt.positions_raised)}.` : ""}
+        </div>
+
+        <div className="scroller" style=${{ marginTop: "12px" }}>
+          <table>
+            <thead><tr><th>If the part is missing</th><th className="n">Positions</th>
+              <th className="n">Days waiting now</th><th className="n">With ours</th>
+              <th className="n">Value now</th><th className="n">With ours</th></tr></thead>
+            <tbody>${(bt.by_criticality || []).map(r => html`
+              <tr key=${r.criticality}>
+                <td><span className=${"crit crit-" + r.criticality}>${r.criticality}</span>
+                  ${" "}${{ A: "the plant stops", B: "production slows",
+                            C: "somebody waits" }[r.criticality] || ""}</td>
+                <td className="n">${num(r.positions)}</td>
+                <td className="n">${num(r.baseline_stockout_days)}</td>
+                <td className="n good">${num(r.policy_stockout_days)}</td>
+                <td className="n">${sarShort(r.baseline_capital_sar)}</td>
+                <td className="n">${sarShort(r.policy_capital_sar)}</td>
+              </tr>`)}</tbody>
+          </table>
+        </div>`}
+
+      ${stores && html`
+        <h2>By storeroom</h2>
+        <div className="scroller">
+          <table>
+            <thead><tr><th>Storeroom</th><th className="n">Positions</th>
+              <th className="n">Value on the shelf</th><th className="n">Idle or never issued</th>
+              <th className="n">Stocked out</th><th>Demand mix</th></tr></thead>
+            <tbody>${stores.by_storeroom.map(r => html`
+              <tr key=${r.storeroom_id}>
+                <td className="mono">${r.storeroom_id}</td>
+                <td className="n">${num(r.positions)}</td>
+                <td className="n">${sarShort(r.value_sar)}</td>
+                <td className="n">${num(r.idle_count)}
+                  <span className="dim"> (${pctInt(r.idle_count / r.positions)})</span></td>
+                <td className=${"n " + (r.stocked_out ? "bad" : "")}>${num(r.stocked_out)}</td>
+                <td>${CLASS_ORDER.filter(k => r.class_mix[k]).map(k => html`
+                  <span key=${k} style=${{ marginRight: "6px" }}>
+                    <${Pill} kind="c" value=${k} />
+                    <span className="dim mono" style=${{ fontSize: "11px" }}>
+                      ${" " + num(r.class_mix[k])}</span></span>`)}</td>
+              </tr>`)}</tbody>
+          </table>
+        </div>`}
 
       <h2>Defect detection — graded against the sealed answer key</h2>
       <${Scoreboard} data=${score} />
+
+      ${fc && html`
+        <h2>Forecast accuracy, on the year the engine never saw</h2>
+        <div className="scroller">
+          <table>
+            <thead><tr><th>Demand class</th><th className="n">Positions</th>
+              <th>Method</th><th className="n">Ours</th>
+              <th className="n">Repeat last year</th><th className="n">Forecast zero</th></tr></thead>
+            <tbody>${fc.mase_by_class.map(r => html`
+              <tr key=${r.class}>
+                <td><${Pill} kind="c" value=${r.class} /></td>
+                <td className="n">${num(r.positions)}</td>
+                <td className="mono">${r.method}</td>
+                <td className=${"n " + (r.mase < r.naive && r.mase < r.zero ? "good" : "")}>
+                  ${r.mase.toFixed(2)}</td>
+                <td className="n dim">${r.naive.toFixed(2)}</td>
+                <td className=${"n " + (r.zero < r.mase ? "bad" : "dim")}>${r.zero.toFixed(2)}</td>
+              </tr>`)}</tbody>
+          </table>
+        </div>
+        <div className="note">
+          Lower is better; 1.00 means no better than repeating last year. We beat that
+          on all four classes.
+          ${zeroLosers.length > 0 ? html` <b>We lose to forecasting zero on
+            ${zeroLosers.join(" and ")} parts, and that is expected.</b> A part issued
+            four times in three years is zero in most months, so always saying "none"
+            scores well on the average month and is useless on the four that matter —
+            it can never tell you to order anything. That is why the levels are set
+            from the demand distribution rather than from the forecast.` : ""}
+        </div>`}
 
       <footer>
         Read-only view over precomputed results. Nothing on this page is calculated at
         request time — every figure was written to ${" "}<code>results/</code>${" "}
         during ${" "}<code>build</code>, <code>run</code> and <code>score</code>.
-        <br/>Generated ${run.generated_at}.
+        <br/>Run ${run.config_hash} · seed ${run.seed} · git ${run.git_sha} ·
+        cutoff ${run.cutoff_date} · generated ${run.generated_at}.
       </footer>
+    </div>`;
+}
+
+/* ── shell ────────────────────────────────────────────────────────────────── */
+function parseHash() {
+  const h = (location.hash || "#/").slice(1);
+  const parts = h.split("/").filter(Boolean);
+  if (parts[0] === "board") {
+    return { screen: "board", open: parts.length >= 3 ? [parts[1], parts[2]] : null };
+  }
+  return { screen: "overview", open: null };
+}
+
+function App() {
+  const [route, setRoute] = useState(parseHash);
+  const [state, setState] = useState({ status: "loading" });
+
+  useEffect(() => {
+    const on = () => setRoute(parseHash());
+    window.addEventListener("hashchange", on);
+    return () => window.removeEventListener("hashchange", on);
+  }, []);
+
+  useEffect(() => {
+    Promise.all([
+      getJSON("/api/summary"),
+      getJSON("/api/scoreboard"),
+      getJSON("/api/backtest").catch(() => null),
+      getJSON("/api/forecast_scores").catch(() => null),
+      getJSON("/api/storerooms").catch(() => null),
+    ])
+      .then(([summary, score, bt, fc, stores]) =>
+        setState({ status: "ready", summary, score, bt, fc, stores }))
+      .catch(err => setState({ status: "error", detail: err.message || String(err) }));
+  }, []);
+
+  const setOpen = useCallback(id => {
+    location.hash = id ? "#/board/" + id[0] + "/" + id[1] : "#/board";
+  }, []);
+
+  const go = screen => { location.hash = "#/" + (screen === "overview" ? "" : screen); };
+
+  if (state.status === "loading")
+    return html`<div style=${{ padding: "30px" }}>Loading…</div>`;
+  if (state.status === "error")
+    return html`<div style=${{ padding: "30px" }}><div className="err">
+      <h3>No results to show</h3><div>${state.detail}</div>
+      <code>python cli.py all --preset full</code></div></div>`;
+
+  const run = state.summary.run;
+  return html`
+    <div className="shell">
+      <nav>
+        <div className="brand">
+          <div className="mark">Ma'aden Aluminium</div>
+          <div className="name">MRO Intelligence</div>
+          <div className="sub">Use Case 01 · POC</div>
+        </div>
+        <button className=${"link" + (route.screen === "overview" ? " on" : "")}
+                onClick=${() => go("overview")}>Overview</button>
+        <button className=${"link" + (route.screen === "board" ? " on" : "")}
+                onClick=${() => go("board")}>Stock board</button>
+        <div className="foot">
+          preset ${run.preset}<br/>seed ${run.seed}<br/>git ${run.git_sha}<br/>
+          cutoff ${run.cutoff_date}
+        </div>
+      </nav>
+      <main>
+        ${route.screen === "board"
+          ? html`<${Board} open=${route.open} setOpen=${setOpen} />`
+          : html`<${Overview} summary=${state.summary} score=${state.score}
+                              bt=${state.bt} fc=${state.fc} stores=${state.stores}
+                              setOpen=${setOpen} />`}
+      </main>
+      ${route.open && html`<${Drawer} id=${route.open} onClose=${() => setOpen(null)} />`}
     </div>`;
 }
 

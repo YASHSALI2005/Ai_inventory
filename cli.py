@@ -53,7 +53,7 @@ def cmd_build(args) -> int:
 
 def cmd_run(args) -> int:
     """The engine. Reads source tables only — never the answer key."""
-    from engine import classify, forecast, levels, quality
+    from engine import classify, forecast, levels, positions, quality
 
     cfg = _cfg(args)
     if not (cfg.source_dir / "stock.parquet").exists():
@@ -95,11 +95,18 @@ def cmd_run(args) -> int:
     sl = lv.report["service_level_by_criticality"]
     print("  service level from each item's own economics: "
           + ", ".join(f"{k} {v:.1%}" for k, v in sl.items()))
+
+    t4 = time.time()
+    pos = positions.run(cfg)
+    print(f"engine, position file for the screens: {len(pos):,} rows   "
+          f"({time.time() - t4:.1f}s)")
+    for band, n in pos["band"].value_counts().items():
+        print(f"  {band:<26} {n:>6}")
     return 0
 
 
 def cmd_score(args) -> int:
-    from scoring import backtest, classifier, defects
+    from scoring import backtest, classifier, defects, frontier
 
     cfg = _cfg(args)
     manifest_path = cfg.results_dir / S.RUN_MANIFEST_FILE
@@ -140,6 +147,10 @@ def cmd_score(args) -> int:
         print()
         print("stock levels replayed against the plant's own, same year same demand:")
         print(backtest.render(bt))
+        fr = frontier.run(cfg)
+        print()
+        print("the same year at every service level — the trade, priced:")
+        print(frontier.render(fr))
 
     print()
     print("emergent problems (scored against truth, not a planted list):")

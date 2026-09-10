@@ -4,9 +4,13 @@ The previous project (Noah Stock, retail F&B across nine cinemas) solved the sam
 screen problem: hundreds of lines, a planner with ten minutes, and the need to make
 "what should I do today" obvious. Step 7 inherits its layout language.
 
-> **Screenshots**: the reference images live in this folder. If they are missing,
-> everything needed to rebuild the layout is described below — this file is the
-> specification, the images are the illustration.
+> **Screenshots**: the six Noah Stock screenshots belong in this folder
+> (`noah-dashboard.png`, `noah-organizations.png`, `noah-sites.png`,
+> `noah-calendar.png`, `noah-board.png`, `noah-drawer.png`). They have not been
+> written to disk — they were shared in the conversation and there is no way to
+> save an attached image from there to a file. **Drop them in manually.** Nothing
+> is blocked in the meantime: this file is the specification and the screens are
+> built from it; the images are the illustration.
 
 ---
 
@@ -78,6 +82,26 @@ exactly the same purpose — demand that is known in advance rather than forecas
 **Drop:** the organisation picker. One client, one plant.
 
 ---
+
+## Status — built 2026-09-10
+
+All three screens exist: `api/static/index.html`, served by `python cli.py serve`.
+Everything below was carried over, except where the "what has to change" table
+says otherwise.
+
+| From Noah | In ours | Where |
+|---|---|---|
+| Left nav, KPI tiles, one table, drawer on click | same | all three screens |
+| "Ranked by what it costs to ignore, not by quantity" — those words on screen | same words | stock board sub-head |
+| Colour band per state, repeated everywhere | six bands, on the row tag and the chips | stock board |
+| Drawer with a plain-English sentence and its arithmetic visible | the "Why this number" panel, ending with the engine's own reason string verbatim | item drawer |
+| Days-of-cover | replaced: months between issues, and the service level the level was set at | item drawer |
+| Ranked by lost margin | replaced: criticality weight x unit price x units below reorder | stock board |
+| "Used daily / weekly / rarely" | replaced: the four demand groups from step 3 | chips and drawer |
+| Run-rate per day | replaced: per month, plus "never issued in three years" | item drawer |
+| Organisation picker | dropped — one client, one plant | — |
+| Calendar of known events | **not built yet.** The data exists (planned work orders are already a second series on the drawer chart); a calendar screen is not in the approved scope | — |
+| "Stock that could be moved" panel | **not built yet.** The drawer shows the same material in other storerooms, which is the data behind it; ranking transfers is capability 5 and is gated on step 6a | item drawer, partly |
 
 ## The two screens step 7 builds
 

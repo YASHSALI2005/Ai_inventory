@@ -68,6 +68,7 @@ def load(cfg: RunConfig) -> dict:
         ("forecast", "forecast_report.json"),
         ("levels", "levels_report.json"),
         ("backtest", "backtest_report.json"),
+        ("frontier", "frontier.json"),
         ("dead_money", "dead_money_report.json"),
     ):
         path = cfg.results_dir / name
@@ -240,14 +241,44 @@ def num(x):
 # ── screenshot ───────────────────────────────────────────────────────────────
 
 
+SCREENS = [
+    ("dashboard.png", "", "Overview",
+     "The front page. Three figures measured from the answer key, the held-out "
+     "year replayed under both sets of levels, then the marks: faults found, and "
+     "forecast accuracy per demand group."),
+    ("board.png", "#/board", "Stock board",
+     "One table, ranked by what it costs to ignore rather than by quantity. The "
+     "coloured tag on each row is its state; the chips above filter by state and "
+     "by demand group. Twenty-five rows a page, on twenty-five thousand records."),
+    ("drawer.png", "#/board/{position}", "Item view",
+     "Clicking a row opens the item over the board: three years of movement with "
+     "the cut-off marked, the year ahead forecast beside it, and a paragraph in "
+     "plain English explaining where the recommended level came from — including "
+     "the sentence the engine itself wrote."),
+]
+
+
+def _first_position(cfg: RunConfig) -> str:
+    """The top row of the board, so the item view is photographed showing something."""
+    import pandas as pd
+
+    path = cfg.results_dir / "positions.parquet"
+    if not path.exists():
+        return ""
+    row = pd.read_parquet(path, columns=["material_id", "storeroom_id"]).iloc[0]
+    return f"{row['material_id']}/{row['storeroom_id']}"
+
+
 def capture_dashboard(cfg: RunConfig, target: Path) -> Path | None:
     """
-    Photograph the dashboard by serving it and pointing a headless browser at it.
+    Photograph the screens by serving them and pointing a headless browser at them.
 
     The page loads its JavaScript from a vendored copy, so this works with no
-    network. If no browser is available the previous capture is reused rather than
-    failing the build — a document with a slightly old screenshot is far more useful
-    than no document.
+    network. If no browser is available the previous captures are reused rather
+    than failing the build — a document with slightly old screenshots is far more
+    useful than no document.
+
+    Returns the list of (path, title, caption) that were captured, in screen order.
     """
     browsers = [
         r"C:\Program Files\Google\Chrome\Application\chrome.exe",
@@ -256,8 +287,11 @@ def capture_dashboard(cfg: RunConfig, target: Path) -> Path | None:
         shutil.which("google-chrome") or "",
     ]
     browser = next((b for b in browsers if b and Path(b).exists()), None)
+    folder = target.parent
+    existing = [(folder / name, title, note) for name, _, title, note in SCREENS
+                if (folder / name).exists()]
     if browser is None:
-        return target if target.exists() else None
+        return existing
 
     port = 8731
     server = subprocess.Popen(
@@ -276,20 +310,29 @@ def capture_dashboard(cfg: RunConfig, target: Path) -> Path | None:
             except (urllib.error.URLError, OSError):
                 time.sleep(0.25)
         else:
-            return target if target.exists() else None
+            return existing
 
-        with tempfile.TemporaryDirectory() as tmp:
-            shot = Path(tmp) / "dash.png"
-            subprocess.run(
-                [browser, "--headless=new", "--disable-gpu", "--hide-scrollbars",
-                 "--virtual-time-budget=8000", "--window-size=1240,900",
-                 f"--screenshot={shot}", f"http://127.0.0.1:{port}/"],
-                capture_output=True, timeout=90,
-            )
-            if shot.exists() and shot.stat().st_size > 20_000:
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy(shot, target)
-                return target
+        position = _first_position(cfg)
+        got = []
+        folder.mkdir(parents=True, exist_ok=True)
+        for name, route, title, note in SCREENS:
+            if "{position}" in route:
+                if not position:
+                    continue
+                route = route.replace("{position}", position)
+            with tempfile.TemporaryDirectory() as tmp:
+                shot = Path(tmp) / "s.png"
+                subprocess.run(
+                    [browser, "--headless=new", "--disable-gpu", "--hide-scrollbars",
+                     "--virtual-time-budget=9000", "--window-size=1340,1000",
+                     f"--screenshot={shot}", f"http://127.0.0.1:{port}/{route}"],
+                    capture_output=True, timeout=90,
+                )
+                if shot.exists() and shot.stat().st_size > 20_000:
+                    shutil.copy(shot, folder / name)
+            if (folder / name).exists():
+                got.append((folder / name, title, note))
+        return got or existing
     except Exception:
         pass
     finally:
@@ -298,6 +341,7 @@ def capture_dashboard(cfg: RunConfig, target: Path) -> Path | None:
             server.wait(timeout=10)
         except subprocess.TimeoutExpired:
             server.kill()
+    return existing
     return target if target.exists() else None
 
 
@@ -503,13 +547,17 @@ def section_method(doc: Document, data: dict, shot: Path | None) -> None:
                   "which it has never seen. The cut-off date is set in one place and "
                   "cannot be skipped by accident.")
 
-    if shot is not None and shot.exists():
+    if shot:
         h(doc, "What it looks like today", level=2)
-        doc.add_picture(str(shot), width=Inches(6.3))
-        doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
-        caption(doc, "The current screen. Every figure on it was worked out when the "
-                     "analysis ran; nothing is calculated while the page is open, so "
-                     "it cannot disagree with the marks beside it.")
+        para(doc, "Three screens, all read-only. Every figure on them was worked out "
+                  "when the analysis ran; nothing is calculated while a page is open, "
+                  "so a screen cannot disagree with the marks beside it. They run "
+                  "with no internet connection, which matters on a plant site.")
+        for path, title, note in shot:
+            h(doc, title, level=3)
+            doc.add_picture(str(path), width=Inches(6.3))
+            doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
+            caption(doc, note)
 
 
 GLOSSARY_CORE = [
@@ -933,9 +981,65 @@ def _step_five(doc: Document, data: dict) -> None:
                      "something quite different if it all landed on the cheapest "
                      "parts and the critical ones got worse.")
 
+    fr = data.get("frontier")
+    if fr and fr.get("curve"):
+        h(doc, "What a service level costs — the same year, priced ten ways", level=3)
+        para(doc, "The comparison above moves two things at once: how much stock is "
+                  "held, and how well the plant is served. To separate them the whole "
+                  "year was replayed again at ten different service levels — the same "
+                  "demand, the same delivery delays — so the trade can be read off a "
+                  "measured curve instead of argued about. This is also the data "
+                  "behind the scenario slider the brief asks for.")
+
+        rows = []
+        for r in fr["curve"]:
+            rows.append([
+                pct(r.get("service_level"), 1),
+                num(r.get("stockout_days")),
+                sar(r.get("avg_capital_sar")),
+                num(r.get("orders_placed")),
+                sar(r.get("total_cost_sar")),
+            ])
+        base, rec = fr.get("baseline", {}), fr.get("recommended", {})
+        rows.append(["Levels in use today", num(base.get("stockout_days")),
+                     sar(base.get("avg_capital_sar")), num(base.get("orders_placed")),
+                     sar(base.get("total_cost_sar"))])
+        rows.append(["Our levels", num(rec.get("stockout_days")),
+                     sar(rec.get("avg_capital_sar")), num(rec.get("orders_placed")),
+                     sar(rec.get("total_cost_sar"))])
+        table(doc, ["Aim to have the part", "Days waiting", "Value held",
+                    "Orders placed", "Both costs"],
+              rows, widths=[1.5, 1.1, 1.5, 1.0, 1.5], highlight_last=True)
+        caption(doc, "Reading down the table: every step up in service buys fewer "
+                     "days waiting and costs more capital. Our recommended levels do "
+                     "not sit on this curve, because they do not use one figure for "
+                     "everything — each part gets its own from what its absence costs.")
+
+        matched = fr.get("at_the_plants_own_service_level") or {}
+        if matched.get("plain"):
+            callout(doc, "The honest answer to \u201chow much cash does this release\u201d",
+                    matched["plain"], colour=WARN)
+
+    if lv and lv.get("order_cost_sar"):
+        h(doc, "Ordering less often, on purpose", level=3)
+        para(doc, "The first version of these levels placed 71% more purchase orders "
+                  "than the plant does today for the same flow of material — a "
+                  "trickle every week. That looked free only because placing an order "
+                  "was free in the model. Two changes fixed it: an order now has to "
+                  "cover at least the demand expected while it is in transit, and it "
+                  "is rounded up to the pack the plant is already receiving in, read "
+                  f"off its own receipt history ({lv.get('positions_with_a_pack_above_one', 0):,} "
+                  "records have a pack larger than one). Raising, chasing and "
+                  f"receiving an order is charged at SAR {lv.get('order_cost_sar', 0):,.0f} "
+                  "a time, so the cost of ordering often now appears in the total "
+                  f"rather than beside it. Orders placed are now {c.get('orders_placed', 0) * 100:+.0f}% "
+                  "against the plant's.")
+
     limits = list(bt.get("limits", []))
     if lv:
         limits += lv.get("limits", [])
+    if fr:
+        limits += fr.get("limits", [])
     _limits(doc, limits)
 
 

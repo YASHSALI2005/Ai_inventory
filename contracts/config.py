@@ -101,6 +101,27 @@ class CostModel(BaseModel):
 
     expedite_premium: float = 4.0                # 3-5x band, midpoint used for valuation
 
+    # What it costs to place one purchase order at all — raising it, chasing it,
+    # receiving it, matching the invoice. Independent of what is on it. Without
+    # this the backtest is free to order every week, and "71% more orders placed"
+    # looks like a footnote instead of a cost the buying team pays.
+    order_cost_sar: float = 900.0
+
+    # The service levels the scenario sweep is run at. This is the slider's axis:
+    # the frontier of capital against days waiting, measured rather than assumed.
+    #
+    # The band that matters is 80-99.5%; the three points below it are anchors, not
+    # recommendations. Without them the plant's own policy sits off the left end of
+    # the curve — it waits longer than our worst sampled point — and the question
+    # "what would OUR levels cost at THEIR service level" has no answer but an
+    # extrapolation. Sampling low enough to bracket them is cheaper and honest.
+    service_sweep: tuple[float, ...] = (
+        0.50, 0.60, 0.70, 0.80, 0.85, 0.90, 0.95, 0.97, 0.99, 0.995
+    )
+
+    def ordering_cost(self, n_orders: float) -> float:
+        return n_orders * self.order_cost_sar
+
     def shortage_cost_per_unit(self, unit_price_sar: float, criticality: str) -> float:
         """Cost of being one unit short, once."""
         return unit_price_sar * self.shortage_multiplier.get(criticality, 1.0)

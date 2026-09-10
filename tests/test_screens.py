@@ -1,0 +1,188 @@
+"""
+Guards on the position file, the endpoints behind the screens, and the screens.
+
+The screens are the first part of this POC a person will judge it by, and the two
+ways they fail are quiet: a position file that has drifted out of step with the
+stock table so rows are silently missing, and a page that pulls a script from a
+CDN and renders blank on a demo laptop with no network. Both are cheap to assert
+and neither is visible in a screenshot taken on a machine that does have network.
+"""
+
+from __future__ import annotations
+
+import pathlib
+import re
+
+import pandas as pd
+import pytest
+
+pytest.importorskip("fastapi")
+
+from fastapi.testclient import TestClient  # noqa: E402
+
+import cli  # noqa: E402
+from api.app import PAGE_SIZE, create_app  # noqa: E402
+from contracts import schemas as S  # noqa: E402
+from contracts.config import RunConfig  # noqa: E402
+from engine.positions import POSITIONS_FILE  # noqa: E402
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+STATIC = ROOT / "api" / "static"
+
+
+@pytest.fixture(scope="module")
+def built(tmp_path_factory):
+    data_dir = tmp_path_factory.mktemp("screens")
+    for cmd in ("build", "run", "score"):
+        assert cli.main([cmd, "--preset", "toy", "--data-dir", str(data_dir)]) == 0
+    return RunConfig(preset="toy", data_dir=data_dir)
+
+
+@pytest.fixture(scope="module")
+def client(built):
+    return TestClient(create_app(built))
+
+
+# ── the file behind the screens ──────────────────────────────────────────────
+
+
+def test_one_row_per_position_no_more_no_less(built):
+    """
+    A position that exists in stock and not in this file is a line the planner
+    cannot see at all, and nothing on the screen would reveal it was dropped.
+    """
+    stock = S.read(S.STOCK, built.source_dir)
+    pos = pd.read_parquet(built.results_dir / POSITIONS_FILE)
+    assert len(pos) == len(stock)
+    key = lambda f: set(zip(f["material_id"], f["storeroom_id"], strict=True))  # noqa: E731
+    assert key(pos) == key(stock)
+
+
+def test_every_row_carries_its_reason(built):
+    pos = pd.read_parquet(built.results_dir / POSITIONS_FILE)
+    assert pos["reason"].str.len().min() > 20, "a level with no explanation is not usable"
+
+
+def test_history_arrays_cover_the_whole_history(built):
+    pos = pd.read_parquet(built.results_dir / POSITIONS_FILE)
+    months = len(pd.period_range(built.history_start, built.history_end, freq="M"))
+    assert all(len(a) == months for a in pos["usage_months"].head(50))
+    assert pos["train_months"].iloc[0] < months, "the eval months must be in there too"
+
+
+def test_a_negative_balance_does_not_take_over_the_ranking(built):
+    """
+    Ranking is by units missing below the reorder point. Before `on_hand` was
+    clamped at zero, a planted balance of -29 against a reorder point of 5 scored
+    as 34 units short and sat at the top of the board — a data defect masquerading
+    as the plant's most urgent shortage.
+    """
+    pos = pd.read_parquet(built.results_dir / POSITIONS_FILE)
+    assert (pos["units_below_reorder"] <= pos["reorder_point"] + 1e-9).all()
+
+
+# ── the endpoints ────────────────────────────────────────────────────────────
+
+
+def test_paging_walks_the_whole_board_without_repeating(client):
+    first = client.get("/api/positions?page=1").json()
+    assert first["page_size"] == PAGE_SIZE
+    assert len(first["rows"]) == PAGE_SIZE
+
+    seen, page = set(), 1
+    while page <= first["pages"]:
+        rows = client.get(f"/api/positions?page={page}").json()["rows"]
+        for r in rows:
+            key = (r["material_id"], r["storeroom_id"])
+            assert key not in seen, f"{key} appears on two pages"
+            seen.add(key)
+        page += 1
+    assert len(seen) == first["total"]
+
+
+def test_the_board_is_ranked_by_what_it_costs_to_ignore(client):
+    rows = client.get("/api/positions?page=1").json()["rows"]
+    risk = [r["value_at_risk_sar"] for r in rows]
+    assert risk == sorted(risk, reverse=True)
+
+
+def test_filters_narrow_and_agree_with_their_own_counts(client):
+    page = client.get("/api/positions").json()
+    band = max(page["bands"], key=page["bands"].get)
+    filtered = client.get("/api/positions?band=" + band).json()
+    assert filtered["total"] == page["bands"][band]
+    assert all(r["band"] == band for r in filtered["rows"])
+
+
+def test_search_finds_a_part_by_its_own_description(client):
+    row = client.get("/api/positions").json()["rows"][0]
+    word = row["description"].split(",")[0]
+    found = client.get("/api/positions?q=" + word).json()
+    assert found["total"] >= 1
+    assert any(word.lower() in r["description"].lower() for r in found["rows"])
+
+
+def test_the_drawer_gets_the_history_the_list_does_not(client):
+    row = client.get("/api/positions").json()["rows"][0]
+    assert "usage_months" not in row, "the list must not carry 36 floats a row"
+    detail = client.get(
+        f"/api/positions/{row['material_id']}/{row['storeroom_id']}"
+    ).json()
+    for field in ("usage_months", "forecast_months", "planned_wo_months", "reason",
+                  "elsewhere", "train_months", "months_start"):
+        assert field in detail
+
+
+def test_an_unknown_id_gets_a_404_that_helps(client):
+    r = client.get("/api/positions/M-NOPE/NOWHERE")
+    assert r.status_code == 404
+    assert "ids look like" in r.json()["detail"]
+
+
+def test_a_real_part_in_the_wrong_storeroom_is_told_where_it_is(client):
+    row = client.get("/api/positions").json()["rows"][0]
+    r = client.get(f"/api/positions/{row['material_id']}/NOWHERE")
+    assert r.status_code == 404
+    assert row["storeroom_id"] in r.json()["detail"]
+
+
+def test_storeroom_rollup_adds_up_to_the_board(client):
+    stores = client.get("/api/storerooms").json()["by_storeroom"]
+    total = client.get("/api/positions").json()["total_unfiltered"]
+    assert sum(s["positions"] for s in stores) == total
+
+
+# ── the page ─────────────────────────────────────────────────────────────────
+
+
+def test_the_page_pulls_nothing_from_the_internet():
+    """
+    A demo laptop on a client site may have no route out. Every script and style
+    the page needs is vendored, and this is the assertion that keeps it that way
+    — a CDN tag added later renders a blank screen only in the meeting room.
+    """
+    text = (STATIC / "index.html").read_text(encoding="utf-8")
+    for src in re.findall(r'(?:src|href)\s*=\s*"([^"]+)"', text):
+        assert not src.startswith(("http://", "https://", "//")), f"remote asset: {src}"
+    for name in ("react.production.min.js", "react-dom.production.min.js",
+                 "htm.umd.js"):
+        assert (STATIC / "vendor" / name).exists()
+
+
+def test_the_page_is_one_file_with_no_build_step():
+    text = (STATIC / "index.html").read_text(encoding="utf-8")
+    assert "import " not in text.split("<script>")[-1][:400]
+    assert 'id="root"' in text
+
+
+def test_both_screens_and_the_drawer_are_reachable_by_url():
+    """The progress document photographs them by URL, so the routes are a contract."""
+    text = (STATIC / "index.html").read_text(encoding="utf-8")
+    assert 'parts[0] === "board"' in text
+    assert "hashchange" in text
+
+
+def test_the_page_serves_and_mentions_the_board(client):
+    r = client.get("/")
+    assert r.status_code == 200
+    assert "Stock board" in r.text
