@@ -22,8 +22,9 @@ python -m pytest -q                    # the suite
 
 Five pages in the nav — Dashboard · Storerooms · Stock board · Recommendations · Ask —
 with Evidence in the footer. **Present** in the nav walks them for a meeting. The
-assistant needs `ANTHROPIC_API_KEY` in the environment; without it the page says so and
-everything else works.
+assistant needs `ANTHROPIC_API_KEY` in the environment or in a git-ignored `.env` next to
+`cli.py` (an OpenRouter key works too — recognised by its `sk-or-` prefix); without one the
+page says so and everything else works.
 
 ## Read first
 

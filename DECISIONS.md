@@ -1288,3 +1288,19 @@ Reasoning: The three claims fixed on 2026-09-10 are measured on the full preset 
            Phase 1 with a reason. The one figure to keep saying out loud is the
            capital delta (+28%): better stocking spends more to waste less; the
            cash release is the dead-money list.
+
+
+## 2026-09-10 — OpenRouter as a second provider, chosen by key prefix; .env loaded by twelve lines of stdlib
+Model: Fable 5.1
+Type: decision
+Reasoning: The key supplied was an OpenRouter key (`sk-or-`), which the Anthropic SDK
+           rejects. OpenRouter speaks the OpenAI-style tool-calling API, so
+           `api/chat.py` gained a second backend on `urllib` — same four tools, same
+           two-round narration, same result shape — selected by the key prefix. No new
+           dependency: `openai` would have been a library for one HTTP call, and
+           `python-dotenv` a library for twelve lines. The `.env` file is git-ignored
+           and was blocked by GitHub push protection the one time `git add -A` caught
+           it; the loader never overrides a variable already set. Verified live: all
+           twenty golden questions route to the expected tool.
+Rejected: telling the user to get an Anthropic key (the POC should run with what the
+          user has); the `openai` SDK (a dependency for one endpoint).

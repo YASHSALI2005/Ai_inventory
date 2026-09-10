@@ -220,6 +220,13 @@ def cmd_all(args) -> int:
 
 def cmd_serve(args) -> int:
     """Serve the dashboard. Reads results/ only — recomputes nothing."""
+    from api.chat import load_dotenv
+    from api.chat import status as chat_status
+
+    load_dotenv()
+    st = chat_status()
+    print("assistant: " + (f"{st['provider']} · {st['model']}" if st["available"]
+                          else f"unavailable — set {st['key_var']} in .env or the environment"))
     import threading
     import webbrowser
 

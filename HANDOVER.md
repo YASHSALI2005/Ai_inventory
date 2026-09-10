@@ -298,8 +298,13 @@ Four tools â€” `get_stockouts`, `get_dead_money`, `get_item`, `get_transfers` â€
 filter over `results/`, arguments validated with Pydantic. The model picks one, the
 tool answers, the model narrates in two or three sentences, the rows render under the
 answer with links into the drawer. `SYSTEM` forbids arithmetic and says what to do when
-no tool has the number. `ANTHROPIC_API_KEY` from the environment only; without it
-`/api/chat/status` says so and the page shows it. `tests/golden_questions.json` holds
+no tool has the number. `ANTHROPIC_API_KEY` from the environment, or from a git-ignored `.env` next to
+`cli.py` (a twelve-line stdlib loader; the file never enters the repo). A key
+starting `sk-or-` is an OpenRouter key and is routed through OpenRouter's
+OpenAI-style tool-calling API with `anthropic/claude-sonnet-4.5` (`CHAT_MODEL`
+overrides); anything else goes to Anthropic directly. Without a key
+`/api/chat/status` says so and the page shows it. Verified live: all twenty golden
+questions route to the expected tool through OpenRouter. `tests/golden_questions.json` holds
 twenty questions with the expected tool and figure; the tool side is tested always,
 the model's routing only when a key is present (skipped, not faked, without one).
 

@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import json
 import os
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Literal
 
@@ -28,8 +30,48 @@ from contracts.config import RunConfig
 from engine.dead_money import CATEGORY_LABEL
 from engine.positions import POSITIONS_FILE, STOREROOM_FILE
 
-MODEL = os.environ.get("CHAT_MODEL", "claude-sonnet-5")
 KEY_VAR = "ANTHROPIC_API_KEY"
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+
+def load_dotenv(path: Path | None = None) -> None:
+    """
+    Read KEY=value lines from a git-ignored .env into the environment, never
+    overriding what is already set. Stdlib, because python-dotenv would be a new
+    dependency for twelve lines. The file itself never enters the repo.
+    """
+    path = path or Path(__file__).resolve().parent.parent / ".env"
+    if not path.exists():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key, value = key.strip(), value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+load_dotenv()
+
+
+def _key() -> str:
+    return os.environ.get(KEY_VAR, "") or os.environ.get("OPENROUTER_API_KEY", "")
+
+
+def _provider() -> str:
+    """OpenRouter keys start with sk-or-; anything else goes to Anthropic directly."""
+    return "openrouter" if _key().startswith("sk-or-") else "anthropic"
+
+
+def _model() -> str:
+    if os.environ.get("CHAT_MODEL"):
+        return os.environ["CHAT_MODEL"]
+    return "anthropic/claude-sonnet-4.5" if _provider() == "openrouter" else "claude-sonnet-5"
+
+
+MODEL = _model()
 
 Storeroom = Literal["BAITHA", "CENTRAL", "REFINERY", "ROLLING", "SMELTER"]
 Criticality = Literal["A", "B", "C"]
@@ -230,15 +272,17 @@ aluminium plant. You answer ONLY from the tools. Rules, in order of importance:
 
 
 def status() -> dict:
-    return {"available": bool(os.environ.get(KEY_VAR)), "model": MODEL,
+    return {"available": bool(_key()), "model": _model(), "provider": _provider(),
             "key_var": KEY_VAR, "tools": list(TOOLS)}
 
 
 def answer(cfg: RunConfig, question: str) -> dict:
     """One round: the model picks a tool, the engine answers, the model narrates."""
-    if not os.environ.get(KEY_VAR):
+    if not _key():
         return {"status": "unavailable",
                 "detail": f"chat unavailable — set {KEY_VAR} in the environment"}
+    if _provider() == "openrouter":
+        return _answer_openrouter(cfg, question)
     import anthropic
 
     client = anthropic.Anthropic()
@@ -271,6 +315,59 @@ def answer(cfg: RunConfig, question: str) -> dict:
         "answer": text,
         "rows": (run_tool(cfg, primary["tool"], primary["args"]).get("rows") or []),
     }
+
+
+# ── OpenRouter: the same four tools through the OpenAI-style tool-calling API ──
+
+
+def _openrouter(payload: dict) -> dict:
+    req = urllib.request.Request(
+        OPENROUTER_URL, data=json.dumps(payload).encode("utf-8"),
+        headers={"Authorization": f"Bearer {_key()}", "Content-Type": "application/json",
+                 "HTTP-Referer": "https://github.com/YASHSALI2005/Ai_inventory",
+                 "X-Title": "Inventory Intelligence POC"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=90) as r:
+            return json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", "replace")[:400]
+        raise RuntimeError(f"OpenRouter {exc.code}: {body}") from exc
+
+
+def _answer_openrouter(cfg: RunConfig, question: str) -> dict:
+    tools = [{"type": "function", "function": {
+        "name": name, "description": desc, "parameters": schema.model_json_schema()}}
+        for name, (schema, desc) in TOOLS.items()]
+    messages = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": question}]
+    first = _openrouter({"model": _model(), "messages": messages, "tools": tools,
+                         "tool_choice": "auto", "max_tokens": 600, "temperature": 0})
+    msg = first["choices"][0]["message"]
+    calls = msg.get("tool_calls") or []
+    if not calls:
+        return {"status": "ok", "tool": None, "args": None, "result": None,
+                "answer": (msg.get("content") or "").strip(), "rows": []}
+
+    used = []
+    messages.append({"role": "assistant", "content": msg.get("content") or "",
+                     "tool_calls": calls[:2]})
+    for call in calls[:2]:
+        name = call["function"]["name"]
+        try:
+            args = json.loads(call["function"].get("arguments") or "{}")
+        except json.JSONDecodeError:
+            args = {}
+        out = run_tool(cfg, name, args)
+        used.append({"tool": name, "args": args})
+        messages.append({"role": "tool", "tool_call_id": call["id"],
+                         "content": json.dumps(_trim(out), default=str)})
+    second = _openrouter({"model": _model(), "messages": messages, "tools": tools,
+                          "max_tokens": 400, "temperature": 0})
+    text = (second["choices"][0]["message"].get("content") or "").strip()
+    primary = used[0]
+    full = run_tool(cfg, primary["tool"], primary["args"])
+    return {"status": "ok", "tool": primary["tool"], "args": primary["args"],
+            "result": _trim(full), "answer": text, "rows": full.get("rows") or []}
 
 
 def _trim(out: dict) -> dict:

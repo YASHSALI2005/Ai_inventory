@@ -248,17 +248,45 @@ input[type=search]{min-width:290px}
 .scen-head input[type=range]{width:min(420px,100%);accent-color:var(--accent)}
 .handle{cursor:grab}
 /* chat */
-.ask{display:flex;gap:10px;margin:0 0 12px}
-.ask input{flex:1;font:inherit;font-size:16px;padding:12px 14px;border:1px solid var(--line-2);
-  border-radius:6px;background:var(--surface);color:var(--ink)}
-.ask button{background:var(--accent);color:#fff;border-radius:6px;padding:0 18px;font-weight:600}
-.ask button[disabled]{opacity:.5;cursor:default}
-.suggest{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}
-.answer{background:var(--surface);border-radius:8px;box-shadow:var(--shadow);padding:22px 26px;
-  font-size:17px;line-height:1.6;margin-bottom:14px}
-.answer .via{font-size:12px;color:var(--muted);margin-top:12px;font-family:Consolas,monospace}
-.answer .via b{color:var(--ink-2);font-weight:600}
+.ask{display:flex;gap:10px;margin:0 0 10px;position:relative}
+.ask input{flex:1;font:inherit;font-size:17px;padding:14px 16px;border:1px solid var(--line-2);
+  border-radius:8px;background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.ask input:focus{outline:none;border-color:var(--accent)}
+.ask button{background:var(--accent);color:#fff;border-radius:8px;padding:0 22px;font-weight:600;font-size:15px}
+.ask button[disabled]{opacity:.45;cursor:default}
+.ask .clear{background:transparent;color:var(--muted);font-weight:400;padding:0 10px}
+.ask .clear:hover{color:var(--ink)}
+.suggest{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:26px}
+.suggest .chip{font-size:13px}
+.caps{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:6px 0 26px}
+.cap{background:var(--surface);border-radius:8px;box-shadow:var(--shadow);padding:18px 20px;text-align:left;
+  display:flex;flex-direction:column;gap:8px;width:100%}
+.cap:hover{box-shadow:0 1px 2px rgba(27,29,32,.06),0 10px 28px -12px rgba(27,29,32,.28)}
+.cap .t{font-weight:700;font-size:15px;letter-spacing:-.01em}
+.cap .e{font-size:13.5px;color:var(--muted);line-height:1.45}
+.cap .go{font-size:13px;color:var(--accent);font-weight:600;margin-top:auto}
+.thread{display:flex;flex-direction:column;gap:18px}
+.turn{display:flex;flex-direction:column;gap:10px}
+.you{align-self:flex-end;max-width:70ch;background:var(--tint);border-radius:14px 14px 4px 14px;
+  padding:10px 16px;font-size:15px;color:var(--ink-2)}
+.answer{background:var(--surface);border-radius:8px;box-shadow:var(--shadow);padding:22px 26px 18px;
+  font-size:17px;line-height:1.6}
+.answer .say b.n{color:var(--accent);font-weight:600}
+.answer .facts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:16px;padding-top:14px;
+  border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+.answer .facts .f{background:var(--tint);border-radius:4px;padding:4px 9px;color:var(--ink-2);white-space:nowrap}
+.answer .facts .f b{font-family:Consolas,monospace;color:var(--ink)}
+.answer .facts .lab{font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;margin-right:2px}
+.answer.thinking{color:var(--muted);font-size:15px;display:flex;align-items:center;gap:12px}
+.answer.err{border-left:3px solid var(--accent)}
+.rows-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;
+  font-size:12px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;font-weight:600;padding:0 4px}
+.rows-head button{color:var(--accent);font-size:12.5px;text-transform:none;letter-spacing:0;font-weight:600}
+.follow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12.5px;color:var(--muted)}
+.follow .chip{font-size:12.5px;padding:5px 12px}
 .shell.present .answer{font-size:20px}
+.shell.present .you{font-size:17px}
+.shell.present .ask input{font-size:19px}
 /* scenario slider under the frontier */
 .scenario{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
 .scenario .s{background:var(--tint);border-radius:6px;padding:12px 14px}
@@ -670,48 +698,88 @@ function Spark({ values }) {
     </svg>`;
 }
 /* ── 5 · chat ─────────────────────────────────────────────────────────────── */
-const SUGGESTED = [
-  "Which A-critical parts are out of stock in the rolling mill?",
-  "How much dead money is there, and what is the biggest item?",
-  "Tell me about M-016367.",
-  "What could the refinery get from another store instead of buying?",
+const STORE_WORDS = { BAITHA: "the mine store", CENTRAL: "the central warehouse", REFINERY: "the refinery",
+                      ROLLING: "the rolling mill", SMELTER: "the smelter" };
+const CAPS = [
+  { tool: "get_stockouts", title: "What is out of stock",
+    hint: "By store, by how critical the part is. Count, cost to bring back to level, the most urgent rows.",
+    ask: "Which A-critical parts are out of stock in the rolling mill?",
+    follow: ["What is out of stock in the smelter?", "How much would it cost to bring everything below level back up?"] },
+  { tool: "get_dead_money", title: "Where the dead money is",
+    hint: "Stock that will never be used — obsolete, duplicate, never used, idle, excess — by store or by reason.",
+    ask: "How much dead money is there, and what is the biggest item?",
+    follow: ["What stock belongs to equipment that has been scrapped?", "How much dead money is in the central warehouse?"] },
+  { tool: "get_item", title: "Everything about one part",
+    hint: "On hand, our level against the old rule, what to do, and the reason in plain words.",
+    ask: "Tell me about M-016367.",
+    follow: ["What is our reorder point for M-000002 and why?"] },
+  { tool: "get_transfers", title: "Move instead of buy",
+    hint: "The same part spare in one store while another is short, with what the move saves.",
+    ask: "What could the refinery get from another store instead of buying?",
+    follow: ["How much would we save by moving stock instead of buying it?"] },
 ];
+const CAP_BY_TOOL = Object.fromEntries(CAPS.map(c => [c.tool, c]));
+const SUGGESTED = CAPS.map(c => c.ask);
 
-function Chat({ setOpen }) {
-  const [status, setStatus] = useState(null);
-  const [q, setQ] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [turns, setTurns] = useState([]);
-  useEffect(() => { getJSON("/api/chat/status").then(setStatus).catch(() => setStatus({ available: false })); }, []);
+// figures in the narration are the checkable part; make them stand out
+function Say({ text }) {
+  const parts = String(text || "").split(/(SAR\s?[\d.,]+\s?(?:million|billion|bn|m|k)?|\b\d[\d,]*(?:\.\d+)?%?)/g);
+  return html`<div className="say">${parts.map((p, i) => i % 2 ? html`<b key=${i} className="n">${p}</b>` : p)}</div>`;
+}
 
-  const ask = text => {
-    const question = (text || q).trim();
-    if (!question || busy) return;
-    setBusy(true);
-    setQ("");
-    fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
-                         body: JSON.stringify({ question }) })
-      .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.detail || r.status))))
-      .then(a => setTurns(t => [{ question, ...a }, ...t]))
-      .catch(e => setTurns(t => [{ question, status: "error", answer: String(e.message || e), rows: [] }, ...t]))
-      .finally(() => setBusy(false));
-  };
+function scopeWords(tool, args) {
+  const a = args || {}, out = [];
+  if (a.storeroom) out.push(STORE_WORDS[a.storeroom] || a.storeroom);
+  if (a.storeroom_id) out.push(STORE_WORDS[a.storeroom_id] || a.storeroom_id);
+  if (a.criticality) out.push(a.criticality + "-critical");
+  if (a.category) out.push(({ obsolete_equipment: "equipment gone", duplicate: "duplicates", never_used: "never used",
+                             obsolete_idle: "idle, nothing due", excess: "excess" })[a.category] || a.category);
+  if (a.material_id) out.push(a.material_id);
+  if (a.top_n && a.top_n !== 10) out.push("top " + a.top_n);
+  return out.length ? out.join(" · ") : "whole plant";
+}
 
-  const rowsTable = rows => {
-    if (!rows || !rows.length) return null;
-    const isDead = "dead_value_sar" in rows[0];
-    const isMove = "from_storeroom" in rows[0];
-    return html`
-      <div className="card"><table>
+function Facts({ tool, args, result }) {
+  if (!result) return null;
+  const f = [];
+  if (result.count !== undefined) f.push(["rows found", num(result.count)]);
+  if (result.none_left !== undefined) f.push(["none left", num(result.none_left)]);
+  if (result.cost_to_level_sar !== undefined) f.push(["to bring back to level", M(result.cost_to_level_sar)]);
+  if (result.dead_value_sar !== undefined) f.push(["dead value", M(result.dead_value_sar)]);
+  if (result.saved_sar !== undefined) f.push(["saved vs buying", M(result.saved_sar)]);
+  const cap = CAP_BY_TOOL[tool];
+  return html`
+    <div className="facts">
+      <span className="lab">Answered from</span>
+      <span className="f">${cap ? cap.title : tool} · ${scopeWords(tool, args)}</span>
+      ${f.map(([k, v]) => html`<span key=${k} className="f">${k} <b>${v}</b></span>`)}
+      <span style=${{ marginLeft: "auto" }}>every figure above is in these</span>
+    </div>`;
+}
+
+function RowsTable({ rows, setOpen, all, setAll }) {
+  if (!rows || !rows.length) return null;
+  const isDead = "dead_value_sar" in rows[0], isMove = "from_storeroom" in rows[0];
+  const shown = all ? rows : rows.slice(0, 5);
+  return html`
+    <div>
+      <div className="rows-head">
+        <span>The rows behind the answer · click one to open it</span>
+        ${rows.length > 5 && html`<button onClick=${() => setAll(!all)}>${all ? "Show the first five" : "Show all " + rows.length}</button>`}
+      </div>
+      <div className="card" style=${{ marginTop: "6px" }}><table>
+        ${isMove ? html`<colgroup><col style=${{ width: "44%" }} /><col style=${{ width: "22%" }} /><col style=${{ width: "14%" }} /><col style=${{ width: "20%" }} /></colgroup>`
+          : isDead ? html`<colgroup><col style=${{ width: "42%" }} /><col style=${{ width: "14%" }} /><col style=${{ width: "24%" }} /><col style=${{ width: "20%" }} /></colgroup>`
+          : html`<colgroup><col style=${{ width: "34%" }} /><col style=${{ width: "12%" }} /><col style=${{ width: "18%" }} /><col style=${{ width: "12%" }} /><col style=${{ width: "12%" }} /><col style=${{ width: "12%" }} /></colgroup>`}
         <thead><tr>
           <th>Part</th>
           ${isMove ? html`<th>From → to</th><th className="n">Qty</th><th className="n">Saved</th>`
             : isDead ? html`<th>Store</th><th>Why</th><th className="n">Dead value</th>`
             : html`<th>Store</th><th>What to do</th><th className="n">On shelf</th><th className="n">Our level</th><th className="n">To level</th>`}
         </tr></thead>
-        <tbody>${rows.map((r, i) => html`
+        <tbody>${shown.map((r, i) => html`
           <tr key=${i} className="click" onClick=${() => setOpen([r.material_id, r.storeroom_id || r.to_storeroom])}>
-            <td className="item"><div className="d">${r.description}</div><div className="sub">${r.material_id}</div></td>
+            <td className="item"><div className="d">${r.description}</div><div className="sub">${r.material_id}${r.criticality ? " · " + r.criticality + "-critical" : ""}</div></td>
             ${isMove ? html`<td className="strong nw">${r.from_storeroom} → ${r.to_storeroom}</td>
                 <td className="n">${num1(r.qty)} <span className="u">${r.uom}</span></td><td className="n acc">${M(r.value_sar)}</td>`
               : isDead ? html`<td className="nw">${r.storeroom_id}</td><td className="nw"><${Tag} value=${r.category_label} /></td>
@@ -720,8 +788,51 @@ function Chat({ setOpen }) {
                 <td className="n">${num1(r.on_hand)} <span className="u">${r.uom}</span></td>
                 <td className="n">${num1(r.reorder_point)}</td><td className="n">${M(r.cost_to_level_sar)}</td>`}
           </tr>`)}</tbody>
-      </table></div>`;
+      </table></div>
+    </div>`;
+}
+
+function Turn({ t, setOpen, ask, busy }) {
+  const [all, setAll] = useState(false);
+  const cap = t.tool ? CAP_BY_TOOL[t.tool] : null;
+  return html`
+    <div className="turn">
+      <div className="you">${t.question}</div>
+      ${t.status === "error" || t.status === "unavailable"
+        ? html`<div className="answer err"><div className="say">${t.answer || t.detail}</div></div>`
+        : html`<div className="answer">
+            <${Say} text=${t.answer} />
+            ${t.tool && html`<${Facts} tool=${t.tool} args=${t.args} result=${t.result} />`}
+          </div>`}
+      <${RowsTable} rows=${t.rows} setOpen=${setOpen} all=${all} setAll=${setAll} />
+      ${cap && cap.follow.length > 0 && html`
+        <div className="follow"><span>Ask next:</span>
+          ${cap.follow.map(f => html`<button key=${f} className="chip" disabled=${busy} onClick=${() => ask(f)}>${f}</button>`)}
+        </div>`}
+    </div>`;
+}
+
+function Chat({ setOpen, ask: preset }) {
+  const [status, setStatus] = useState(null);
+  const [q, setQ] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState("");
+  const [turns, setTurns] = useState([]);
+  useEffect(() => { getJSON("/api/chat/status").then(setStatus).catch(() => setStatus({ available: false })); }, []);
+  useEffect(() => { if (preset && status && status.available && turns.length === 0) ask(preset); }, [preset, status]);
+
+  const ask = text => {
+    const question = (text || q).trim();
+    if (!question || busy) return;
+    setBusy(true); setPending(question); setQ("");
+    fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
+                         body: JSON.stringify({ question }) })
+      .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.detail || r.status))))
+      .then(a => setTurns(t => [{ question, ...a }, ...t]))
+      .catch(e => setTurns(t => [{ question, status: "error", answer: "The assistant could not answer: " + String(e.message || e), rows: [] }, ...t]))
+      .finally(() => { setBusy(false); setPending(""); });
   };
+  const ready = status && status.available;
 
   return html`
     <${Page} title="Ask"
@@ -733,33 +844,38 @@ function Chat({ setOpen }) {
         <div className="state" style=${{ margin: "0 0 24px" }}>
           <h3>Chat unavailable — no key</h3>
           <p>Set <code style=${{ display: "inline", padding: "1px 6px" }}>${status.key_var || "ANTHROPIC_API_KEY"}</code>
-            in the environment the server runs in and restart it. Everything else on these pages works without it;
-            the four questions the chat can answer are on the Stock board, Recommendations and Storerooms pages.</p>
+            in the environment the server runs in — or in a <code style=${{ display: "inline", padding: "1px 6px" }}>.env</code>
+            file next to <code style=${{ display: "inline", padding: "1px 6px" }}>cli.py</code> (an OpenRouter key works too) — and restart it.
+            Everything else on these pages works without it.</p>
         </div>`}
       <div className="ask">
-        <input type="text" value=${q} placeholder="e.g. which critical parts are out of stock in the smelter?"
-               onInput=${e => setQ(e.target.value)} onKeyDown=${e => e.key === "Enter" && ask()}
-               disabled=${!status || !status.available || busy} />
-        <button onClick=${() => ask()} disabled=${!status || !status.available || busy || !q.trim()}>${busy ? "Asking…" : "Ask"}</button>
+        <input type="text" value=${q} placeholder=${ready ? "Ask about stock-outs, dead money, one part, or moves between stores…" : "Chat unavailable"}
+               onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === "Enter") ask(); if (e.key === "Escape") setQ(""); }}
+               disabled=${!ready || busy} autoFocus />
+        <button onClick=${() => ask()} disabled=${!ready || busy || !q.trim()}>${busy ? "Reading…" : "Ask"}</button>
+        ${turns.length > 0 && html`<button className="clear" onClick=${() => setTurns([])} title="Clear the conversation">Clear</button>`}
       </div>
-      <div className="suggest">
-        ${SUGGESTED.map(s => html`<button key=${s} className="chip" disabled=${!status || !status.available || busy}
-                                          onClick=${() => ask(s)}>${s}</button>`)}
+      ${turns.length === 0 && !busy && html`
+        <div className="caps">
+          ${CAPS.map(c => html`
+            <button key=${c.tool} className="cap" disabled=${!ready} onClick=${() => ask(c.ask)}>
+              <div className="t">${c.title}</div>
+              <div className="e">${c.hint}</div>
+              <div className="go">“${c.ask}” →</div>
+            </button>`)}
+        </div>`}
+      ${turns.length > 0 && !busy && html`
+        <div className="suggest">${SUGGESTED.filter(s => !turns.some(t => t.question === s)).map(s => html`
+          <button key=${s} className="chip" onClick=${() => ask(s)}>${s}</button>`)}</div>`}
+      <div className="thread">
+        ${busy && html`<div className="turn"><div className="you">${pending}</div>
+          <div className="answer thinking"><span className="pulse" style=${{ display: "inline-block", width: "10px", height: "10px", borderRadius: "50%", background: "var(--accent)" }}></span>
+            Reading the results…</div></div>`}
+        ${turns.map((t, i) => html`<${Turn} key=${i} t=${t} setOpen=${setOpen} ask=${ask} busy=${busy} />`)}
       </div>
-      ${turns.map((t, i) => html`
-        <div key=${i}>
-          <div className="answer">
-            <div className="dim" style=${{ fontSize: "14px", marginBottom: "8px" }}>${t.question}</div>
-            <div>${t.answer}</div>
-            ${t.tool && html`<div className="via">answered by <b>${t.tool}</b>${t.args ? " " + JSON.stringify(t.args) : ""} — every figure above is in the rows below</div>`}
-            ${t.status === "unavailable" && html`<div className="via">${t.detail}</div>`}
-          </div>
-          ${rowsTable(t.rows)}
-        </div>`)}
-      ${status && status.available && turns.length === 0 && html`
-        <div className="aside">Four questions it can answer: what is out of stock (by store, by criticality);
-          where the dead money is (by store, by reason); everything about one part; what could be moved instead
-          of bought. Anything else it will say it cannot answer from the data.</div>`}
+      ${ready && turns.length === 0 && html`
+        <div className="aside">Four questions it can answer; anything else it will say it cannot answer from the data.
+          Every figure in an answer appears in the rows beneath it, and any row opens the part.</div>`}
     <//>`;
 }
 
@@ -1801,10 +1917,12 @@ function parseHash() {
   if (parts[0] && parts[0].startsWith("@")) { focus = parts[0].slice(1); parts = parts.slice(1); }
   const known = SCREENS.some(s => s.key === parts[0]) || parts[0] === "evidence";
   const screen = known ? parts[0] : "";
-  let open = null, store = "";
-  if (parts.length >= 3) open = [parts[1], parts[2]];
+  let open = null, store = "", ask = "";
+  // #/chat/q/<question> opens the assistant with the question already asked
+  if (screen === "chat" && parts[1] === "q" && parts.length >= 3) ask = decodeURIComponent(parts.slice(2).join("/"));
+  else if (parts.length >= 3) open = [parts[1], parts[2]];
   else if (screen === "storerooms" && parts.length === 2) store = parts[1];
-  return { present, screen: open && !screen ? "board" : screen, open, store, focus };
+  return { present, screen: open && !screen ? "board" : screen, open, store, focus, ask };
 }
 function toHash({ present, screen, open, store, focus }) {
   const bits = [];
@@ -1886,7 +2004,7 @@ function App() {
     route.screen === "storerooms" ? html`<${Storerooms} stores=${state.stores} setOpen=${setOpen} store=${route.store} setStore=${setStore} />`
     : route.screen === "board" ? html`<${Board} setOpen=${setOpen} />`
     : route.screen === "recommendations" ? html`<${Recommendations} setOpen=${setOpen} />`
-    : route.screen === "chat" ? html`<${Chat} setOpen=${setOpen} />`
+    : route.screen === "chat" ? html`<${Chat} setOpen=${setOpen} ask=${route.ask} />`
     : route.screen === "evidence" ? html`<${Evidence} summary=${state.summary} score=${state.score} bt=${state.bt} fc=${state.fc} fr=${state.fr} />`
     : html`<${Dashboard} summary=${state.summary} stores=${state.stores} bt=${state.bt} fr=${state.fr}
                           store=${route.focus} setStore=${setFocus} dead=${state.dead} />`;
