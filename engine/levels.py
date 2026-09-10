@@ -449,8 +449,18 @@ def compute(cfg: RunConfig) -> Levels:
         # already carries the safety buffer; the order quantity's job is to make
         # the cycle sensible, not to add a second buffer on top of the first —
         # which is what the previous "quantile of a review cycle" term was doing.
+        # ...and at least the economic order quantity. Ordering one window of demand
+        # at a time placed 31% more purchase orders than the plant does, because a
+        # cheap part used every week was being bought every week. The EOQ balances
+        # the SAR 900 it costs to place an order against what it costs to hold the
+        # extra units for a year — both figures already in the cost model — and it
+        # is what a buyer would do without being told.
         pack = float(pack_of.get(pos.material_id, 1.0))
-        quantity = max(expected_window, 1.0 if reorder > 0 else 0.0)
+        annual = float(daily[i].mean()) * 365.0
+        hold = cfg.costs.holding_cost_per_unit_year(price)
+        eoq = (float(np.sqrt(2.0 * annual * cfg.costs.order_cost_sar / hold))
+               if hold > 0 and annual > 0 else 0.0)
+        quantity = max(expected_window, eoq, 1.0 if reorder > 0 else 0.0)
         quantity = float(np.ceil(quantity / pack) * pack) if pack > 0 else quantity
         order_up_to = reorder + quantity
 

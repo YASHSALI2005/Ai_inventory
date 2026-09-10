@@ -124,6 +124,9 @@ words.
 | **"Order by" and "runs out around"** on below-level rows | Noah's "runs out 12 Sat / order by 10 Thu", adapted: the data's own today, not the wall clock. |
 | **Tables fit the card** — fixed layout, wrapping text, no sideways scroll | The user's screenshot: part names clipped on the left after scrolling right to find the value column. A scrollbar on a table means the layout gave up. |
 | **Charts answer the pointer** — tooltips with exact figures, click a store to open it, a store selector that re-scopes the dashboard, entry motion | Noah's charts were static. A number you can hover is a number you can check in the meeting without leaving the page. Motion is off under reduced-motion. |
+| **The year ahead on the dashboard line**, dashed, after a "data ends" marker | The graded forecast lies over the tested year; a planner also wants next year. Two lines, two labels, one honest about not being gradeable yet. |
+| **Dead-money tile carries both figures** — the system's and the answer key's | The claim on page one is now the engine's; the truth sits beside it so the gap is visible, not assumed. |
+| **Write off / review tab filled** from the engine's list, one reason each, CSV export | The third list a planner acts on, ranked by value like the other two. |
 | **Drawer**: what to do first in the accent, one stat row, chart, reason in a quiet panel at the bottom | Round 2 had the reason above the chart; round 3 asked for it below. The chart now overlays the forecast on the tested year instead of drawing it a year to the right — that was a bug, not a choice. |
 
 ## Status — built 2026-09-10

@@ -12,7 +12,7 @@
   pinned versions, no network. Both charts and every sparkline are inline SVG for
   the same reason.
 
-  Dark by default, with a light theme one click away. The choice is remembered in
+  Light by default, with a dark theme one click away. The choice is remembered in
   this browser only; the page never reads or writes anything else.
 -->
 <script src="/static/vendor/react.production.min.js"></script>
@@ -397,10 +397,10 @@ td .when{font-size:12px;color:var(--muted);margin-top:2px}
 <div id="root"></div>
 
 <script>
-// Theme first, before anything renders. Dark unless this browser chose light.
+// Theme first, before anything renders. Light unless this browser chose dark.
 (function () {
-  let t = "dark";
-  try { t = localStorage.getItem("theme") || "dark"; } catch (e) { /* private window */ }
+  let t = "light";
+  try { t = localStorage.getItem("theme") || "light"; } catch (e) { /* private window */ }
   document.documentElement.setAttribute("data-theme", t);
 })();
 
@@ -606,8 +606,9 @@ function Failed({ what, detail }) {
 }
 
 /* ── 1 · dashboard ────────────────────────────────────────────────────────── */
-function Dashboard({ summary, stores, bt, fr, store, setStore }) {
+function Dashboard({ summary, stores, bt, fr, store, setStore, dead }) {
   const inv = summary.inventory, run = summary.run;
+  const found = dead && dead.score ? dead.score : null;
   const ch = (bt && bt.change) || {};
   const rows = (stores && stores.by_storeroom) || [];
   const picked = rows.find(r => r.storeroom_id === store) || null;
@@ -625,11 +626,13 @@ function Dashboard({ summary, stores, bt, fr, store, setStore }) {
   const end = monthLabel(run.history_end.slice(0, 7), 0, true);
   const learned = monthLabel(run.cutoff_date.slice(0, 7), 0, true);
   const fcStart = monthLabel(run.cutoff_date.slice(0, 7), 1, true);
+  const aheadStart = monthLabel(run.history_end.slice(0, 7), 1, true);
+  const aheadEnd = monthLabel(run.history_end.slice(0, 7), 12, true);
   return html`
     <${Page} title="Dashboard"
              extra=${html`<div className="dateline">Data <b>${start} – ${end}</b> ·
-               learned to <b>${learned}</b> · forecast <b>${fcStart} – ${end}</b>, laid over
-               what actually happened</div>`}
+               learned to <b>${learned}</b> · forecast <b>${fcStart} – ${end}</b> over what
+               actually happened · year ahead <b>${aheadStart} – ${aheadEnd}</b></div>`}
              lede=${"four numbers, then four pictures. The numbers are the size of the "
                     + "problem and the size of the improvement; the pictures are where "
                     + "the stock is, how it moves, and what a service level costs."}>
@@ -646,8 +649,12 @@ function Dashboard({ summary, stores, bt, fr, store, setStore }) {
                  label=${picked ? "Stock on the shelves in " + store : "Stock on the shelves"}
                  tip=${TIP.stock_value}
                  sub=${scope ? num(scope.parts) + " parts" + (picked ? "" : " across " + scope.stores_n + " storerooms") : ""} />
-        <${Tile} key_ value=${M(inv.dead_value_sar)} label="Money that will never come back"
-                 tip=${TIP.dead} sub=${pct(inv.dead_value_share) + " of everything on the shelves" + (picked ? " — plant-wide; the store split arrives with the dead-money step" : "")} />
+        <${Tile} key_ value=${dead ? M(dead.dead_value_sar) : M(inv.dead_value_sar)}
+                 label=${dead ? "Money that will never come back — found by the system" : "Money that will never come back"}
+                 tip=${TIP.dead}
+                 sub=${dead
+                   ? "answer key says " + M(inv.dead_value_sar) + (found ? " · we found " + pct(found.recall_sar) + " of it, " + M(found.wrongly_flagged_sar) + " wrongly flagged" : "")
+                   : pct(inv.dead_value_share) + " of everything on the shelves"} />
         <${Tile} value=${scope ? num(scope.critical_n) : "—"}
                  label=${picked ? "Critical parts below level in " + store : "Critical parts below their safe level"}
                  tip=${TIP.critical_low}
@@ -997,15 +1004,35 @@ function Recommendations({ setOpen }) {
             </tr>`)}</tbody>
         </table></div>`}
 
-      ${tab === "writeoff" && html`
+      ${tab === "writeoff" && w.status !== "ready" && html`
         <div className="state" style=${{ margin: "40px auto" }}>
           <h3>Coming with the dead-money step</h3>
-          <p>This tab will list what to write off or review — part, store, value, and the
-            reason: obsolete, never used, duplicate, or excess — ranked by value, from the
-            engine's own dead-money finding graded against the sealed answer key. Today the
-            dashboard shows the size of that prize from the answer key; the next step is the
-            system finding it for itself.</p>
+          <p>Run the analysis again and this tab fills with what to write off or review —
+            part, store, value and the reason — ranked by value.</p>
         </div>`}
+      ${tab === "writeoff" && w.status === "ready" && html`
+        <div className="tabhead">
+          <div className="headline" style=${{ margin: 0 }}><b>${num(w.count)} records</b> carrying
+            ${" "}<span className="acc">${M(w.total_sar)}</span> that will never come back. Showing the ${num(w.rows.length)} largest.</div>
+          <a className="export" href="/api/recommendations/writeoff.csv" download="writeoff.csv">Export to Excel (CSV)</a>
+        </div>
+        <div className="card"><table>
+          <colgroup><col style=${{ width: "30%" }} /><col style=${{ width: "10%" }} /><col style=${{ width: "12%" }} />
+            <col style=${{ width: "16%" }} /><col style=${{ width: "32%" }} /></colgroup>
+          <thead><tr><th>Part</th><th>Store</th><th className="n">Value</th><th>Why</th><th>In full</th></tr></thead>
+          <tbody>${w.rows.map(r => html`
+            <tr key=${r.material_id + r.storeroom_id} className="click" onClick=${() => setOpen([r.material_id, r.storeroom_id])}>
+              <td className="item"><div className="d">${r.description}</div>
+                <div className="sub">${r.material_id} · <span className=${"crit " + r.criticality}>${r.criticality}</span>
+                  ${" · " + num1(r.dead_qty) + " of " + num1(r.on_hand) + " " + r.uom + " is dead"}</div></td>
+              <td className="strong nw">${r.storeroom_id}</td>
+              <td className="n acc">${M(r.dead_value_sar)}</td>
+              <td className="nw"><${Tag} value=${r.category_label} /></td>
+              <td className="dim" style=${{ fontSize: "13px" }}>${r.reason}</td>
+            </tr>`)}</tbody>
+        </table></div>
+        <div className="aside">Graded against the sealed answer key on the Dashboard tile and the Evidence page:
+          the system's figure sits beside the true one, with what it found, missed and wrongly flagged.</div>`}
     <//>`;
 }
 /* ── charts ────────────────────────────────────────────────────────────────────
@@ -1095,25 +1122,34 @@ function PlantLine({ plant }) {
   const W = 1000, H = 250, L = 64, R = 20, T = 18, B = 40;
   const iw = W - L - R, ih = H - T - B;
   const u = plant.usage_months, f = plant.forecast_months, n = u.length, tm = plant.train_months;
-  const peak = Math.max(1, ...u, ...f.map((v, i) => v + (plant.known_months[i] || 0)));
-  const X = i => L + (i / (n - 1)) * iw;
+  const ahead = plant.forward_months || [];
+  const total = n + ahead.length;
+  const peak = Math.max(1, ...u, ...f.map((v, i) => v + (plant.known_months[i] || 0)), ...ahead);
+  const X = i => L + (i / (total - 1)) * iw;
   const Y = v => T + ih - (v / peak) * ih;
   const line = pts => pts.map((p, i) => (i ? "L" : "M") + X(p.i).toFixed(1) + " " + Y(p.v).toFixed(1)).join(" ");
   const usagePath = line(u.map((v, i) => ({ i, v })));
   const fcPath = line(f.map((v, i) => ({ i: tm + i, v: v + (plant.known_months[i] || 0) })));
+  // the year ahead starts from the last actual month so the line is continuous
+  const aheadPath = ahead.length
+    ? line([{ i: n - 1, v: u[n - 1] }].concat(ahead.map((v, i) => ({ i: n + i, v })))) : "";
   const ticks = [];
-  for (let i = 0; i < n; i += 6) ticks.push(i);
+  for (let i = 0; i < total; i += 6) ticks.push(i);
   const onMove = e => {
     const svg = e.currentTarget;
     const box = svg.getBoundingClientRect();
     const px = ((e.clientX - box.left) / box.width) * W;
-    const i = Math.max(0, Math.min(n - 1, Math.round(((px - L) / iw) * (n - 1))));
+    const i = Math.max(0, Math.min(total - 1, Math.round(((px - L) / iw) * (total - 1))));
     setHover(i);
     const fi = i - tm;
     const exp = fi >= 0 && fi < f.length ? f[fi] + (plant.known_months[fi] || 0) : null;
-    show(e, html`<b>${monthLabel(plant.months_start, i, true)}</b><br/>
-      <span className="mono">${num(u[i])}</span> given out
-      ${exp !== null ? html`<br/><span className="mono">${num(exp)}</span> expected` : ""}`);
+    const ai = i - n;
+    show(e, i < n
+      ? html`<b>${monthLabel(plant.months_start, i, true)}</b><br/>
+          <span className="mono">${num(u[i])}</span> given out
+          ${exp !== null ? html`<br/><span className="mono">${num(exp)}</span> expected` : ""}`
+      : html`<b>${monthLabel(plant.months_start, i, true)}</b> · year ahead<br/>
+          <span className="mono">${num(ahead[ai])}</span> expected`);
   };
   return html`
     <div className="anim">
@@ -1129,8 +1165,12 @@ function PlantLine({ plant }) {
         <rect x=${X(tm)} y=${T} width=${X(n - 1) - X(tm)} height=${ih} fill="var(--tint)" opacity="0.7" />
         <line x1=${X(tm)} x2=${X(tm)} y1=${T} y2=${T + ih} stroke="var(--ink)" strokeDasharray="4 3" />
         <text x=${X(tm) + 6} y=${T + 12} fill="var(--muted)" fontSize="11" fontFamily="Consolas,monospace">learned up to here</text>
+        ${ahead.length > 0 && html`
+          <line x1=${X(n - 1)} x2=${X(n - 1)} y1=${T} y2=${T + ih} stroke="var(--muted)" strokeDasharray="2 3" />
+          <text x=${X(n - 1) + 6} y=${T + 12} fill="var(--muted)" fontSize="11" fontFamily="Consolas,monospace">data ends · year ahead</text>`}
         <path className="line" d=${usagePath} fill="none" stroke="var(--ink-2)" strokeWidth="1.8" />
         <path className="line" d=${fcPath} fill="none" stroke="var(--accent)" strokeWidth="2.2" />
+        ${aheadPath && html`<path className="line" d=${aheadPath} fill="none" stroke="var(--accent)" strokeWidth="2.2" strokeDasharray="6 4" />`}
         <line x1=${L} x2=${W - R} y1=${T + ih} y2=${T + ih} stroke="var(--line-2)" />
         ${ticks.map(i => html`
           <text key=${i} x=${X(i)} y=${H - 14} textAnchor="middle" fill="var(--muted)" fontSize="11"
@@ -1138,15 +1178,17 @@ function PlantLine({ plant }) {
         ${hover !== null && html`
           <g>
             <line x1=${X(hover)} x2=${X(hover)} y1=${T} y2=${T + ih} stroke="var(--muted)" strokeDasharray="2 3" />
-            <circle cx=${X(hover)} cy=${Y(u[hover])} r="4" fill="var(--ink)" />
+            ${hover < n && html`<circle cx=${X(hover)} cy=${Y(u[hover])} r="4" fill="var(--ink)" />`}
             ${hover >= tm && (hover - tm) < f.length && html`
               <circle cx=${X(hover)} cy=${Y(f[hover - tm] + (plant.known_months[hover - tm] || 0))} r="4" fill="var(--accent)" />`}
+            ${hover >= n && html`<circle cx=${X(hover)} cy=${Y(ahead[hover - n])} r="4" fill="var(--accent)" />`}
           </g>`}
       </svg>
       ${tipNode}
       <div className="legend">
         <span><i style=${{ background: "var(--ink-2)" }}></i>units given out</span>
         <span><i style=${{ background: "var(--accent)" }}></i>what the system expected for the last year, including scheduled work</span>
+        ${ahead.length > 0 && html`<span><i style=${{ background: "var(--accent)", opacity: .55 }}></i>the year ahead — refitted on all three years, not yet gradeable</span>`}
       </div>
     </div>`;
 }
@@ -1549,7 +1591,9 @@ function App() {
       getJSON("/api/summary"), getJSON("/api/scoreboard"),
       getJSON("/api/backtest").catch(() => null), getJSON("/api/forecast_scores").catch(() => null),
       getJSON("/api/storerooms").catch(() => null), getJSON("/api/frontier").catch(() => null),
-    ]).then(([summary, score, bt, fc, stores, fr]) => setState({ status: "ready", summary, score, bt, fc, stores, fr }))
+      getJSON("/api/dead_money").catch(() => null),
+    ]).then(([summary, score, bt, fc, stores, fr, dead]) =>
+      setState({ status: "ready", summary, score, bt, fc, stores, fr, dead }))
       .catch(err => setState({ status: "error", detail: err.message || String(err) }));
   }, []);
   // ← → walk the four pages in order; Escape leaves present mode. An open drawer
@@ -1594,7 +1638,7 @@ function App() {
     : route.screen === "recommendations" ? html`<${Recommendations} setOpen=${setOpen} />`
     : route.screen === "evidence" ? html`<${Evidence} summary=${state.summary} score=${state.score} bt=${state.bt} fc=${state.fc} fr=${state.fr} />`
     : html`<${Dashboard} summary=${state.summary} stores=${state.stores} bt=${state.bt} fr=${state.fr}
-                          store=${route.focus} setStore=${setFocus} />`;
+                          store=${route.focus} setStore=${setFocus} dead=${state.dead} />`;
 
   return html`
     <div className=${"shell" + (route.present ? " present" : "")}>

@@ -124,6 +124,16 @@ def build(cfg: RunConfig) -> pd.DataFrame:
     df["forecast_months"] = [np.nan_to_num(a) for a in df["forecast_months"]]
     df["planned_wo_months"] = [np.nan_to_num(a) for a in df["planned_wo_months"]]
     df["forecast_method"] = method.reindex(idx).to_numpy()
+
+    # the year ahead, if the forecaster wrote it (older results have not)
+    fwd_path = cfg.results_dir / "forecast_forward.parquet"
+    if fwd_path.exists():
+        fwd = pd.read_parquet(fwd_path).sort_values("ds")
+        fpiv = fwd.pivot_table(index=["material_id", "storeroom_id"], columns="ds",
+                               values="forecast_total", aggfunc="sum")
+        df["forward_months"] = [np.nan_to_num(a) for a in fpiv.reindex(idx).to_numpy(dtype=float)]
+    else:
+        df["forward_months"] = [np.zeros(0) for _ in range(len(df))]
     df["forecast_6m"] = [float(a[:6].sum()) for a in df["forecast_months"]]
     df["planned_wo_qty"] = [float(a.sum()) for a in df["planned_wo_months"]]
 
@@ -335,10 +345,13 @@ def plant_wide(df: pd.DataFrame) -> dict:
     usage = np.vstack(df["usage_months"].to_numpy()).sum(axis=0)
     forecast = np.vstack(df["forecast_months"].to_numpy()).sum(axis=0)
     known = np.vstack(df["planned_wo_months"].to_numpy()).sum(axis=0)
+    fwd_rows = [a for a in df["forward_months"].to_numpy() if len(a)]
+    forward = np.vstack(fwd_rows).sum(axis=0) if fwd_rows else np.zeros(0)
     return {
         "usage_months": [float(v) for v in usage],
         "forecast_months": [float(v) for v in forecast],
         "known_months": [float(v) for v in known],
+        "forward_months": [float(v) for v in forward],
         "months_start": str(df["months_start"].iloc[0]),
         "train_months": int(df["train_months"].iloc[0]),
     }

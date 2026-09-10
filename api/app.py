@@ -224,13 +224,30 @@ def create_app(cfg: RunConfig) -> FastAPI:
                 "total_sar": float(sum(r["value_sar"] for r in moves)),
                 "rows": moves[:limit],
             },
-            "writeoff": {
-                "status": "coming with dead-money step",
-                "count": 0,
-                "total_sar": 0.0,
-                "rows": [],
-            },
+            "writeoff": _writeoff(limit),
         }
+
+    def _writeoff(limit: int) -> dict:
+        path = cfg.results_dir / "dead_money.parquet"
+        if not path.exists():
+            return {"status": "coming with dead-money step", "count": 0,
+                    "total_sar": 0.0, "rows": []}
+        dead = pd.read_parquet(path)
+        return {
+            "status": "ready",
+            "count": int(len(dead)),
+            "total_sar": float(dead["dead_value_sar"].sum()),
+            "rows": _records(dead.head(limit)),
+        }
+
+    @app.get("/api/dead_money")
+    def dead_money_figures() -> dict:
+        """The engine's own dead-money figure, with its grade against the answer key."""
+        report = _read(cfg, "dead_money_report.json", f"python cli.py run --preset {cfg.preset}")
+        score_path = cfg.results_dir / "dead_money_score.json"
+        if score_path.exists():
+            report["score"] = json.loads(score_path.read_text(encoding="utf-8"))
+        return report
 
     @app.get("/api/recommendations/{which}.csv")
     def recommendations_csv(which: str) -> PlainTextResponse:
@@ -240,11 +257,16 @@ def create_app(cfg: RunConfig) -> FastAPI:
         """
         if which == "orders":
             frame = _orders()
+        elif which == "writeoff":
+            path = cfg.results_dir / "dead_money.parquet"
+            if not path.exists():
+                raise HTTPException(status_code=409, detail="dead money not computed yet")
+            frame = pd.read_parquet(path)
         elif which == "moves":
             stores = _read(cfg, STOREROOM_FILE, f"python cli.py run --preset {cfg.preset}")
             frame = pd.DataFrame(stores.get("transfers", []))
         else:
-            raise HTTPException(status_code=404, detail="orders.csv or moves.csv")
+            raise HTTPException(status_code=404, detail="orders.csv, moves.csv or writeoff.csv")
         text = "\ufeff" + frame.to_csv(index=False, lineterminator="\r\n")
         return PlainTextResponse(
             text, media_type="text/csv; charset=utf-8",

@@ -225,9 +225,12 @@ def test_recommendations_are_ranked_by_money_and_add_up(client):
     costs = [r["order_cost_sar"] for r in d["orders"]["rows"]]
     assert costs == sorted(costs, reverse=True)
     assert d["orders"]["total_sar"] >= sum(costs)
-    assert d["writeoff"]["status"].startswith("coming"), (
-        "the write-off tab must say it is not built yet, not show an empty list"
+    w = d["writeoff"]
+    assert w["status"] == "ready" and w["count"] > 0, (
+        "the write-off tab fills from the engine's own dead-money list"
     )
+    values = [r["dead_value_sar"] for r in w["rows"]]
+    assert values == sorted(values, reverse=True)
 
 
 def test_the_export_opens_in_excel(client):

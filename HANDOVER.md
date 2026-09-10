@@ -35,7 +35,7 @@ Run it:
 ```
 python cli.py all --preset toy      # build + engine + scoreboard   (~1s)
 python cli.py all --preset full     # 20k materials                 (~33s)
-python -m pytest -q                 # 146 tests
+python -m pytest -q                 # 154 tests
 python cli.py serve --preset full   # the three screens
 python -m ruff check .
 ```
@@ -53,7 +53,7 @@ produced. `--data-dir` redirects everything, which is how the CLI smoke test wor
 | 3 · classifier (ADI × CV²) | **Done.** Monthly periods, 97.6% agreement with `PROFILE_TO_SBC_CLASS` |
 | 4 · forecast (Croston family) | **Done.** TSB for sparse, SES for the rest; MASE 0.84–0.87, all four beat naive |
 | 5 · levels + backtest | **Done — headline number two.** Total cost −8% on the held-out year, with the service-level sweep and order quantities |
-| 6a · dead money | Not started — scorer stubbed; engine figure goes beside truth on the dashboard |
+| 6a · dead money | **Done.** Engine finds SAR 382.7m of SAR 391.7m truly dead (98%), SAR 5.3m wrongly flagged; figure sits beside the answer key's on the Dashboard |
 | Screens | **Done — Dashboard · Storerooms · Stock board · Recommendations, Evidence in the footer.** Present mode, dark by default with a toggle, vendored JS, no CDN |
 | 8 · chat, thin | Not started — four tools, twenty golden questions |
 | 6b · transfers, slider, work queue | **Only if everything above is green** |
@@ -230,16 +230,57 @@ before an API change serves a page that asks for fields it does not have. The pa
 now says so instead of crashing, and an older `positions.parquet` degrades to blank
 columns rather than a 500.
 
-## Next — step 6a, dead money
+## Step 6a — dead money, found by the engine
 
-1. Engine computes its own dead-money list from step 5's justified quantity plus
-   obsolescence inferred from equipment status and demand cessation. Ranked in SAR
-   at SAP moving average.
-2. Scored against `truth`: SAR found / true / wrongly flagged; obsolete
-   found / missed / falsely flagged. Engine figure sits beside the truth figure.
-3. Then the thin chat (four tools, twenty golden questions). The scenario slider
-   now has its data (`results/frontier.json`); transfers and the work queue only
-   if everything above is green.
+`engine/dead_money.py` reads what a planner has — stock, which machines still
+exist, the maintenance schedule, the duplicate matcher's output — and never the
+answer key. One reason per position, decided in this order: **obsolete, equipment
+gone** (every unit dead) → **duplicate** (above the justified level) → **never
+used** (above the criticality floor) → **obsolete, idle with nothing due** (above
+justified) → **excess** (above justified). "Justified" is
+`cfg.dead_money.justified_qty` on three years of observed issues, or our own
+order-up-to if higher. Valued at SAP moving average.
+
+Full preset: **SAR 388.1m flagged on 6,623 records** —
+duplicate 46 records SAR 3.1m; excess 288 records SAR 9.6m; never used 4,249 records SAR 225.5m; obsolete — equipment gone 1,918 records SAR 146.1m; obsolete — idle, nothing due 122 records SAR 3.9m.
+
+Graded against truth (`scoring/defects.score_dead_money`): truly dead
+SAR 391.7m; **found SAR 382.7m (98%)**; wrongly
+flagged SAR 5.3m (precision 99%); missed
+SAR 9.0m. Obsolete materials: 1,555 true, 1,551 found,
+4 missed, 122 falsely flagged — the false ones are the
+"idle, nothing due" category, which the truth does not call obsolete.
+
+**Read the 98% honestly.** Most of it is arithmetic on fields the plant
+already has: `equipment.decommissioned_date` is a lookup, not a discovery, and the
+justified quantity uses the same rule the answer key was built with. What the
+engine adds is applying it consistently across 25,000 records with a reason on
+each — and the duplicate category shows where it is weakest (precision around
+20%: the matcher's pairs are real duplicates but their stock is mostly not dead).
+
+On screen: the Dashboard's dead-money tile shows the engine's figure with the
+answer key's beside it; Recommendations → Write off / review lists every record
+with its reason and exports to CSV.
+
+### The three fixes that came with it
+
+- **Orders placed -10%** (was +31%): the order quantity is at least
+  the economic order quantity from `order_cost_sar` and the holding rate, so a cheap
+  weekly part is not bought weekly. Backtest now -56% days waiting,
+  +30% capital, -36% total cost.
+- **The year ahead is on the chart.** `forecast_forward.parquet` is the same models
+  refitted on all 36 months and run 12 months past Aug 2026, kept separate from the
+  graded held-out forecast so nothing can grade itself on the wrong one. Dashed on
+  the dashboard line; not gradeable and labelled as such.
+- **Light is the default** again; dark stays one click away.
+
+## Next — the thin chat
+
+1. Claude with four tools (`get_stockouts`, `get_dead_money`, `get_item`,
+   `get_levels`), Pydantic-validated, reading `results/` only; twenty golden
+   questions in CI. The chat never calculates.
+2. Then, only if all green: the scenario slider (data in `results/frontier.json`),
+   transfers ranked by distance, the work queue.
 
 Full order and the exclusions are in [`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-PLAN.md).
 

@@ -161,9 +161,15 @@ def score_dead_money(cfg: RunConfig) -> dict:
     """
     SAR the engine flagged as dead, against SAR that actually is.
 
-    Not implemented until step 6 writes a dead-money result; the interface exists
-    now so the shape of the answer is fixed before anything is built to fit it.
+    Position by position: what the engine called dead is compared with what the
+    answer key says is dead (obsolete stock in full, otherwise what exceeds the
+    justified quantity built from the TRUE demand rate). Credit is the overlap;
+    anything the engine claimed beyond the truth is wrongly flagged; anything the
+    truth holds that the engine missed is missed. Obsolescence is graded per
+    material on top, because "the machine is gone" is a yes/no the plant can check.
     """
+    import pandas as pd
+
     from scoring.dataset_report import dead_money
 
     stock = S.read(S.STOCK, cfg.source_dir)
@@ -176,33 +182,78 @@ def score_dead_money(cfg: RunConfig) -> dict:
     if not path.exists():
         return {"status": "not_implemented", "true_dead_sar": true_sar, "total_sar": total_sar}
 
-    import pandas as pd
-
     found = pd.read_parquet(path)
-    j = found.merge(tp, on=["material_id", "storeroom_id"], how="left").merge(
+    key = ["material_id", "storeroom_id"]
+    base = stock[key + ["on_hand", "avg_unit_cost_sar"]].merge(tp, on=key, how="left").merge(
         tm[["material_id", "true_is_obsolete"]], on="material_id", how="left"
     )
-    on_hand = stock.set_index(["material_id", "storeroom_id"])["on_hand"]
-    idx = pd.MultiIndex.from_arrays([j.material_id, j.storeroom_id])
-    held = on_hand.reindex(idx).clip(lower=0).to_numpy()
+    held = base["on_hand"].clip(lower=0.0).to_numpy()
     truly_dead = np.where(
-        j.true_is_obsolete.fillna(False),
+        base["true_is_obsolete"].fillna(False).to_numpy(dtype=bool),
         held,
-        np.maximum(held - j.true_justified_qty.fillna(0.0), 0.0),
+        np.maximum(held - base["true_justified_qty"].fillna(0.0).to_numpy(), 0.0),
     )
-    cost = stock.set_index(["material_id", "storeroom_id"])["avg_unit_cost_sar"].reindex(idx)
-    correct = float((np.minimum(j.dead_qty.to_numpy(), truly_dead) * cost).sum())
-    claimed = float((j.dead_qty.to_numpy() * cost).sum())
+    base["truly_dead_qty"] = truly_dead
+    j = base.merge(found[key + ["dead_qty", "category"]], on=key, how="left")
+    claimed_qty = j["dead_qty"].fillna(0.0).to_numpy()
+    cost = j["avg_unit_cost_sar"].to_numpy(dtype=float)
+    overlap = np.minimum(claimed_qty, j["truly_dead_qty"].to_numpy())
+    correct = float((overlap * cost).sum())
+    claimed = float((claimed_qty * cost).sum())
+    truth_total = float((j["truly_dead_qty"].to_numpy() * cost).sum())
+
+    obsolete_engine = set(found.loc[found["category"].isin(
+        ["obsolete_equipment", "obsolete_idle"]), "material_id"])
+    obsolete_truth = set(tm.loc[tm["true_is_obsolete"], "material_id"])
     return {
         "status": "scored",
+        "true_dead_sar": truth_total,
+        "found_sar": correct,
         "claimed_sar": claimed,
-        "correct_sar": correct,
-        "over_claimed_sar": claimed - correct,
-        "true_dead_sar": true_sar,
-        "recall": correct / true_sar if true_sar else None,
-        "precision": correct / claimed if claimed else None,
+        "wrongly_flagged_sar": claimed - correct,
+        "missed_sar": truth_total - correct,
+        "recall_sar": correct / truth_total if truth_total else None,
+        "precision_sar": correct / claimed if claimed else None,
+        "positions_flagged": int(len(found)),
+        "total_stock_sar": total_sar,
+        "obsolete": {
+            "truth": len(obsolete_truth),
+            "found": len(obsolete_engine & obsolete_truth),
+            "missed": len(obsolete_truth - obsolete_engine),
+            "false": len(obsolete_engine - obsolete_truth),
+        },
+        "by_category": [
+            {
+                "category": k,
+                "positions": int(len(g)),
+                "claimed_sar": float((g["dead_qty"].fillna(0.0) * g["avg_unit_cost_sar"]).sum()),
+                "correct_sar": float((np.minimum(g["dead_qty"].fillna(0.0), g["truly_dead_qty"])
+                                      * g["avg_unit_cost_sar"]).sum()),
+            }
+            for k, g in j[j["category"].notna()].groupby("category")
+        ],
     }
 
+
+def render_dead_money(r: dict) -> str:
+    lines = [
+        "  dead money — engine against the answer key, valued at moving average",
+        f"    truly dead      SAR {r['true_dead_sar']:>16,.0f}",
+        f"    found           SAR {r['found_sar']:>16,.0f}   ({r['recall_sar']:.0%} of it)",
+        f"    wrongly flagged SAR {r['wrongly_flagged_sar']:>16,.0f}   "
+        f"(precision {r['precision_sar']:.0%})",
+        f"    missed          SAR {r['missed_sar']:>16,.0f}",
+        "",
+        f"    {'category':<22}{'positions':>10}{'claimed SAR':>18}{'correct SAR':>18}",
+    ]
+    for c in r["by_category"]:
+        lines.append(f"    {c['category']:<22}{c['positions']:>10,}{c['claimed_sar']:>18,.0f}"
+                     f"{c['correct_sar']:>18,.0f}")
+    o = r["obsolete"]
+    lines.append("")
+    lines.append(f"    obsolete materials: {o['truth']:,} true — found {o['found']:,}, "
+                 f"missed {o['missed']:,}, falsely flagged {o['false']:,}")
+    return "\n".join(lines)
 
 def score_obsolete(cfg: RunConfig) -> dict:
     """Found / missed / false on `true_is_obsolete`. Awaiting step 6."""

@@ -1185,3 +1185,50 @@ Reasoning: The board had a horizontal scrollbar at laptop width and the column
            browser), and an entry animation that respects reduced-motion.
 Rejected: a chart library (a new vendored dependency for hover text); summing
           25,000 arrays in the browser on every store change.
+
+
+## 2026-09-10 — Order quantity is at least the economic order quantity
+Model: Fable 5.1
+Type: decision
+Reasoning: One window of expected demand per order placed 31% more purchase orders
+           than the plant does, because a cheap part used every week was bought
+           every week. EOQ = sqrt(2·D·K/h) with K = `order_cost_sar` and h the
+           holding cost per unit-year — both already in the cost model — is what
+           a buyer would do unprompted. Orders placed: -10%.
+Rejected: a fixed minimum in months of cover (a knob with no economics behind it).
+
+## 2026-09-10 — The year ahead is forecast separately from the graded year
+Model: Fable 5.1
+Type: decision
+Reasoning: The brief wanted the forecast visible past Aug 2026. The held-out
+           forecast cannot be moved there without lying about what it is, so the
+           models are refitted on all 36 months and run 12 ahead into
+           `forecast_forward.parquet` — a separate file, so nothing can grade
+           itself on the ungradeable one. Drawn dashed and labelled "not yet
+           gradeable".
+
+## 2026-09-10 — Dead money: one reason per position, in priority order, at moving average
+Model: Fable 5.1
+Type: decision
+Reasoning: obsolete-equipment (all of it) > duplicate > never used > idle with
+           nothing due > excess; the first rule that fits wins, so a record has one
+           reason a reviewer can act on. "Justified" is the answer key's own rule
+           applied to observed issues, or our order-up-to if higher — the engine
+           cannot call dead what its own level says to hold. Never-used spares keep
+           their criticality floor: insurance, not waste.
+           Score: found 98% of SAR 391.7m, precision
+           99%. The number is high because most of it is a
+           lookup on fields the plant has (decommissioned_date) plus the same
+           justified-quantity arithmetic the truth used; that is said in HANDOVER
+           and on the evidence page rather than presented as clairvoyance. The
+           duplicate category is the weak one (~20% precision) and is reported.
+Rejected: flagging every duplicate's stock in full (the matcher's pairs are real
+          but their stock is mostly justified); flagging idle-24-months wholesale
+          (89% of stock value, and wrong about every insurance spare).
+
+## 2026-09-10 — Light by default again
+Model: Fable 5.1
+Type: reversal
+Reverses: "dark by default" (same day)
+Reasoning: Asked for. The toggle stays; the choice is the only thing the page
+           writes to the browser.

@@ -53,7 +53,7 @@ def cmd_build(args) -> int:
 
 def cmd_run(args) -> int:
     """The engine. Reads source tables only — never the answer key."""
-    from engine import classify, forecast, levels, positions, quality
+    from engine import classify, dead_money, forecast, levels, positions, quality
 
     cfg = _cfg(args)
     if not (cfg.source_dir / "stock.parquet").exists():
@@ -107,6 +107,13 @@ def cmd_run(args) -> int:
           f"({time.time() - t4:.1f}s)")
     for band, n in pos["band"].value_counts().items():
         print(f"  {band:<26} {n:>6}")
+
+    t5 = time.time()
+    dead = dead_money.run(cfg)
+    print(f"engine, dead money: {len(dead):,} positions flagged, "
+          f"SAR {dead['dead_value_sar'].sum():,.0f}   ({time.time() - t5:.1f}s)")
+    for k, g in dead.groupby("category"):
+        print(f"  {k:<26} {len(g):>6}   SAR {g['dead_value_sar'].sum():>15,.0f}")
     return 0
 
 
@@ -159,9 +166,14 @@ def cmd_score(args) -> int:
 
     print()
     print("emergent problems (scored against truth, not a planted list):")
+    dm = defects.score_dead_money(cfg)
+    if dm.get("status") == "scored":
+        print(defects.render_dead_money(dm))
+        (cfg.results_dir / "dead_money_score.json").write_text(
+            json.dumps(dm, indent=2), encoding="utf-8")
+    else:
+        print(f"  dead money                 not implemented yet   {dm}")
     for name, fn in (
-        ("dead money", defects.score_dead_money),
-        ("obsolete", defects.score_obsolete),
         ("critical below justified", defects.score_critical_below_rop),
     ):
         r = fn(cfg)

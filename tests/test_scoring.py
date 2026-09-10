@@ -143,10 +143,15 @@ def test_emergent_scorers_report_truth_while_unimplemented(workspace, tmp_path):
     """
     The step-6 scorers must return the true totals even before anything computes
     them, so the console shows the size of the prize we have not yet claimed.
+    Dead money is claimed now (step 6a) and must grade itself against the truth.
     """
     cfg = RunConfig(preset="toy")
-    for fn in (defects.score_dead_money, defects.score_obsolete,
-               defects.score_critical_below_rop):
+    for fn in (defects.score_obsolete, defects.score_critical_below_rop):
         r = fn(cfg)
         assert r["status"] == "not_implemented"
         assert len(r) > 1, "an unimplemented scorer must still report the truth totals"
+    dm = defects.score_dead_money(cfg)
+    if dm["status"] == "not_implemented":
+        assert dm["true_dead_sar"] > 0
+    else:
+        assert dm["status"] == "scored" and dm["true_dead_sar"] > 0

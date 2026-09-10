@@ -70,6 +70,7 @@ def load(cfg: RunConfig) -> dict:
         ("backtest", "backtest_report.json"),
         ("frontier", "frontier.json"),
         ("dead_money", "dead_money_report.json"),
+        ("dead_money_score", "dead_money_score.json"),
     ):
         path = cfg.results_dir / name
         if path.exists():
@@ -594,6 +595,7 @@ def section_progress(doc: Document, data: dict) -> None:
     _step_three(doc, data)
     _step_four(doc, data)
     _step_five(doc, data)
+    _step_six(doc, data)
 
 
 def _step_date(data: dict) -> str:
@@ -1060,6 +1062,36 @@ def _step_five(doc: Document, data: dict) -> None:
     if fr:
         limits += fr.get("limits", [])[:1]
     _limits(doc, limits)
+
+
+def _step_six(doc: Document, data: dict) -> None:
+    rep, sc = data.get("dead_money"), data.get("dead_money_score")
+    if not rep or not sc:
+        return
+    h(doc, f"Stage 6a — Finding the dead money ourselves    "
+           f"({rep.get('generated_at', '')[:10]})", level=2)
+    para(doc, "Until now the dead-money figure came from the sealed answer key — the "
+              "size of the prize, not a finding. This is the finding. From what a planner "
+              "has — stock, which machines still exist, the maintenance schedule, the "
+              "duplicate check — the system names the money that will never come back, "
+              "part by part, with one reason each, valued at what the books carry it at.")
+    o = sc.get("obsolete", {})
+    table(doc, ["", "SAR"],
+          [["Truly dead, per the answer key", sar(sc.get("true_dead_sar"))],
+           ["Found by the system", f"{sar(sc.get('found_sar'))}  ({pct(sc.get('recall_sar'), 0)} of it)"],
+           ["Wrongly flagged", f"{sar(sc.get('wrongly_flagged_sar'))}  (precision {pct(sc.get('precision_sar'), 0)})"],
+           ["Missed", sar(sc.get("missed_sar"))]],
+          widths=[3.4, 3.0], highlight_last=False)
+    para(doc, f"Obsolete parts — the machine is gone — are a yes/no the plant can check: "
+              f"{num(o.get('truth'))} truly obsolete, {num(o.get('found'))} found, "
+              f"{num(o.get('missed'))} missed, {num(o.get('false'))} wrongly flagged.")
+    rows = [[c["label"], num(c["positions"]), sar(c["value_sar"])] for c in rep.get("by_category", [])]
+    if rows:
+        table(doc, ["Why it is dead", "Records", "Value"], rows, widths=[3.0, 1.2, 2.0])
+    para(doc, "The two figures sit side by side on the front page — what the answer key "
+              "says is dead, and what the system found. The write-off list is the third "
+              "tab of Recommendations.")
+    _limits(doc, rep.get("limits", [])[:2])
 
 
 def _limits(doc: Document, limits: list[str]) -> None:

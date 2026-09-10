@@ -52,6 +52,7 @@ from engine.classify import PERIOD
 
 REPORT_FILE = "forecast_report.json"
 FORECAST_FILE = "forecast.parquet"
+FORWARD_FILE = "forecast_forward.parquet"
 
 # TSB's two smoothing constants. Low values because MRO demand is sparse: react to
 # every event and the forecast chases noise.
@@ -264,7 +265,57 @@ def run(cfg: RunConfig) -> Forecast:
     report = _score_and_report(cfg, fitted, demand, panel, classes, eval_index,
                                train_index, used)
 
+    # The year AHEAD. Everything above is fitted to two years and graded on the
+    # third, which is the evidence. This is the same models refitted on all three
+    # years and run twelve months past the end of the data — the line a planner
+    # actually wants to see, and one that cannot be graded yet. The two are kept
+    # in separate files so nothing can quietly grade itself on the wrong one.
+    full_index = pd.period_range(cfg.history_start, cfg.history_end,
+                                 freq=PERIOD).to_timestamp()
+    forward_index = pd.period_range(
+        (pd.Timestamp(cfg.history_end) + pd.offsets.MonthBegin(1)).to_period(PERIOD),
+        periods=horizon, freq=PERIOD,
+    ).to_timestamp()
+    full_panel = _dense_panel(demand, classes, full_index).merge(
+        classes[["material_id", "storeroom_id", "demand_class", "never_moved"]],
+        on=["material_id", "storeroom_id"], how="left",
+    )
+    ahead = []
+    for cls, model_name in MODEL_FOR_CLASS.items():
+        sub_ = full_panel[(full_panel["demand_class"] == cls) & (~full_panel["never_moved"])]
+        if sub_.empty:
+            continue
+        fc = _fit_class(sub_, model_name, horizon)
+        fc["method"] = model_name
+        ahead.append(fc)
+    forward = (
+        pd.concat(ahead, ignore_index=True) if ahead
+        else pd.DataFrame(columns=["unique_id", "ds", "forecast", "method"])
+    )
+    if len(forward):
+        split = forward["unique_id"].str.split("|", n=1, expand=True)
+        forward["material_id"] = split[0]
+        forward["storeroom_id"] = split[1]
+        # the fitted horizon is dated from the cut-off; re-date it to the year ahead
+        step = {d: forward_index[k] for k, d in enumerate(sorted(forward["ds"].unique())[:horizon])}
+        forward["ds"] = forward["ds"].map(step)
+    if len(never):
+        grid = rate.merge(pd.DataFrame({"ds": forward_index}), how="cross")
+        grid["forecast"] = grid["forecast_monthly"]
+        forward = pd.concat(
+            [forward, grid[["material_id", "storeroom_id", "ds", "forecast", "method"]]],
+            ignore_index=True,
+        )
+    known_ahead = _known_future_demand(cfg, materials, work_orders, shutdowns, forward_index)
+    if len(known_ahead):
+        forward = forward.merge(known_ahead, on=["material_id", "ds"], how="left")
+        forward["known_qty"] = forward["known_qty"].fillna(0.0)
+    else:
+        forward["known_qty"] = 0.0
+    forward["forecast_total"] = forward["forecast"] + forward["known_qty"]
+
     cfg.results_dir.mkdir(parents=True, exist_ok=True)
+    forward.to_parquet(cfg.results_dir / FORWARD_FILE, index=False)
     fitted.to_parquet(cfg.results_dir / FORECAST_FILE, index=False)
     (cfg.results_dir / REPORT_FILE).write_text(json.dumps(report, indent=2),
                                                encoding="utf-8")
