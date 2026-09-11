@@ -26,6 +26,18 @@ assistant needs `ANTHROPIC_API_KEY` in the environment or in a git-ignored `.env
 `cli.py` (an OpenRouter key works too — recognised by its `sk-or-` prefix); without one the
 page says so and everything else works.
 
+## Run it with Docker
+
+```
+docker compose up --build      # http://localhost:8000
+```
+
+First start builds the `full` preset (~4 min) and caches it under `./data` (bind-mounted,
+survives restarts); later starts skip straight to serving. Pass a different preset via the
+image `CMD`, e.g. `docker run -p 8000:8000 -v ./data:/app/data maaden-mro-poc toy`. Set
+`ANTHROPIC_API_KEY` in the shell environment before `docker compose up` to enable the
+assistant — same "unavailable" fallback as running it bare.
+
 ## Read first
 
 - [`HANDOVER.md`](HANDOVER.md) — status, what is done, what to avoid. **Start here.**

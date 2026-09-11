@@ -1320,3 +1320,24 @@ Reasoning: Asked for. A chat window — header, messages oldest to newest, avata
            is not a regression.
 Rejected: streaming (the answer is two sentences; a spinner is honest enough); server-
           side session state (the browser already holds the conversation).
+
+
+## 2026-09-11 — Dockerize the POC: single-stage image, entrypoint script skips a rebuild if results exist
+Model: Sonnet 5
+Type: decision
+Reasoning: The client needs to run this without a Python 3.12 toolchain. A single
+           `python:3.12-slim` stage installing `.[engine,report,api]` (the `chat` extra
+           is unused — `api/chat.py` talks to the model over `urllib`, no `anthropic`
+           import) keeps the image simple and auditable, matching the "no new dependency
+           without asking" rule — Docker itself is tooling, not a project dependency.
+           `docker-entrypoint.sh` checks for `data/<preset>/results/summary.json` before
+           running `cli.py all`, so a restart with the `./data` bind mount serves
+           immediately instead of re-running the ~4 min full-preset pipeline every time.
+           Verified live: built the image, ran it on `toy`, confirmed the dashboard and
+           `/api/summary` respond, then restarted the container and confirmed it skipped
+           straight to `serve`.
+Rejected: multi-stage build (no compiled-artifact size win here — pandas/scikit-learn
+          wheels dominate either way); a non-root image user (POC-only, runs on a demo
+          laptop, not worth the extra complexity yet — revisit before Phase 1); baking
+          `ANTHROPIC_API_KEY` into the image (secrets never enter the repo or the image;
+          it's passed at `docker run`/`compose up` time from the shell environment).

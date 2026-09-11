@@ -112,6 +112,15 @@ equipment being decommissioned mid-history. Only *data* defects are planted.
 > there. Do not tune the generator to make toy land in the industry band — that is
 > fitting to noise.
 
+## Docker (2026-09-11)
+
+`Dockerfile` + `docker-entrypoint.sh` + `docker-compose.yml` added — `docker compose up
+--build` builds/serves the `full` preset at `localhost:8000`, bind-mounting `./data` so a
+restart skips straight to `serve` instead of rebuilding. Verified end-to-end on `toy`
+(container ran `all`, served the dashboard and `/api/summary`, then reused cached results
+on restart). See `DECISIONS.md` 2026-09-11 for what's deliberately left out (multi-stage
+build, non-root user) and why.
+
 ## The levels — how they are set now (2026-09-10, third pass)
 
 Three rules, in this order, and the order matters:
