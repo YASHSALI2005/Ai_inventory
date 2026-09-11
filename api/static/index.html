@@ -77,6 +77,7 @@ nav .foot{margin-top:auto;padding:16px 24px 0;border-top:1px solid var(--line);
   font-family:Consolas,monospace;font-size:10.5px;color:var(--faint);line-height:1.8}
 main{padding:44px 40px 90px}
 .page{max-width:1080px;margin:0 auto}
+.page.wide{max-width:1320px}
 
 /* ── type ─────────────────────────────────────────────────────────────────── */
 header.ph{margin-bottom:36px}
@@ -232,22 +233,10 @@ input[type=search]{min-width:290px}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 @media (prefers-reduced-motion:reduce){.anim .bar,.anim .col,.anim .line,.anim .pt{animation:none;stroke-dashoffset:0}}
 .storepick{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 16px}
-/* scenario slider under the frontier */
-.scenario{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
-.scenario .s{background:var(--tint);border-radius:6px;padding:12px 14px}
-.scenario .s .k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
-.scenario .s .v{font-family:"Cascadia Mono",Consolas,Menlo,monospace;font-size:20px;font-weight:600;
-  margin-top:6px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-.scenario .s .d{font-size:12.5px;color:var(--muted);margin-top:3px}
-.scenario .s .d b{color:var(--ink-2)}
-.scen-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;
-  margin-top:14px;font-size:14px;color:var(--ink-2)}
-.scen-head b{color:var(--accent);font-size:16px}
-.scen-head input[type=range]{width:min(420px,100%);accent-color:var(--accent)}
 .handle{cursor:grab}
 /* chat — a chat window: header, scrolling messages, composer pinned at the bottom */
 .chatwin{background:var(--surface);border-radius:12px;box-shadow:var(--shadow);display:flex;
-  flex-direction:column;height:calc(100vh - 250px);min-height:520px;overflow:hidden}
+  flex-direction:column;height:calc(100vh - 170px);min-height:680px;overflow:hidden}
 .chathead{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line)}
 .avatar{width:34px;height:34px;border-radius:50%;background:var(--accent);color:#fff;display:flex;
   align-items:center;justify-content:center;font-weight:700;font-size:13px;letter-spacing:.02em;flex:0 0 auto}
@@ -302,7 +291,7 @@ input[type=search]{min-width:290px}
 .composer .send[disabled]{opacity:.35;cursor:default}
 .composer .send svg{width:20px;height:20px}
 .chatfoot{font-size:12px;color:var(--muted);text-align:center;padding:6px 0 0}
-.shell.present .chatwin{height:calc(100vh - 210px)}
+.shell.present .chatwin{height:calc(100vh - 150px)}
 .shell.present .bubble{font-size:19px}
 .shell.present .composer input{font-size:18px}
 
@@ -510,6 +499,9 @@ const Mshort = n => M(n).replace("SAR ", "");
 const num = n => (n === null || n === undefined ? "—" : Math.round(n).toLocaleString("en-US"));
 const num1 = n => (n === null || n === undefined ? "—"
   : (Math.round(n * 10) / 10).toLocaleString("en-US"));
+// EA (each) and quantity mean the same thing to a reader; every other unit
+// (KG, BOX, DR, M…) is a real distinction and is shown as the data has it.
+const qtyUnit = u => (u === "EA" ? "QTY" : (u || ""));
 const pct = n => {
   if (n === null || n === undefined || Number.isNaN(n)) return "—";
   const v = n * 100;
@@ -602,7 +594,6 @@ const TIP = {
   saved: "What buying this quantity would have cost. Moving it costs nothing but a truck.",
   mix: "How the parts in each store move. Darker is steadier.",
   plantline: "Units given out across the whole plant, every month. The forecast is laid over the last year — the year the system was never shown — so the two can be compared.",
-  frontier: "The same year replayed at ten service levels. Right and low is better: fewer days waiting for less capital.",
 };
 
 function Info({ text }) {
@@ -618,7 +609,7 @@ function Tag({ kind, value, tip }) {
 function Action({ value, qty, uom }) {
   const a = ACTION[value] || ACTION.nothing_needed;
   const label = value === "order_now" && qty > 0
-    ? "Order " + num1(qty) + " " + (uom || "") : a.label;
+    ? "Order " + num1(qty) + " " + qtyUnit(uom) : a.label;
   return html`<span className=${"act " + a.cls}>${label}</span>`;
 }
 function Tile({ label, value, tip, key_, sub, note }) {
@@ -630,13 +621,12 @@ function Tile({ label, value, tip, key_, sub, note }) {
       ${note && html`<p className="note">${note}</p>`}
     </div>`;
 }
-function Page({ title, lede, extra, children }) {
+function Page({ title, extra, wide, children }) {
   return html`
-    <div className="page">
+    <div className=${"page" + (wide ? " wide" : "")}>
       <header className="ph">
         <h1>${title}</h1>
         ${extra}
-        ${lede && html`<div className="howto"><b>How to read this page:</b> ${lede}</div>`}
       </header>
       ${children}
     </div>`;
@@ -746,11 +736,11 @@ function RowsTable({ rows, setOpen }) {
           <tr key=${i} className="click" onClick=${() => setOpen([r.material_id, r.storeroom_id || r.to_storeroom])}>
             <td className="item"><div className="d">${r.description}</div><div className="sub">${r.material_id}${r.criticality ? " · " + r.criticality + "-critical" : ""}</div></td>
             ${isMove ? html`<td className="strong nw">${r.from_storeroom} → ${r.to_storeroom}</td>
-                <td className="n">${num1(r.qty)} <span className="u">${r.uom}</span></td><td className="n acc">${M(r.value_sar)}</td>`
+                <td className="n">${num1(r.qty)} <span className="u">${qtyUnit(r.uom)}</span></td><td className="n acc">${M(r.value_sar)}</td>`
               : isDead ? html`<td className="nw">${r.storeroom_id}</td><td className="nw"><${Tag} value=${r.category_label} /></td>
                 <td className="n acc">${M(r.dead_value_sar)}</td>`
               : html`<td className="nw">${r.storeroom_id}</td><td className="nw"><${Action} value=${r.action} qty=${r.order_now_qty} uom=${r.uom} /></td>
-                <td className="n">${num1(r.on_hand)} <span className="u">${r.uom}</span></td>
+                <td className="n">${num1(r.on_hand)} <span className="u">${qtyUnit(r.uom)}</span></td>
                 <td className="n">${num1(r.reorder_point)}</td><td className="n">${M(r.cost_to_level_sar)}</td>`}
           </tr>`)}</tbody>
       </table></div>
@@ -830,16 +820,13 @@ function Chat({ setOpen, ask: preset }) {
   };
 
   return html`
-    <${Page} title="Ask"
-             lede=${"a chat with the storeroom data. The assistant answers only from results "
-                    + "the system has already written and shows the rows behind every answer. "
-                    + "It never does arithmetic — if a number is not in the results, it says so."}>
+    <${Page} title="Ask" wide=${true}>
       <div className="chatwin">
         <div className="chathead">
           <div className="avatar">✦</div>
           <div><div className="who">Inventory assistant</div>
             <div className="st"><i className=${ready ? "" : "off"}></i>
-              ${status ? (ready ? "reads results/ only · " + (status.model || "") : "unavailable — no key") : "connecting…"}</div></div>
+              ${status ? (ready ? "reads results/ only" : "unavailable — no key") : "connecting…"}</div></div>
           <div className="tools">
             ${msgs.length > 1 && html`<button onClick=${() => setMsgs([WELCOME(ready)])}>New chat</button>`}
           </div>
@@ -878,7 +865,7 @@ function Failed({ what, detail }) {
 }
 
 /* ── 1 · dashboard ────────────────────────────────────────────────────────── */
-function Dashboard({ summary, stores, bt, fr, store, setStore, dead }) {
+function Dashboard({ summary, stores, bt, store, setStore, dead }) {
   const inv = summary.inventory, run = summary.run;
   const found = dead && dead.score ? dead.score : null;
   const ch = (bt && bt.change) || {};
@@ -904,10 +891,7 @@ function Dashboard({ summary, stores, bt, fr, store, setStore, dead }) {
     <${Page} title="Dashboard"
              extra=${html`<div className="dateline">Data <b>${start} – ${end}</b> ·
                learned to <b>${learned}</b> · forecast <b>${fcStart} – ${end}</b> over what
-               actually happened · year ahead <b>${aheadStart} – ${aheadEnd}</b></div>`}
-             lede=${"four numbers, then four pictures. The numbers are the size of the "
-                    + "problem and the size of the improvement; the pictures are where "
-                    + "the stock is, how it moves, and what a service level costs."}>
+               actually happened · year ahead <b>${aheadStart} – ${aheadEnd}</b></div>`}>
       ${rows.length > 0 && html`
         <div className="storepick">
           <span className="chiplab" style=${{ width: "auto" }}>Show</span>
@@ -954,11 +938,6 @@ function Dashboard({ summary, stores, bt, fr, store, setStore, dead }) {
               <${Info} text=${TIP.plantline} /></div>
             <${PlantLine} plant=${scope && scope.series ? scope.series : stores.plant} key=${store || "plant"} />
           </div>
-          ${fr && fr.curve && html`
-            <div className="chartbox wide">
-              <div className="chart-title">What a service level costs — drag the handle <${Info} text=${TIP.frontier + " Drag the handle along the curve: the four figures below are read from the same replay, nothing is computed live."} /></div>
-              <${Scenario} fr=${fr} />
-            </div>`}
         </div>`}
       <div className="aside">
         Stock value and money that will never come back are measured from the sealed
@@ -1003,9 +982,7 @@ function StoreList({ store, setOpen, onBack }) {
   }, [store, page]);
   if (!data) return html`<${Loading} />`;
   return html`
-    <${Page} title=${store}
-             lede=${"every part kept in this store, most urgent first — one line each. "
-                    + "Click a line for the full story."}>
+    <${Page} title=${store}>
       <button className="back" onClick=${onBack}>← All storerooms</button>
       <div className="headline"><b>${num(data.needs_action)} parts need action here.</b>
         ${" "}<span className="acc">${M(data.cost_to_level_sar)}</span> would bring them back
@@ -1018,7 +995,7 @@ function StoreList({ store, setOpen, onBack }) {
             <tr key=${r.material_id} className="click" onClick=${() => setOpen([r.material_id, r.storeroom_id])}>
               <td className="strong">${r.description}</td>
               <td><${Tag} kind="c" value=${r.demand_class} tip=${CLASS_TIP[r.demand_class]} /></td>
-              <td className="n">${num1(r.on_hand)} <span className="u">${r.uom}</span></td>
+              <td className="n">${num1(r.on_hand)} <span className="u">${qtyUnit(r.uom)}</span></td>
               <td className="n">${M(r.value_sar)}</td>
               <td><${Action} value=${r.action} qty=${r.order_now_qty} uom=${r.uom} /></td>
             </tr>`)}</tbody>
@@ -1037,10 +1014,7 @@ function Storerooms({ stores, setOpen, store, setStore }) {
   if (store) return html`<${StoreList} store=${store} setOpen=${setOpen} onBack=${() => setStore("")} />`;
   const moves = stores.transfers || [];
   return html`
-    <${Page} title="Storerooms"
-             lede=${"one card per store, and under them the stock that is in the wrong "
-                    + "place — money the plant already owns and does not need to spend "
-                    + "again. Click a card for that store's parts."}>
+    <${Page} title="Storerooms">
       <div className="cards">
         ${stores.by_storeroom.map(r => html`<${StoreCard} key=${r.storeroom_id} r=${r} onOpen=${setStore} />`)}
       </div>
@@ -1062,7 +1036,7 @@ function Storerooms({ stores, setOpen, store, setStore }) {
             <tr key=${i} className="click" onClick=${() => setOpen([r.material_id, r.to_storeroom])}>
               <td className="item"><div className="d">${r.description}</div>
                 <div className="sub">${r.to_storeroom} has ${num1(r.to_on_hand)} and needs ${num1(r.to_reorder_point)}</div></td>
-              <td className="n">${num1(r.qty)} <span className="u">${r.uom}</span></td>
+              <td className="n">${num1(r.qty)} <span className="u">${qtyUnit(r.uom)}</span></td>
               <td className="strong nw">${r.from_storeroom} → ${r.to_storeroom}</td>
               <td><span className=${"crit " + r.criticality}>${r.criticality}</span></td>
               <td className="n acc">${M(r.value_sar)}</td>
@@ -1109,10 +1083,7 @@ function Board({ setOpen }) {
     : r.runs_out_date ? "runs out " + dateShort(r.runs_out_date) : "not on current use");
 
   return html`
-    <${Page} title="Stock board"
-             lede=${"one row per part in one storeroom, most urgent first. The second "
-                    + "column says what to do and is the only one you have to read. For "
-                    + "anything below its level, the two dates say how long you have."}>
+    <${Page} title="Stock board">
       <div className="headline">
         <b>${num(data.needs_action)} parts need action today.</b>
         ${" "}<span className="acc">${M(data.cost_to_level_sar)}</span> would bring every one
@@ -1182,7 +1153,7 @@ function Board({ setOpen }) {
                 <td><${Spark} values=${r.usage_12m} /></td>
                 <td><span className=${"crit " + r.criticality}>${r.criticality}</span></td>
                 <td className=${"n " + (r.on_hand <= 0 ? "strong" : "")}>${num1(r.on_hand)}
-                  <span className="u">${" " + r.uom}</span></td>
+                  <span className="u">${" " + qtyUnit(r.uom)}</span></td>
                 <td className="n strong">${num1(r.reorder_point)}
                   <div className="sub" style=${{ textAlign: "right" }}>old rule ${num1(r.min_qty)}</div></td>
                 <td className="n">${M(r.value_sar)}</td>
@@ -1224,10 +1195,7 @@ function Recommendations({ setOpen }) {
     ["writeoff", "Write off / review", w.count, w.total_sar],
   ];
   return html`
-    <${Page} title="Recommendations"
-             lede=${"three lists a planner can act on today, each ranked by money. Order "
-                    + "is what to buy and by when; Move is what to shift between stores "
-                    + "instead of buying; Write off is what to stop carrying."}>
+    <${Page} title="Recommendations">
       <div className="tabs">
         ${tabs.map(([k, name, count, total]) => html`
           <button key=${k} className=${"tab" + (tab === k ? " on" : "")} onClick=${() => setTab(k)}>
@@ -1250,7 +1218,7 @@ function Recommendations({ setOpen }) {
               <td className="item"><div className="d">${r.description}</div>
                 <div className="sub">${r.material_id} · ${r.storeroom_id} · <span className=${"crit " + r.criticality}>${r.criticality}</span>
                   ${" · " + num1(r.on_hand) + " on shelf, level " + num1(r.reorder_point)}</div></td>
-              <td className="n strong">${num1(r.order_now_qty)} <span className="u">${r.uom}</span></td>
+              <td className="n strong">${num1(r.order_now_qty)} <span className="u">${qtyUnit(r.uom)}</span></td>
               <td className="strong nw">${orderBy(r)}</td>
               <td className="n acc">${M(r.order_cost_sar)}</td>
               <td className="dim" style=${{ fontSize: "13px" }}>${r.reason}</td>
@@ -1271,7 +1239,7 @@ function Recommendations({ setOpen }) {
               <td className="item"><div className="d">${r.description}</div>
                 <div className="sub">${r.to_storeroom} has ${num1(r.to_on_hand)} and needs ${num1(r.to_reorder_point)}</div></td>
               <td className="strong">${r.from_storeroom} → ${r.to_storeroom}</td>
-              <td className="n">${num1(r.qty)} <span className="u">${r.uom}</span></td>
+              <td className="n">${num1(r.qty)} <span className="u">${qtyUnit(r.uom)}</span></td>
               <td className="n acc">${M(r.value_sar)}</td>
             </tr>`)}</tbody>
         </table></div>`}
@@ -1296,7 +1264,7 @@ function Recommendations({ setOpen }) {
             <tr key=${r.material_id + r.storeroom_id} className="click" onClick=${() => setOpen([r.material_id, r.storeroom_id])}>
               <td className="item"><div className="d">${r.description}</div>
                 <div className="sub">${r.material_id} · <span className=${"crit " + r.criticality}>${r.criticality}</span>
-                  ${" · " + num1(r.dead_qty) + " of " + num1(r.on_hand) + " " + r.uom + " is dead"}</div></td>
+                  ${" · " + num1(r.dead_qty) + " of " + num1(r.on_hand) + " " + qtyUnit(r.uom) + " is dead"}</div></td>
               <td className="strong nw">${r.storeroom_id}</td>
               <td className="n acc">${M(r.dead_value_sar)}</td>
               <td className="nw"><${Tag} value=${r.category_label} /></td>
@@ -1562,48 +1530,6 @@ function Frontier({ fr, compact, handle, onDrag, pts: sorted, t }) {
     </div>`;
 }
 
-/* The scenario slider. The handle moves along the measured curve; the four figures
-   are linear interpolation between the two nearest sampled points of the SAME
-   replay, so nothing is computed live and nothing can disagree with the evidence
-   page. Deltas are against the plant's own levels today.                        */
-function Scenario({ fr }) {
-  const pts = fr.curve.slice().sort((a, b) => a.service_level - b.service_level);
-  const ours = fr.recommended, plant = fr.baseline;
-  const startAt = () => {
-    // open on the sampled point nearest our recommendation's total cost
-    let k = 0;
-    pts.forEach((p, i) => { if (Math.abs(p.total_cost_sar - ours.total_cost_sar) < Math.abs(pts[k].total_cost_sar - ours.total_cost_sar)) k = i; });
-    return k * 100;
-  };
-  const [t, setT] = useState(startAt);          // 0 .. (n-1)*100
-  const n = pts.length;
-  const i = Math.min(n - 2, Math.floor(t / 100)), f = t / 100 - i;
-  const lerp = k => pts[i][k] + (pts[i + 1][k] - pts[i][k]) * f;
-  const at = { service_level: lerp("service_level"), stockout_days: lerp("stockout_days"),
-               avg_capital_sar: lerp("avg_capital_sar"), total_cost_sar: lerp("total_cost_sar"),
-               orders_placed: lerp("orders_placed") };
-  const d = (k, money) => {
-    const v = (at[k] - plant[k]) / plant[k];
-    return html`<div className="d"><b>${signPct(v)}</b> vs the plant today${money ? " (" + M(plant[k]) + ")" : " (" + num(plant[k]) + ")"}</div>`;
-  };
-  return html`
-    <div>
-      <${Frontier} fr=${fr} compact handle=${at} onDrag=${x => setT(x)} pts=${pts} t=${t} />
-      <div className="scen-head">
-        <span>Every part held to <b>${pct1(at.service_level)}</b> service</span>
-        <input type="range" min="0" max=${(n - 1) * 100} value=${t} onInput=${e => setT(+e.target.value)}
-               aria-label="service level" />
-        <span className="dim">ours, per part: ${M(ours.avg_capital_sar)} · ${num(ours.stockout_days)} days · ${M(ours.total_cost_sar)}</span>
-      </div>
-      <div className="scenario">
-        <div className="s"><div className="k">Value on the shelves</div><div className="v">${M(at.avg_capital_sar)}</div>${d("avg_capital_sar", true)}</div>
-        <div className="s"><div className="k">Days waiting for a part</div><div className="v">${num(at.stockout_days)}</div>${d("stockout_days")}</div>
-        <div className="s"><div className="k">All costs together</div><div className="v">${M(at.total_cost_sar)}</div>${d("total_cost_sar", true)}</div>
-        <div className="s"><div className="k">Purchase orders</div><div className="v">${num(at.orders_placed)}</div>${d("orders_placed")}</div>
-      </div>
-    </div>`;
-}
-
 /* The drawer's chart. Forecast laid OVER the last twelve months, not after them —
    those twelve are the year the system was tested on, and the point of the
    picture is that the two series can be compared.                              */
@@ -1706,10 +1632,7 @@ function Evidence({ summary, score, bt, fc, fr }) {
       <td className="n">${money ? M(p[key]) : num(p[key])}</td>
       <td className=${"n " + (ch[key] < 0 ? "strong" : "dim")}>${signPct(ch[key])}</td></tr>`;
   return html`
-    <${Page} title="Evidence"
-             lede=${"written for engineers. This is the only page that uses technical "
-                    + "words. Every figure is graded against something: a sealed answer "
-                    + "key, or a year the system never saw."}>
+    <${Page} title="Evidence">
       <p className="lede-p">
         In plain words: of the ${num(s.planted)} faults hidden in the data, the checks found
         ${" "}<b>${pct(s.recall)}</b> and raised false alarms on <b>${num(s.false_alarms)}</b> records.
@@ -1817,18 +1740,18 @@ function Drawer({ id, onClose }) {
       <div className="body">
         <div className="stats">
           <div className="stat"><div className="k">On the shelf <${Info} text=${TIP.on_hand} /></div>
-            <div className="v">${num1(d.on_hand)}</div><div className="u">${d.uom}</div></div>
+            <div className="v">${num1(d.on_hand)}</div><div className="u">${qtyUnit(d.uom)}</div></div>
           <div className="stat"><div className="k">Last used <${Info} text=${TIP.last_issued} /></div>
             <div className="v">${d.last_issue_date ? dateShort(d.last_issue_date) : "never"}</div>
             <div className="u">${d.last_issue_date ? "" : "in three years"}</div></div>
           <div className="stat"><div className="k">Expected use <${Info} text=${TIP.forecast6} /></div>
-            <div className="v">${num1(d.forecast_6m / 6)}</div><div className="u">${d.uom} a month, next 6</div></div>
+            <div className="v">${num1(d.forecast_6m / 6)}</div><div className="u">${qtyUnit(d.uom)} a month, next 6</div></div>
           <div className="stat"><div className="k">Value on shelf <${Info} text=${TIP.value_on_shelf} /></div>
             <div className="v">${M(d.value_sar)}</div><div className="u">at book value</div></div>
         </div>
         <h2>Three years of movement, with the forecast over the last one</h2>
         <${UsageChart} usage=${usage} forecast=${fc} planned=${planned} trainMonths=${d.train_months}
-                       startMonth=${d.months_start} uom=${d.uom} />
+                       startMonth=${d.months_start} uom=${qtyUnit(d.uom)} />
         ${d.elsewhere && d.elsewhere.length > 0 && html`
           <h2>Also kept in other stores</h2>
           <div className="card"><table>
@@ -1840,14 +1763,14 @@ function Drawer({ id, onClose }) {
         <h2>Why this number</h2>
         <div className="why">
           <p>This part was given out ${d.issues_24m === 0 ? "not once" : num(d.issues_24m) + (d.issues_24m === 1 ? " time" : " times")}
-            ${" "}in the last 24 months${d.issues_24m > 0 ? html`, ${num1(d.qty_24m)} ${d.uom} in total — about ${" " + num1(monthly)} ${d.uom} a month` : ""}.
+            ${" "}in the last 24 months${d.issues_24m > 0 ? html`, ${num1(d.qty_24m)} ${qtyUnit(d.uom)} in total — about ${" " + num1(monthly)} ${qtyUnit(d.uom)} a month` : ""}.
             So it moves <b>${(CLASS_LABEL[d.demand_class] || d.demand_class).toLowerCase()}</b>
             ${" "}(roughly every ${num1(d.adi)} months; the technical name is ${" " + d.demand_class}), which is why it is
             planned with ${d.forecast_method}.
-            ${d.planned_wo_qty > 0 ? html` On top of that, ${num1(d.planned_wo_qty)} ${" " + d.uom} was already on the
+            ${d.planned_wo_qty > 0 ? html` On top of that, ${num1(d.planned_wo_qty)} ${" " + qtyUnit(d.uom)} was already on the
               maintenance schedule for the tested year — known, not predicted.` : ""}
             ${d.shutdown_qty_per_event > 0 ? html` Outages are kept out of the buffer: this part drew about
-              ${" " + num1(d.shutdown_qty_per_event)} ${d.uom} per shutdown, and that is scheduled as its own demand
+              ${" " + num1(d.shutdown_qty_per_event)} ${qtyUnit(d.uom)} per shutdown, and that is scheduled as its own demand
               ${d.next_shutdown_date ? " for the next one, starting " + dateShort(d.next_shutdown_date) : ""}${d.shutdown_due_qty > 0 ? " — it is inside this order" : ""}.` : ""}</p>
           <p>The plant's existing rule reorders at <b>${num1(d.min_qty)}</b> and fills to <b>${num1(d.max_qty)}</b>.
             We reorder at <b>${num1(d.reorder_point)}</b> and fill to <b>${num1(d.order_up_to)}</b>${" "}
@@ -1886,7 +1809,7 @@ function Drawer({ id, onClose }) {
 const SCREENS = [
   { key: "", name: "Dashboard" },
   { key: "storerooms", name: "Storerooms" },
-  { key: "board", name: "Stock board" },
+  { key: "board", name: "Stockboard" },
   { key: "recommendations", name: "Recommendations" },
   { key: "chat", name: "Ask" },
 ];
@@ -1991,7 +1914,7 @@ function App() {
     : route.screen === "recommendations" ? html`<${Recommendations} setOpen=${setOpen} />`
     : route.screen === "chat" ? html`<${Chat} setOpen=${setOpen} ask=${route.ask} />`
     : route.screen === "evidence" ? html`<${Evidence} summary=${state.summary} score=${state.score} bt=${state.bt} fc=${state.fc} fr=${state.fr} />`
-    : html`<${Dashboard} summary=${state.summary} stores=${state.stores} bt=${state.bt} fr=${state.fr}
+    : html`<${Dashboard} summary=${state.summary} stores=${state.stores} bt=${state.bt}
                           store=${route.focus} setStore=${setFocus} dead=${state.dead} />`;
 
   return html`
